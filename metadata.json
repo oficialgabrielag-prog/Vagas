@@ -1,0 +1,7 @@
+{
+  "name": "vagas_emprego_marketplace",
+  "description": "Plataforma profissional de emprego e marketplace para Cunene, Angola",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

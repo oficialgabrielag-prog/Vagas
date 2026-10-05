@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cunenevagas.ao/sitemap.xml
