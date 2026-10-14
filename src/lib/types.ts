@@ -35,12 +35,15 @@ export interface CandidateProfile {
   languages?: string[];
   certificates?: string[];
   cv_url?: string;
+  cover_url?: string;
   availability?: string;
   headline?: string;
   experience_years?: number;
   experiences?: ExperienceItem[];
   educations?: EducationItem[];
   created_at: string;
+  is_email_verified?: boolean;
+  email_confirmed_at?: string | null;
 }
 
 // ==========================================
@@ -56,6 +59,7 @@ export interface CompanyProfile {
   municipality: string;
   description: string;
   nif?: string;
+  slogan?: string;
   phone?: string;
   whatsapp?: string;
   address?: string;
@@ -86,6 +90,36 @@ export interface UserProfile extends CandidateProfile {
   following_count?: number;
   cover_url?: string;
   marketplace_unlocked?: boolean;
+  is_admin?: boolean;
+  is_partner?: boolean;
+  partner_title?: string;
+  is_email_verified?: boolean;
+  email_confirmed_at?: string | null;
+}
+
+export interface CompanyRating {
+  id: string;
+  company_id: string;
+  user_id: string;
+  user_name: string;
+  user_avatar?: string;
+  rating: number; // 1 to 5
+  comment?: string;
+  created_at: string;
+}
+
+export interface PlatformPartner {
+  id: string;
+  user_id: string; // The mentioned platform user or company id
+  user_name: string;
+  user_email?: string;
+  role: 'employer' | 'candidate' | string;
+  partner_title: string; // e.g. "Parceiro Estratégico", "Parceiro Oficial de Tecnologia"
+  description?: string;
+  badge_label?: string; // e.g. "Parceiro Oficial"
+  avatar_url?: string;
+  municipality?: string;
+  created_at: string;
 }
 
 export interface ExamQuestion {
@@ -95,6 +129,7 @@ export interface ExamQuestion {
   question_type: 'multiple_choice' | 'true_false' | 'short_answer';
   options?: string[];
   correct_answer: string;
+  explanation?: string;
   points: number;
   is_required: boolean;
 }
@@ -108,6 +143,7 @@ export interface Exam {
   passing_score: number;
   max_attempts: number;
   is_required: boolean; // Added
+  is_simulated?: boolean; // True para simulados/testes preparatórios de treino
   questions: ExamQuestion[];
   created_at: string;
 }
@@ -116,7 +152,9 @@ export interface ExamAttempt {
   id: string;
   exam_id: string;
   candidate_id: string;
+  candidate_name?: string;
   job_id: string; // Added for easier filtering
+  job_title?: string;
   application_id?: string; // Added link to application
   score: number;
   total_points: number;
@@ -124,8 +162,10 @@ export interface ExamAttempt {
   passed: boolean;
   time_spent_seconds: number;
   status: 'completed' | 'in_progress';
+  is_simulated?: boolean; // True para testes simulados (não contabilizados em relatórios reais)
   created_at: string;
   exam?: Exam;
+  answers?: Record<string, string>;
 }
 
 export interface Job {
@@ -208,6 +248,18 @@ export interface PostComment {
 
 export type PostReactionType = 'like' | 'love' | 'haha' | 'wow' | 'celebrate' | 'sad';
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: string[]; // array de IDs de utilizadores
+}
+
+export interface PostPoll {
+  options: PollOption[];
+  expires_at?: string;
+  total_votes?: number;
+}
+
 export interface CommunityPost {
   id: string;
   author_id: string; // auth.users.id
@@ -219,12 +271,15 @@ export interface CommunityPost {
   company_id?: string;
   content: string;
   image_url?: string;
+  poll?: PostPoll; // Added support for polls
   category?: 'Emprego' | 'Negócios' | 'Dicas' | 'Formação' | 'Empresas' | 'Marketplace' | 'Geral';
   likes_count: number;
   comments_count: number;
   comments?: PostComment[];
   reactions?: Record<string, PostReactionType>;
   user_reaction?: PostReactionType;
+  is_edited?: boolean; // Added
+  reports_count?: number; // Added for moderation
   created_at: string;
   liked_by_user?: boolean;
 }
@@ -237,6 +292,20 @@ export interface NotificationItem {
   read: boolean;
   created_at: string;
   link?: string;
+  sender_name?: string; // e.g. "Notificação do Sistema"
+  is_system?: boolean;
+}
+
+export interface FollowerItem {
+  id: string; // Follower user ID
+  name: string;
+  avatar_url?: string;
+  role: UserRole;
+  municipality?: string;
+  profession?: string;
+  target_id: string; // Target company or user ID
+  target_name?: string;
+  created_at: string;
 }
 
 export const CUNENE_MUNICIPALITIES = [
@@ -270,3 +339,44 @@ export const COMMUNITY_CATEGORIES = [
   'Empresas',
   'Marketplace'
 ] as const;
+
+export interface PlatformUserInfo {
+  id: string;
+  name: string;
+  email: string;
+  role: 'candidate' | 'employer' | 'admin' | string;
+  municipality?: string;
+  avatar_url?: string;
+  whatsapp?: string;
+  created_at?: string;
+}
+
+export interface PlatformStats {
+  totalUsers: number;
+  totalCandidates: number;
+  totalEmployers: number;
+  totalPosts: number;
+  totalJobs: number;
+  totalProducts: number;
+  totalExams: number;
+  users: PlatformUserInfo[];
+}
+
+export interface TelecomNewsItem {
+  id: string;
+  operator_name: string; // 'UNITEL' | 'Africell' | 'Movicel' | 'Angola Telecom' | 'Zap Fibra' | string;
+  title: string;
+  summary: string;
+  content: string;
+  image_url?: string;
+  badge?: string; // 'Cobertura 4G/5G' | 'Expansão de Rede' | 'Fibra Óptica' | 'Tarifários' | 'Comunicado'
+  municipality?: string;
+  source_url?: string;
+  company_id?: string;
+  author_name?: string;
+  likes_count?: number;
+  views_count?: number;
+  is_featured?: boolean;
+  published_at: string;
+  created_at: string;
+}

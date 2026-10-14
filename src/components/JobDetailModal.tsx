@@ -12,6 +12,8 @@ interface JobDetailModalProps {
   onOpenAuth: () => void;
   onSuccessApply: () => void;
   onOpenExam: (exam: Exam, applicationId: string, job?: Job) => void;
+  onSelectCompany?: (company: UserProfile) => void;
+  companies?: UserProfile[];
 }
 
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -21,11 +23,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   currentUser,
   onOpenAuth,
   onSuccessApply,
-  onOpenExam
+  onOpenExam,
+  onSelectCompany,
+  companies = []
 }) => {
   const [coverLetter, setCoverLetter] = useState('');
   const [cvUrl, setCvUrl] = useState(currentUser?.cv_url || '');
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [parsingCv, setParsingCv] = useState(false);
+  const [cvParsedNotice, setCvParsedNotice] = useState(false);
+  const [autoFilledFields, setAutoFilledFields] = useState<{ profession?: boolean; municipality?: boolean; summary?: boolean }>({});
   const [cvFileName, setCvFileName] = useState('');
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +64,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
     setUploadingCv(true);
     setError('');
+    setCvParsedNotice(false);
+
     try {
       const url = await uploadDocumentToCloudinary(file);
       if (url.startsWith('blob:') || url.startsWith('data:')) {
@@ -64,14 +73,52 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       }
       setCvUrl(url);
       setCvFileName(file.name);
+
+      // Automatic CV text extraction and Gemini AI profile parsing
+      setParsingCv(true);
+      const fileText = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const res = ev.target?.result;
+          resolve(typeof res === 'string' ? res : file.name);
+        };
+        reader.onerror = () => resolve(file.name);
+        reader.readAsText(file);
+      });
+
+      const response = await fetch('/api/parse-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: fileText || file.name })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const filled: any = {};
+        if (data.profession) {
+          setProfession(data.profession);
+          filled.profession = true;
+        }
+        if (data.municipality) {
+          setMunicipality(data.municipality);
+          filled.municipality = true;
+        }
+        if (data.summary) {
+          setSummary(data.summary);
+          filled.summary = true;
+        }
+        setAutoFilledFields(filled);
+        setCvParsedNotice(true);
+      }
     } catch (err: any) {
-      setError(err.message || 'Erro ao enviar o currículo.');
+      setError(err.message || 'Erro ao processar currículo.');
     } finally {
       setUploadingCv(false);
+      setParsingCv(false);
     }
   };
 
-  const handleApply = (e: React.FormEvent) => {
+  const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -99,8 +146,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         cv_url: cvUrl || currentUser.cv_url
       });
 
-      // 2. Apply with snapshot data (prevents duplicates and snapshots current state)
-      StoreService.applyToJob(job.id, updatedProfile, coverLetter, cvUrl || currentUser.cv_url);
+      // 2. Apply with snapshot data and await real Supabase persistence confirmation
+      await StoreService.applyToJob(job.id, updatedProfile, coverLetter, cvUrl || currentUser.cv_url);
       setApplied(true);
       setTimeout(() => {
         onSuccessApply();
@@ -142,7 +189,23 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 )}
               </div>
               <h2 className="text-2xl font-bold">{job.title}</h2>
-              <p className="text-slate-200 text-sm font-medium flex items-center gap-1 mt-1">
+              <p 
+                onClick={() => {
+                  if (onSelectCompany) {
+                    const comp = companies.find(c => c.id === job.employer_id || c.company_name === job.company_name) || {
+                      id: job.employer_id || 'comp',
+                      company_name: job.company_name,
+                      full_name: job.company_name,
+                      role: 'employer',
+                      municipality: job.municipality || 'Ondjiva'
+                    };
+                    onClose();
+                    onSelectCompany(comp as any);
+                  }
+                }}
+                className={`text-slate-200 text-sm font-medium flex items-center gap-1 mt-1 transition ${onSelectCompany ? 'hover:text-white hover:underline cursor-pointer' : ''}`}
+                title="Ver perfil da empresa"
+              >
                 <Building className="w-4 h-4 text-[#FFC20E]" /> {job.company_name}
               </p>
             </div>
@@ -206,10 +269,22 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               )}
             </div>
           ) : applied ? (
-            <div className="bg-emerald-50 text-emerald-700 p-6 rounded-2xl text-center space-y-2">
+            <div className="bg-emerald-50 text-emerald-700 p-6 rounded-2xl text-center space-y-4">
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
               <h3 className="text-lg font-bold">Candidatura Enviada com Sucesso!</h3>
               <p className="text-sm">Os seus dados atualizados e currículo foram registados.</p>
+              {job.has_exam && job.exam && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenExam(job.exam!, 'pending-app', job);
+                  }}
+                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold px-6 py-3 rounded-xl text-sm transition shadow flex items-center justify-center gap-2 mx-auto"
+                >
+                  <Award className="w-4 h-4" />
+                  Realizar Exame Técnico
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -237,10 +312,29 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <h3 className="text-base font-bold text-slate-900">Atualizar Dados & Candidatar-se</h3>
                 <p className="text-xs text-slate-500">Confirme ou atualize as suas informações antes de submeter a candidatura.</p>
 
+                {parsingCv && (
+                  <div className="bg-blue-50 text-blue-800 p-3.5 rounded-2xl border border-blue-200 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                    <span>A analisar o currículo com Inteligência Artificial para preenchimento automático...</span>
+                  </div>
+                )}
+
+                {cvParsedNotice && (
+                  <div className="bg-emerald-50 text-emerald-800 p-3.5 rounded-2xl border border-emerald-200 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Currículo analisado. Revê os teus dados profissionais antes de continuar.</span>
+                  </div>
+                )}
+
                 <form onSubmit={handleApply} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Profissão / Cargo Pretendido</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Profissão / Cargo Pretendido</span>
+                        {autoFilledFields.profession && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold">✨ Extraído</span>
+                        )}
+                      </label>
                       <input
                         type="text"
                         value={profession}
@@ -250,7 +344,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Município</label>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Município</span>
+                        {autoFilledFields.municipality && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold">✨ Extraído</span>
+                        )}
+                      </label>
                       <input
                         type="text"
                         value={municipality}
@@ -261,7 +360,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Resumo Profissional</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Resumo Profissional</span>
+                      {autoFilledFields.summary && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold">✨ Extraído</span>
+                      )}
+                    </label>
                     <textarea
                       rows={2}
                       value={summary}

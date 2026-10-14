@@ -1,9 +1,19 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Briefcase, ShoppingBag, ArrowRight, Building2, Users, ChevronRight, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Search, 
+  MapPin, 
+  Briefcase, 
+  ShoppingBag, 
+  Building2, 
+  Clock, 
+  Calendar, 
+  ChevronRight, 
+  ChevronLeft,
+  ArrowRight
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { CUNENE_MUNICIPALITIES } from '../lib/types';
-import { MarketplaceCarousel } from '../components/MarketplaceCarousel';
+import { StoreService } from '../lib/store';
 
 export const Home = ({
   jobs: initialJobs = [],
@@ -14,529 +24,474 @@ export const Home = ({
   onSelectJob,
   onSelectCompany,
   onSelectPost,
+  onSelectProduct,
   currentUser,
   onOpenAuth
 }) => {
   const [selectedMunicipality, setSelectedMunicipality] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [realProducts, setRealProducts] = useState(initialProducts);
+  const [realJobs, setRealJobs] = useState(initialJobs);
 
-  const [homeProducts, setHomeProducts] = useState(initialProducts);
-  const [homeJobs, setHomeJobs] = useState(initialJobs);
+  const marketplaceScrollRef = useRef(null);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://gdjyrgufdjboqkusredk.supabase.co';
-
+  // Sincronizar produtos reais se a lista inicial vier vazia
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      setLoading(true);
-
-      try {
-        // Busque produtos
-        let { data, error } = await supabase
-          .from('produtos')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        console.log('HOME PRODUTOS (produtos):', data, error);
-
-        // Se der erro ou vier vazio, tente buscar da tabela real 'marketplace'
-        if (error || !data || data.length === 0) {
-          const { data: mData, error: mError } = await supabase
+    if (initialProducts && initialProducts.length > 0) {
+      setRealProducts(initialProducts);
+    } else {
+      let isMounted = true;
+      const fetchMarketplaceProducts = async () => {
+        try {
+          const { data, error } = await supabase
             .from('marketplace')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(10);
+            .limit(16);
 
-          console.log('HOME PRODUTOS (marketplace fallback):', mData, mError);
-
-          if (mData && mData.length > 0) {
-            data = mData.map(item => {
-              const rawDesc = item.descricao || item.description || '';
-              let cat = 'Outros';
+          if (!error && data && data.length > 0 && isMounted) {
+            const mapped = data.map(item => {
               let mun = 'Ondjiva';
-              let tel = '+244 923 000 000';
-              let cleanDesc = rawDesc;
-
+              const rawDesc = item.descricao || item.description || '';
               const metaMatch = rawDesc.match(/<!--META:([\s\S]*?)-->/);
               if (metaMatch) {
                 try {
                   const parsed = JSON.parse(metaMatch[1]);
-                  if (parsed.cat) cat = parsed.cat;
                   if (parsed.mun) mun = parsed.mun;
-                  if (parsed.tel) tel = parsed.tel;
-                  cleanDesc = rawDesc.replace(metaMatch[0], '').trim();
                 } catch {}
               }
-
               return {
                 id: item.id,
-                seller_id: item.company_id || item.seller_id || item.user_id || '',
+                seller_id: item.company_id || item.seller_id || '',
                 title: item.titulo || item.title || 'Produto',
-                description: cleanDesc,
+                description: rawDesc,
                 price: Number(item.preco || item.price || 0),
-                currency: 'AOA',
-                category: cat,
+                currency: item.moeda || item.currency || 'Kz',
                 municipality: item.municipio || mun,
-                contact_phone: item.telefone || tel,
-                image_url: item.imagem_url || item.image_url || undefined,
-                status: 'available',
-                is_active: true,
-                created_at: item.created_at
+                image_url: item.imagem_url || item.image_url || '',
+                created_at: item.created_at || new Date().toISOString()
               };
             });
+            setRealProducts(mapped);
           }
+        } catch (err) {
+          console.warn('Erro ao carregar produtos reais:', err);
         }
+      };
+      fetchMarketplaceProducts();
+      return () => { isMounted = false; };
+    }
+  }, [initialProducts]);
 
-        if (isMounted) {
-          if (data && data.length > 0) {
-            setHomeProducts(data);
-            localStorage.setItem('produtos_cache', JSON.stringify(data));
-          } else {
-            const cache = localStorage.getItem('produtos_cache');
-            if (cache) {
-              try {
-                setHomeProducts(JSON.parse(cache));
-              } catch {}
-            }
-          }
+  // Sincronizar vagas reais se a lista inicial vier vazia
+  useEffect(() => {
+    if (initialJobs && initialJobs.length > 0) {
+      setRealJobs(initialJobs);
+    } else {
+      let isMounted = true;
+      StoreService.fetchJobs().then(fetched => {
+        if (isMounted && fetched && fetched.length > 0) {
+          setRealJobs(fetched);
         }
-      } catch (err) {
-        console.error('Home products error:', err);
-        const cache = localStorage.getItem('produtos_cache');
-        if (cache && isMounted) {
-          try {
-            setHomeProducts(JSON.parse(cache));
-          } catch {}
-        }
-      }
+      }).catch(err => {
+        console.warn('Erro ao carregar vagas reais:', err);
+      });
+      return () => { isMounted = false; };
+    }
+  }, [initialJobs]);
 
-      try {
-        // Fetch vagas (limit 6)
-        const { data: vagasData, error: vagasError } = await supabase
-          .from('vagas')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(6);
+  // Formatação de datas relativas reais
+  const formatJobDate = (dateStr) => {
+    if (!dateStr) return 'Recente';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return 'Recente';
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
 
-        if (isMounted && vagasData && vagasData.length > 0) {
-          setHomeJobs(vagasData);
-        }
-      } catch (err) {
-        console.error('Home jobs error:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchData();
-
-    return () => { isMounted = false; };
-  }, []);
-
-  const effectiveProducts = homeProducts.length > 0 ? homeProducts : initialProducts;
-  const effectiveJobs = homeJobs.length > 0 ? homeJobs : initialJobs;
-
-  const navigateToAuthor = (productId) => {
-    const product = effectiveProducts.find(p => p.id === productId);
-    if (!product) return;
-    
-    const seller = companies.find(c => c.id === product.seller_id);
-    if (seller) {
-      onSelectCompany(seller);
+      if (diffHours < 1) return 'Agora';
+      if (diffHours < 24) return 'Hoje';
+      if (diffDays === 1) return 'Ontem';
+      if (diffDays < 7) return `Há ${diffDays} dias`;
+      if (diffDays < 30) return `Há ${Math.floor(diffDays / 7)} sem.`;
+      return date.toLocaleDateString('pt-AO', { day: '2-digit', month: '2-digit' });
+    } catch {
+      return 'Recente';
     }
   };
 
-  const filteredJobs = effectiveJobs.filter(j => {
-    if (!j) return false;
-    const matchMun = selectedMunicipality === 'Todos' || (j.municipality || '').toLowerCase().includes(selectedMunicipality.toLowerCase());
-    const matchSearch = !searchTerm || (j.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (j.company_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchMun && matchSearch && (j.status === 'active' || !j.status);
-  });
-
-  const filteredProducts = effectiveProducts.filter(p => {
-    if (!p) return false;
-    const matchMun = selectedMunicipality === 'Todos' || (p.municipality || '').toLowerCase().includes(selectedMunicipality.toLowerCase());
-    const matchSearch = !searchTerm || (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchMun && matchSearch && (p.is_active !== false && p.status !== 'sold');
-  });
-
-  const filteredCompanies = companies.filter(c => {
-    if (!c) return false;
-    const matchMun = selectedMunicipality === 'Todos' || (c.municipality && c.municipality.toLowerCase().includes(selectedMunicipality.toLowerCase()));
-    const matchSearch = !searchTerm || (c.company_name && c.company_name.toLowerCase().includes(searchTerm.toLowerCase())) || (c.full_name && c.full_name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filtragem estrita dos dados reais existentes
+  const effectiveJobs = realJobs.length > 0 ? realJobs : initialJobs;
+  const filteredJobs = effectiveJobs.filter(job => {
+    const matchMun = selectedMunicipality === 'Todos' || !selectedMunicipality || 
+      (job.municipality || '').toLowerCase() === selectedMunicipality.toLowerCase();
+    const matchSearch = !searchTerm || 
+      (job.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.company_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.category || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchMun && matchSearch;
   });
 
-  const recentPosts = posts.slice(0, 3);
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchTerm || selectedMunicipality !== 'Todos') {
+      setCurrentTab('jobs');
+    }
+  };
 
-  if (!supabaseUrl) {
-    return (
-      <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-50 border-2 border-rose-200 rounded-3xl text-center space-y-3 shadow-xl">
-        <AlertTriangle className="w-12 h-12 text-rose-600 mx-auto animate-bounce" />
-        <h2 className="text-xl font-black text-rose-900">Erro: Configure ENV no AI Studio</h2>
-        <p className="text-xs text-rose-700">A variável de ambiente VITE_SUPABASE_URL não foi detetada. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas configurações de ambiente.</p>
-      </div>
-    );
-  }
+  const scrollMarketplace = (direction) => {
+    if (marketplaceScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -320 : 320;
+      marketplaceScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const effectiveProducts = realProducts.length > 0 ? realProducts : initialProducts;
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Hero Header */}
-      <section className="relative h-[50vh] flex flex-col items-center justify-between overflow-hidden p-4 sm:p-6">
-        <div className="absolute inset-0 z-0">
-          <MarketplaceCarousel 
-            products={effectiveProducts} 
-            onNavigate={navigateToAuthor}
-            title="Impulsione sua carreira."
+    <div className="bg-white text-[#263449] min-h-screen">
+      
+      {/* =========================================================================
+          1. ÁREA PRINCIPAL (HERO)
+          Reprodução fiel da composição da imagem de referência:
+          - Texto à esquerda
+          - Imagem panorâmica de Angola à direita
+          - Transição visual suave entre o fundo branco e a fotografia
+          - Título grande em azul-marinho (#123D73) com parte em dourado (#F5B91B)
+          - Descrição curta e legível (#66758A)
+          - Pesquisa por cargo e município + botão azul-marinho
+          - Acesso secundário às funcionalidades de empresas
+         ========================================================================= */}
+      <section className="relative overflow-hidden bg-white border-b border-slate-100">
+        
+        {/* Fotografia panorâmica de Angola posicionada à direita com transição suave */}
+        <div className="absolute right-0 top-0 bottom-0 w-full md:w-3/5 lg:w-1/2 pointer-events-none select-none z-0 overflow-hidden">
+          <img
+            src="/luanda_skyline_hero.jpg"
+            alt="Panorâmica de Angola"
+            className="w-full h-full object-cover object-center opacity-85 md:opacity-95"
           />
+          {/* Transição suave em gradiente do fundo branco para a fotografia */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 md:via-white/40 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"></div>
         </div>
 
-        {/* Global Search Bar Overlay */}
-        <div className="relative z-20 w-full max-w-xl mx-auto mt-2">
-          <div className="relative">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Pesquisar empresas, vagas ou produtos..."
-              className="w-full pl-11 pr-10 py-3.5 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 focus:outline-none focus:border-[#0F4C9C] text-sm text-slate-800 font-medium placeholder:text-slate-400"
-            />
-            {searchTerm && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 sm:py-16 lg:py-20 relative z-10">
+          <div className="max-w-2xl space-y-4">
+            
+            {/* Tagline / Eyebrow institucional */}
+            <div className="inline-block">
+              <span className="text-xs sm:text-sm font-bold tracking-[0.2em] text-[#123D73] uppercase">
+                Oportunidades em Angola
+              </span>
+            </div>
+
+            {/* Título Principal */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-black tracking-tight leading-[1.15] text-[#123D73]">
+              Encontra a oportunidade certa <br className="hidden sm:inline" />
+              <span className="text-[#F5B91B]">para o teu futuro.</span>
+            </h1>
+
+            {/* Descrição curta e legível */}
+            <p className="text-sm sm:text-base text-[#66758A] leading-relaxed max-w-xl font-normal pt-1">
+              Descobre oportunidades de emprego em Angola, acompanha candidaturas e aproxima-te das empresas que procuram o teu talento.
+            </p>
+
+            {/* Barra de Pesquisa Integrada */}
+            <form onSubmit={handleSearchSubmit} className="pt-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-2 sm:p-2.5 shadow-[0_2px_12px_rgba(18,61,115,0.06)] flex flex-col md:flex-row items-stretch gap-2">
+                
+                {/* Input de Cargo / Palavra-chave */}
+                <div className="flex-1 flex items-center gap-2.5 px-3 py-2 text-slate-700">
+                  <Search className="w-4 h-4 text-[#66758A] shrink-0" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Cargo, competência ou palavra-chave"
+                    className="w-full text-xs sm:text-sm text-[#263449] placeholder:text-[#66758A]/80 outline-none bg-transparent font-medium"
+                  />
+                </div>
+
+                <div className="hidden md:block w-px bg-slate-200 self-stretch my-1"></div>
+
+                {/* Dropdown de Município */}
+                <div className="md:w-56 flex items-center gap-2 px-3 py-2 text-slate-700">
+                  <MapPin className="w-4 h-4 text-[#66758A] shrink-0" />
+                  <select
+                    value={selectedMunicipality}
+                    onChange={(e) => setSelectedMunicipality(e.target.value)}
+                    className="w-full text-xs sm:text-sm text-[#263449] outline-none bg-transparent font-medium cursor-pointer"
+                  >
+                    <option value="Todos">Município (Todos)</option>
+                    <option value="Ondjiva">Ondjiva (Cunene)</option>
+                    <option value="Namacunde">Namacunde</option>
+                    <option value="Ombadja">Ombadja</option>
+                    <option value="Cahama">Cahama</option>
+                    <option value="Cuvelai">Cuvelai</option>
+                    <option value="Curoca">Curoca</option>
+                    <option value="Luanda">Luanda</option>
+                    <option value="Lubango">Lubango</option>
+                    <option value="Benguela">Benguela</option>
+                    <option value="Huambo">Huambo</option>
+                  </select>
+                </div>
+
+                {/* Botão azul-marinho para pesquisar vagas */}
+                <button
+                  type="submit"
+                  className="bg-[#123D73] hover:bg-[#0d2f59] text-white font-bold px-6 py-3 rounded-lg transition text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs cursor-pointer shrink-0"
+                >
+                  <Search className="w-4 h-4 text-white" />
+                  <span>Pesquisar vagas</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Acesso secundário às funcionalidades de empresas */}
+            <div className="pt-2 flex items-center gap-2 text-xs font-semibold text-[#123D73]">
+              <Building2 className="w-4 h-4 text-[#123D73] shrink-0" />
+              <span>Queres publicar uma vaga?</span>
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full w-5 h-5 flex items-center justify-center"
+                onClick={() => {
+                  if (currentUser?.role === 'employer') {
+                    setCurrentTab('dashboard');
+                  } else if (currentUser) {
+                    alert('Alterne o seu perfil para Empresa para publicar novas vagas.');
+                  } else {
+                    onOpenAuth ? onOpenAuth('login') : setCurrentTab('login');
+                  }
+                }}
+                className="font-bold text-[#123D73] hover:underline flex items-center gap-1 cursor-pointer"
               >
-                ✕
+                <span>Empresas e recrutadores</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#123D73]" />
               </button>
-            )}
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* Loading Skeleton fallback */}
-      {loading && (
-        <div className="max-w-4xl mx-auto px-4 space-y-4 animate-pulse">
-          <div className="h-6 bg-slate-200 rounded-lg w-48" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="h-28 bg-slate-100 rounded-2xl border border-slate-200" />
-            <div className="h-28 bg-slate-100 rounded-2xl border border-slate-200" />
-          </div>
-        </div>
-      )}
-
-      {/* Empresas Encontradas na pesquisa */}
-      {searchTerm && filteredCompanies.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 space-y-3 animate-fadeIn">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-[#0F4C9C]" />
-              Empresas Encontradas ({filteredCompanies.length})
+      {/* =========================================================================
+          2. VAGAS RECENTES — SEM CARDS
+          - Apresentação em lista aberta e horizontalmente organizada
+          - Fundo branco com separadores discretos
+          - Sem cards, sem bordas pesadas, sem pílulas decorativas
+          - Logótipo real da empresa, título, nome, município, modalidade, data, salário (quando existir)
+          - Carrega exclusivamente dados reais
+         ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        
+        {/* Cabeçalho da Secção */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-6 border-b border-slate-100">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-[#263449] tracking-tight">
+              Vagas recentes
             </h2>
-            <button
-              type="button"
-              onClick={() => setCurrentTab('companies')}
-              className="text-xs font-bold text-[#0F4C9C] hover:underline"
-            >
-              Ver todas as empresas
-            </button>
+            <p className="text-xs sm:text-sm text-[#66758A] mt-1 font-normal">
+              Oportunidades de emprego nas principais áreas e municípios de Angola.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredCompanies.slice(0, 4).map(comp => {
-              const displayLogo = comp.company?.logo_url || comp.company_logo || comp.avatar_url;
-              return (
-                <div
-                  key={comp.id}
-                  onClick={() => onSelectCompany(comp)}
-                  className="bg-white p-4 rounded-2xl border border-slate-200 hover:border-[#0F4C9C] transition cursor-pointer shadow-2xs flex items-center gap-3.5 group"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center">
-                    {displayLogo ? (
-                      <img src={displayLogo} alt={comp.company_name || comp.full_name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-base">
-                        {(comp.company_name || comp.full_name || 'E').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-[#0F4C9C] transition">
-                      {comp.company_name || comp.full_name}
-                    </h4>
-                    <p className="text-xs text-slate-500 truncate">
-                      {comp.municipality || 'Ondjiva'} • {comp.industry || 'Empresa'}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#0F4C9C] group-hover:translate-x-0.5 transition" />
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Municípios do Cunene */}
-      <section className="max-w-4xl mx-auto px-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-black text-slate-900">Navegar por Município</h2>
-        </div>
-
-        <div className="flex items-center gap-4 overflow-x-auto pb-2 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setSelectedMunicipality('Todos')}
-            className={`text-sm font-extrabold whitespace-nowrap transition-all border-b-2 py-1.5 ${
-              selectedMunicipality === 'Todos'
-                ? 'border-[#0F4C9C] text-[#0F4C9C]'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            Todo o Cunene
-          </button>
-          {CUNENE_MUNICIPALITIES.map(m => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setSelectedMunicipality(m)}
-              className={`text-sm font-extrabold whitespace-nowrap transition-all border-b-2 py-1.5 ${
-                selectedMunicipality === m
-                  ? 'border-[#0F4C9C] text-[#0F4C9C]'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Vagas em Destaque */}
-      <section className="max-w-4xl mx-auto px-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-black text-slate-900">Vagas em Destaque</h2>
           <button
             type="button"
             onClick={() => setCurrentTab('jobs')}
-            className="text-xs font-bold text-[#0F4C9C] hover:underline"
+            className="text-xs sm:text-sm font-bold text-[#123D73] hover:underline flex items-center gap-1 self-start sm:self-auto cursor-pointer"
           >
-            Ver todas as oportunidades
-          </button>
-        </div>
-
-        {filteredJobs.length === 0 ? (
-          <div className="bg-white rounded-3xl p-10 text-center border border-slate-100 text-slate-400 text-sm font-medium">
-            Nenhuma vaga aberta neste município no momento.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {filteredJobs.slice(0, 4).map(job => {
-              const compObj = companies.find(c => c.id === job.employer_id);
-              const displayJobLogo = job.company_logo || compObj?.company?.logo_url || compObj?.company_logo || compObj?.avatar_url;
-
-              return (
-                <div
-                  key={job.id}
-                  onClick={() => onSelectJob(job)}
-                  className="bg-white p-5 rounded-[2rem] border border-slate-200/60 hover:border-[#0F4C9C]/40 transition-all cursor-pointer shadow-xs hover:shadow-md flex items-start gap-4"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 shrink-0 overflow-hidden flex items-center justify-center p-2">
-                    {displayJobLogo ? (
-                      <img src={displayJobLogo} alt={job.company_name} className="w-full h-full object-contain" />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-slate-300" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 text-xs font-bold">
-                      <span className="text-[#0F4C9C]">{job.company_name}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="text-slate-500">{job.municipality}</span>
-                    </div>
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 truncate">{job.title}</h3>
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3">
-                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg">{job.contract_type || 'Presencial'}</span>
-                      {job.has_exam && (
-                        <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg">Exame Técnico</span>
-                      )}
-                      {job.salary_min && (
-                        <span className="text-xs sm:text-sm font-black text-slate-900 ml-auto">
-                          {(Number(job.salary_min) || 0).toLocaleString()} {job.salary_currency || 'AOA'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Empresas em Destaque */}
-      <section className="max-w-4xl mx-auto px-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
-            <Building2 className="w-5 h-5 text-[#0F4C9C]" />
-            <span>Empresas em Destaque</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCurrentTab('companies')}
-            className="text-xs font-bold text-[#0F4C9C] flex items-center hover:underline"
-          >
-            <span>Ver todas</span>
+            <span>Ver todas as vagas</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        {filteredCompanies.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-slate-200 text-slate-500 text-sm font-medium">
-            Nenhuma empresa cadastrada neste município ainda.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {filteredCompanies.slice(0, 3).map(company => {
-              const displayLogo = company.company?.logo_url || company.company_logo || company.avatar_url;
-              return (
-                <div
-                  key={company.id}
-                  onClick={() => onSelectCompany(company)}
-                  className="bg-white rounded-3xl border border-slate-200 overflow-hidden hover:border-[#0F4C9C] transition cursor-pointer shadow-2xs group"
-                >
-                  <div className="h-20 bg-gradient-to-r from-[#0F4C9C] to-slate-800 relative">
-                    {company.cover_url && (
-                      <img src={company.cover_url} alt="Capa" className="w-full h-full object-cover opacity-80" />
+        {/* Lista de Vagas — SEM CARDS */}
+        {filteredJobs.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {filteredJobs.slice(0, 8).map((job) => (
+              <div
+                key={job.id}
+                onClick={() => onSelectJob && onSelectJob(job)}
+                className="py-4 sm:py-5 px-2 sm:px-3 hover:bg-[#F8FAFC] transition cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
+              >
+                {/* Esquerda: Logótipo Real + Título + Empresa */}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                    {job.company_logo ? (
+                      <img 
+                        src={job.company_logo} 
+                        alt={job.company_name || 'Empresa'} 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-[#123D73] text-white flex items-center justify-center font-bold text-sm">
+                        {(job.company_name || 'E').charAt(0)}
+                      </div>
                     )}
                   </div>
-                  <div className="p-4 pt-0 relative">
-                    <div className="w-14 h-14 rounded-2xl bg-white p-1 border-2 border-white shadow -mt-7 mb-2 overflow-hidden shrink-0">
-                      {displayLogo ? (
-                        <img src={displayLogo} alt={company.company_name || company.full_name} className="w-full h-full object-cover rounded-xl" />
-                      ) : (
-                        <div className="w-full h-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-base rounded-xl">
-                          {(company.company_name || company.full_name || 'E').charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 truncate">{company.company_name || company.full_name}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{company.municipality || 'Ondjiva'} • {company.industry || 'Empresa'}</p>
-                    <div className="mt-3 flex items-center justify-between text-xs font-bold text-[#0F4C9C]">
-                      <span>Ver vitrine</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition" />
-                    </div>
+
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-[#263449] group-hover:text-[#123D73] transition truncate">
+                      {job.title || job.titulo || 'Vaga de Emprego'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#66758A] font-normal truncate mt-0.5">
+                      {job.company_name || 'Empresa Registada'}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
-      {/* Marketplace Preview */}
-      <section className="max-w-4xl mx-auto px-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-slate-900 font-extrabold text-sm sm:text-base">
-            <ShoppingBag className="w-4 h-4 text-[#0F4C9C]" />
-            <span>Marketplace & Negócios Locais</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCurrentTab('marketplace')}
-            className="text-xs font-bold text-[#0F4C9C] flex items-center hover:underline"
-          >
-            <span>Ver mercado</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+                {/* Metadados Alinhados Horizontalmente */}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-7 text-xs text-[#66758A] pl-15 md:pl-0">
+                  
+                  {/* Município */}
+                  <div className="flex items-center gap-1.5 min-w-[85px]">
+                    <MapPin className="w-3.5 h-3.5 text-[#66758A] shrink-0" />
+                    <span>{job.municipality || 'Angola'}</span>
+                  </div>
 
-        {filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 text-slate-400 text-xs">
-            Nenhum produto publicado no momento neste município.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {filteredProducts.slice(0, 3).map(prod => (
-              <div
-                key={prod.id}
-                onClick={() => setCurrentTab('marketplace')}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs hover:border-[#0F4C9C] transition cursor-pointer"
-              >
-                <div className="h-28 bg-slate-100 overflow-hidden relative">
-                  {prod.image_url ? (
-                    <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-300">
-                      <ShoppingBag className="w-8 h-8" />
+                  {/* Modalidade / Regime */}
+                  <div className="flex items-center gap-1.5 min-w-[95px]">
+                    <Clock className="w-3.5 h-3.5 text-[#66758A] shrink-0" />
+                    <span>{job.contract_type || 'Tempo Inteiro'}</span>
+                  </div>
+
+                  {/* Data de Publicação */}
+                  <div className="flex items-center gap-1.5 min-w-[75px]">
+                    <Calendar className="w-3.5 h-3.5 text-[#66758A] shrink-0" />
+                    <span>{formatJobDate(job.created_at)}</span>
+                  </div>
+
+                  {/* Salário — Apenas quando existir */}
+                  {(job.salary_min || job.salary) && (
+                    <div className="flex items-center gap-1 text-xs font-semibold text-[#123D73] min-w-[80px]">
+                      <span>
+                        {job.salary_min 
+                          ? `${Number(job.salary_min).toLocaleString()} Kz` 
+                          : `${job.salary} Kz`}
+                      </span>
                     </div>
                   )}
-                  <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[9px] px-2 py-0.5 rounded-md font-medium">
-                    {prod.municipality}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{prod.title}</h4>
-                  <span className="text-xs font-black text-[#0F4C9C] mt-1 block">
-                    {(Number(prod.price) || 0).toLocaleString()} {prod.currency || 'AOA'}
-                  </span>
+
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#123D73] group-hover:translate-x-1 transition hidden md:block shrink-0" />
                 </div>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="py-12 text-center text-[#66758A] text-sm">
+            Nenhuma vaga encontrada com os filtros selecionados.
+          </div>
         )}
+
       </section>
 
-      {/* Comunidade Profissional */}
-      {recentPosts.length > 0 && (
-        <section className="max-w-4xl mx-auto px-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-slate-900 font-extrabold text-sm sm:text-base">
-              <Users className="w-4 h-4 text-[#0F4C9C]" />
-              <span>Comunidade Profissional</span>
+      {/* =========================================================================
+          3. MARKETPLACE NO FINAL DA PÁGINA ("Descobre no Marketplace")
+          - Título à esquerda e link à direita
+          - Produtos alinhados horizontalmente
+          - Fotografias reais dos anúncios
+          - Nome, preço em Kwanzas e município
+          - SEM cards, SEM caixas, SEM fundos individuais, SEM bordas ou sombras
+          - As informações aparecem diretamente sobre o fundo branco
+          - Carrega exclusivamente produtos reais e publicados
+         ========================================================================= */}
+      {effectiveProducts.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 border-t border-slate-100">
+          
+          {/* Cabeçalho da Secção */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-6 border-b border-slate-100">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#263449] tracking-tight">
+                Descobre no Marketplace
+              </h2>
+              <p className="text-xs sm:text-sm text-[#66758A] mt-1 font-normal">
+                Produtos e serviços reais disponíveis na tua região.
+              </p>
             </div>
             <button
               type="button"
-              onClick={() => setCurrentTab('community')}
-              className="text-xs font-bold text-[#0F4C9C] flex items-center hover:underline"
+              onClick={() => setCurrentTab('marketplace')}
+              className="text-xs sm:text-sm font-bold text-[#123D73] hover:underline flex items-center gap-1 self-start sm:self-auto cursor-pointer"
             >
-              <span>Ver feed</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <span>Ver mais produtos</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="space-y-3">
-            {recentPosts.map(post => (
-              <div
-                key={post.id}
-                onClick={() => {
-                  if (onSelectPost) onSelectPost(post);
-                  else setCurrentTab('community');
-                }}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs hover:border-slate-300 transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs overflow-hidden">
-                    {post.author_avatar ? (
-                      <img src={post.author_avatar} alt="Avatar" className="w-full h-full object-cover" />
+          {/* Expositor Aberto de Produtos — Diretamente sobre o fundo branco, sem caixas/cards */}
+          <div className="relative pt-6">
+            <div 
+              ref={marketplaceScrollRef}
+              className="flex items-start gap-8 sm:gap-10 overflow-x-auto scrollbar-none pb-4 scroll-smooth"
+            >
+              {effectiveProducts.slice(0, 10).map((product) => (
+                <div
+                  key={product.id}
+                  onClick={() => onSelectProduct ? onSelectProduct(product) : setCurrentTab('marketplace')}
+                  className="w-44 sm:w-52 shrink-0 group cursor-pointer flex flex-col"
+                >
+                  {/* Fotografia real do produto sem caixa, borda ou fundo cinzento */}
+                  <div className="h-40 sm:h-44 w-full flex items-center justify-center overflow-hidden">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.title || 'Produto'}
+                        referrerPolicy="no-referrer"
+                        className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-200"
+                      />
                     ) : (
-                      (post.author_name || 'U').charAt(0)
+                      <div className="w-16 h-16 flex items-center justify-center text-slate-300">
+                        <ShoppingBag className="w-10 h-10" />
+                      </div>
                     )}
                   </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-slate-900">{post.author_name || 'Utilizador'}</h5>
-                    <span className="text-[10px] text-slate-400">{post.category || 'Comunidade'}</span>
+
+                  {/* Informações diretamente sobre o fundo branco */}
+                  <div className="pt-3 space-y-1">
+                    <h4 className="text-xs sm:text-sm font-semibold text-[#263449] group-hover:text-[#123D73] transition truncate">
+                      {product.title || product.titulo || 'Produto'}
+                    </h4>
+                    <p className="text-sm sm:text-base font-bold text-[#123D73]">
+                      {Number(product.price || product.preco || 0).toLocaleString()} {product.currency || product.moeda || 'Kz'}
+                    </p>
+                    {(product.municipality || product.municipio) && (
+                      <div className="flex items-center gap-1 text-[11px] text-[#66758A]">
+                        <MapPin className="w-3 h-3 text-[#66758A] shrink-0" />
+                        <span className="truncate">{product.municipality || product.municipio}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <p className="text-xs text-slate-700 line-clamp-2">{post.content}</p>
+              ))}
+
+              {/* Controles discretos de navegação horizontal */}
+              <div className="flex items-center gap-2 self-center shrink-0 pl-2">
+                <button
+                  type="button"
+                  onClick={() => scrollMarketplace('left')}
+                  className="w-9 h-9 rounded-full border border-slate-200 text-slate-700 bg-white shadow-2xs flex items-center justify-center hover:bg-slate-50 transition cursor-pointer"
+                  title="Recuar produtos"
+                >
+                  <ChevronLeft className="w-4 h-4 text-slate-700" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollMarketplace('right')}
+                  className="w-9 h-9 rounded-full border border-slate-200 text-slate-700 bg-white shadow-2xs flex items-center justify-center hover:bg-slate-50 transition cursor-pointer"
+                  title="Avançar produtos"
+                >
+                  <ChevronRight className="w-4 h-4 text-slate-700" />
+                </button>
               </div>
-            ))}
+            </div>
           </div>
+
         </section>
       )}
+
     </div>
   );
 };

@@ -46,7 +46,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     setSuccessMsg(null);
 
     // Validate format
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type.toLowerCase())) {
       setErrorMsg('Formato de imagem não suportado. Escolha um ficheiro JPG, PNG ou WEBP.');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -60,33 +60,31 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return;
     }
 
-    // Create temporary local preview for immediate visual response
-    const tempPreview = URL.createObjectURL(file);
-    setPreviewUrl(tempPreview);
     setUploading(true);
 
     try {
-      // Upload directly to Cloudinary
-      const cloudinaryHttpsUrl = await uploadToCloudinary(file);
+      // Ler o ficheiro como Base64 Data URL para garantir salvamento imediato e infalível
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const base64Result = uploadEvent.target?.result as string;
+        if (base64Result) {
+          setPreviewUrl(base64Result);
+          onUploadSuccess(base64Result);
+          setSuccessMsg('Fotografia carregada com sucesso!');
+          setTimeout(() => setSuccessMsg(null), 3000);
+        }
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        throw new Error('Erro ao ler o ficheiro de imagem.');
+      };
+      reader.readAsDataURL(file);
 
-      // Verify returned URL is HTTPS
-      if (!cloudinaryHttpsUrl.startsWith('https://')) {
-        throw new Error('Não foi possível obter um link HTTPS válido.');
-      }
-
-      // Update state and pass HTTPS URL back
-      setPreviewUrl(null); // Clear temp preview
-      onUploadSuccess(cloudinaryHttpsUrl);
-      setSuccessMsg('Imagem enviada com sucesso!');
-      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
-      setPreviewUrl(null); // Revert temp preview on error
-      setErrorMsg(err.message || 'Não foi possível enviar a imagem. Tente novamente.');
-    } finally {
       setUploading(false);
+      setErrorMsg(err.message || 'Não foi possível carregar a imagem. Tente novamente.');
+    } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
-      // Revoke temporary preview object URL
-      URL.revokeObjectURL(tempPreview);
     }
   };
 
@@ -129,15 +127,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </div>
 
           {!uploading && (
-            <button
-              type="button"
-              onClick={handleTriggerClick}
-              disabled={disabled}
-              className="absolute bottom-0 right-0 p-2 bg-[#0F4C9C] text-white rounded-full shadow-md hover:bg-[#0c3c7d] transition"
-              title="Alterar imagem"
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTriggerClick();
+              }}
+              className="absolute bottom-0 right-0 p-2 bg-[#0F4C9C] text-white rounded-full shadow-md group-hover:bg-[#0c3c7d] hover:scale-110 active:scale-95 transition cursor-pointer z-10"
+              title={displayImage ? 'Alterar imagem' : 'Adicionar imagem'}
             >
               <Camera className="w-3.5 h-3.5" />
-            </button>
+            </div>
           )}
 
           {displayImage && !uploading && onRemove && (
@@ -251,48 +250,55 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     );
   }
 
-  // Standard box variant for product-image and community-post
+  // Standard compact variant for product-image and community-post
   return (
     <div className={`space-y-2 ${className}`}>
       {label && <label className="text-xs font-bold text-slate-700 block">{label}</label>}
 
-      <div
-        onClick={handleTriggerClick}
-        className="relative w-full min-h-32 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#0F4C9C] bg-slate-50 p-3 overflow-hidden cursor-pointer transition flex flex-col items-center justify-center gap-2 group"
-      >
-        {displayImage ? (
-          <div className="relative w-full h-40 sm:h-48 rounded-xl overflow-hidden bg-slate-100">
-            <img src={displayImage} alt="Anexo" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white gap-2">
-              <Camera className="w-5 h-5" />
-              <span className="text-xs font-bold">Substituir imagem</span>
-            </div>
+      {displayImage ? (
+        <div className="relative w-full h-24 rounded-2xl overflow-hidden bg-slate-100 group border border-slate-200">
+          <img src={displayImage} alt="Anexo" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white gap-2">
+            <button
+              type="button"
+              onClick={handleTriggerClick}
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Alterar</span>
+            </button>
             {onRemove && !uploading && (
               <button
                 type="button"
                 onClick={handleRemoveClick}
-                className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg shadow-md hover:bg-rose-700 transition"
-                title="Remover"
+                className="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 rounded-xl text-xs font-bold text-white transition flex items-center gap-1.5"
               >
                 <Trash2 className="w-3.5 h-3.5" />
+                <span>Remover</span>
               </button>
             )}
           </div>
-        ) : (
-          <div className="text-center py-4 space-y-1">
-            <ImageIcon className="w-7 h-7 text-slate-400 mx-auto" />
-            <span className="text-xs font-bold text-[#0F4C9C] block">Anexar Fotografia</span>
-            <span className="text-[10px] text-slate-400 block">JPG, PNG ou WEBP (até 10MB)</span>
-          </div>
-        )}
-
-        {uploading && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-2xs flex flex-col items-center justify-center text-white gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-[#FFC20E]" />
-            <span className="text-xs font-bold">A enviar imagem...</span>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleTriggerClick}
+          disabled={disabled || uploading}
+          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-[#0F4C9C] bg-slate-50/50 hover:bg-blue-50/30 text-slate-600 hover:text-[#0F4C9C] transition flex items-center justify-center gap-2 text-xs font-bold"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-[#0F4C9C]" />
+              <span>A carregar fotografia...</span>
+            </>
+          ) : (
+            <>
+              <ImageIcon className="w-4 h-4 text-[#0F4C9C]" />
+              <span>Adicionar Fotografia</span>
+            </>
+          )}
+        </button>
+      )}
 
       <input
         ref={fileInputRef}

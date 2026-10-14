@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Briefcase, ShoppingBag, Users, Building2, User, UserPlus, LogOut, Menu, X, PlusCircle, ArrowLeftRight, Bell, Bookmark, FileText, Settings, Store, Download } from 'lucide-react';
+import { Briefcase, ShoppingBag, Users, Building2, User, UserPlus, LogOut, Menu, X, PlusCircle, ArrowLeftRight, Bell, Bookmark, FileText, Settings, Store, Download, ShieldCheck, Smartphone, Search, Monitor, Sun, Moon } from 'lucide-react';
 import { UserProfile } from '../lib/types';
+import { StoreService } from '../lib/store';
+import { AnimatedBrandLogo } from './AnimatedBrandLogo';
+import { isInsideAPKApp, APK_DOWNLOAD_URL } from '../lib/apkUtils';
 
 interface NavbarProps {
   currentTab: string;
@@ -12,6 +15,11 @@ interface NavbarProps {
   onOpenNewProduct?: () => void;
   onSwitchAccountRole: () => void;
   unreadNotificationsCount?: number;
+  onOpenNotifications?: () => void;
+  isPCMode?: boolean;
+  onTogglePCMode?: () => void;
+  themeMode?: 'system' | 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,91 +31,159 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewJob,
   onOpenNewProduct,
   onSwitchAccountRole,
-  unreadNotificationsCount = 0
+  unreadNotificationsCount = 0,
+  onOpenNotifications,
+  isPCMode = false,
+  onTogglePCMode,
+  themeMode = 'system',
+  onToggleTheme
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isEmployer = currentUser?.role === 'employer';
+  const isAdmin = StoreService.isAdmin(currentUser);
 
   return (
     <>
-      <header className="bg-white/95 backdrop-blur-md shadow-2xs sticky top-0 z-40 border-b border-slate-200/80 transition-all pt-safe">
+      <header className="bg-white sticky top-0 z-40 border-b border-[#e4e9ef] transition-all pt-safe shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex justify-between h-14 sm:h-16 items-center">
+          <div className="flex justify-between h-16 sm:h-[72px] items-center gap-4">
             {/* Brand Logo */}
-            <div className="flex items-center space-x-2 cursor-pointer shrink-0" onClick={() => setCurrentTab('home')}>
-              <div className="w-9 h-9 bg-[#0F4C9C] rounded-xl flex items-center justify-center text-white shadow-xs shrink-0">
-                <Briefcase className="w-5 h-5 text-[#FFC20E]" />
+            <div className="flex items-center space-x-2.5 cursor-pointer shrink-0" onClick={() => setCurrentTab('home')}>
+              <div className="w-10 h-10 bg-[#123D73] rounded-xl flex items-center justify-center text-white shadow-xs shrink-0">
+                <Briefcase className="w-5 h-5 text-[#F5B91B]" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-[#0F4C9C]">
-                Cunene<span className="text-[#FFC20E]">Vagas</span>
-              </span>
+              <AnimatedBrandLogo mode="periodic" size="md" textColor="#123D73" goldColor="#F5B91B" />
             </div>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
+            <nav className="hidden md:flex items-center space-x-6 mx-auto">
               <button
                 onClick={() => setCurrentTab('home')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                  currentTab === 'home' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
+                className={`py-2 text-sm font-bold transition relative cursor-pointer ${
+                  currentTab === 'home' 
+                    ? 'text-[#123D73] border-b-2 border-[#F5B91B]' 
+                    : 'text-[#66758A] hover:text-[#123D73]'
                 }`}
               >
                 Início
               </button>
               <button
                 onClick={() => setCurrentTab('jobs')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  currentTab === 'jobs' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
+                className={`py-2 text-sm font-bold transition relative cursor-pointer ${
+                  currentTab === 'jobs' 
+                    ? 'text-[#123D73] border-b-2 border-[#F5B91B]' 
+                    : 'text-[#66758A] hover:text-[#123D73]'
                 }`}
               >
-                <Briefcase className="w-4 h-4" /> Vagas
-              </button>
-              {isEmployer ? (
-                <button
-                  onClick={() => setCurrentTab('store')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                    currentTab === 'store' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Store className="w-4 h-4" /> Loja
-                </button>
-              ) : null}
-              <button
-                onClick={() => setCurrentTab('marketplace')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  currentTab === 'marketplace' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShoppingBag className="w-4 h-4" /> Marketplace
+                Vagas
               </button>
               <button
                 onClick={() => setCurrentTab('community')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  currentTab === 'community' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
+                className={`py-2 text-sm font-bold transition relative cursor-pointer ${
+                  currentTab === 'community' 
+                    ? 'text-[#123D73] border-b-2 border-[#F5B91B]' 
+                    : 'text-[#66758A] hover:text-[#123D73]'
                 }`}
               >
-                <Users className="w-4 h-4" /> Comunidade
+                Comunidade
+              </button>
+              <button
+                onClick={() => setCurrentTab('marketplace')}
+                className={`py-2 text-sm font-bold transition relative cursor-pointer ${
+                  currentTab === 'marketplace' 
+                    ? 'text-[#123D73] border-b-2 border-[#F5B91B]' 
+                    : 'text-[#66758A] hover:text-[#123D73]'
+                }`}
+              >
+                Marketplace
               </button>
               <button
                 onClick={() => setCurrentTab('companies')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  currentTab === 'companies' ? 'bg-[#0F4C9C]/10 text-[#0F4C9C]' : 'text-slate-600 hover:text-slate-900'
+                className={`py-2 text-sm font-bold transition relative cursor-pointer ${
+                  currentTab === 'companies' 
+                    ? 'text-[#123D73] border-b-2 border-[#F5B91B]' 
+                    : 'text-[#66758A] hover:text-[#123D73]'
                 }`}
               >
-                <Building2 className="w-4 h-4" /> Empresas
+                Empresas
               </button>
 
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent('open-pwa-install'))}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:text-[#0F4C9C] hover:bg-[#0F4C9C]/10 transition flex items-center gap-1.5"
-                title="Instalar App no telemóvel ou PC"
-              >
-                <Download className="w-4 h-4 text-[#FFC20E]" />
-                <span className="hidden lg:inline">Instalar App</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setCurrentTab('dashboard')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    currentTab === 'dashboard'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                  }`}
+                  title="Painel do Administrador"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Admin</span>
+                </button>
+              )}
             </nav>
 
             {/* Right Action Buttons */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
+              {/* Botão de Modo PC */}
+              {onTogglePCMode && (
+                <button
+                  onClick={onTogglePCMode}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                    isPCMode
+                      ? 'bg-blue-50 border-blue-200 text-[#0F4C9C] shadow-2xs'
+                      : 'bg-white border-[#e4e9ef] text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={isPCMode ? 'Modo PC Ativo (Clique para Vista Padrão)' : 'Ativar Modo PC (Tela Larga para Computador)'}
+                >
+                  <Monitor className="w-3.5 h-3.5 text-[#0F4C9C]" />
+                  <span className="hidden sm:inline">{isPCMode ? 'Modo PC' : 'Modo PC'}</span>
+                  <span className={`w-2 h-2 rounded-full ${isPCMode ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                </button>
+              )}
+
+              {/* Botão de Tema (Dark / Light / Sistema) */}
+              {onToggleTheme && (
+                <button
+                  onClick={onToggleTheme}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition border border-[#e4e9ef] bg-white text-slate-600 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  title={`Tema atual: ${themeMode === 'system' ? 'Automático (Sistema)' : themeMode === 'dark' ? 'Escuro (Dark)' : 'Claro (Light)'}. Clique para alternar.`}
+                >
+                  {themeMode === 'dark' ? (
+                    <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                  ) : themeMode === 'light' ? (
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  ) : (
+                    <Monitor className="w-3.5 h-3.5 text-[#0F4C9C]" />
+                  )}
+                  <span className="hidden lg:inline capitalize">
+                    {themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Escuro' : 'Claro'}
+                  </span>
+                </button>
+              )}
+
+              {/* Pesquisa (Lupa) */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-explore-search'))}
+                className="p-2 text-[#66758A] hover:text-[#123D73] hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                title="Pesquisar na CuneneVagas"
+              >
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+
+              {/* Botão + Criar Anúncio no Estilo Canva */}
+              {onOpenNewProduct && (
+                <button
+                  onClick={onOpenNewProduct}
+                  className="hidden sm:inline-flex items-center gap-1.5 border border-[#e4e9ef] bg-white hover:bg-slate-50 text-[#101b33] font-bold px-3.5 py-2 rounded-xl text-xs transition active:scale-95 shadow-2xs cursor-pointer"
+                  title="Publicar anúncio no Mercado"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-[#1759ad]" />
+                  <span>+ Criar anúncio</span>
+                </button>
+              )}
+              
               {/* Account Switcher Button */}
               {currentUser && (
                 <button
@@ -136,6 +212,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Profile or Login / Register buttons */}
               {currentUser ? (
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
+                  {/* Notification Bell */}
+                  <button
+                    onClick={onOpenNotifications}
+                    className="relative p-2 text-slate-600 hover:text-[#0F4C9C] hover:bg-slate-100 rounded-xl transition"
+                    title="Notificações e Avisos do Sistema"
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white font-extrabold text-[9px] rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                        {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     onClick={() => setCurrentTab('profile')}
                     className="p-0.5 rounded-full border border-slate-200 hover:ring-2 hover:ring-[#0F4C9C] transition shrink-0"
@@ -177,20 +267,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => onOpenAuth('login')}
-                    className="text-[#0F4C9C] hover:bg-[#0F4C9C]/10 border border-[#0F4C9C]/30 font-bold px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition flex items-center gap-1"
+                    className="border border-slate-300 text-[#263449] hover:bg-slate-50 font-semibold px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition cursor-pointer"
                   >
-                    <User className="w-3.5 h-3.5" />
                     <span>Entrar</span>
                   </button>
                   <button
                     onClick={() => onOpenAuth('register')}
-                    className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition shadow-xs flex items-center gap-1"
+                    className="bg-[#F5B91B] hover:bg-[#e2a814] text-[#123D73] font-bold px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs cursor-pointer"
                   >
-                    <UserPlus className="w-3.5 h-3.5 text-[#FFC20E]" />
-                    <span className="hidden xs:inline">Criar Conta</span>
+                    <span>Registar</span>
                   </button>
                 </div>
               )}
@@ -238,6 +326,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Menu items tailored to user role */}
               <div className="space-y-1 text-sm font-bold text-slate-700">
+                {isAdmin && (
+                  <button
+                    onClick={() => { setCurrentTab('dashboard'); setDrawerOpen(false); }}
+                    className="w-full text-left px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-950 font-black transition flex items-center justify-between border border-amber-300 shadow-2xs mb-2"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      <span>Painel de Administração</span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                      Admin
+                    </span>
+                  </button>
+                )}
                 {isEmployer ? (
                   <>
                     <button
@@ -311,16 +413,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Configurações</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    window.dispatchEvent(new CustomEvent('open-pwa-install'));
-                  }}
-                  className="w-full text-left px-3 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-[#0F4C9C] transition flex items-center gap-3 border border-amber-200"
-                >
-                  <Download className="w-4 h-4 text-[#FFC20E]" />
-                  <span className="font-bold text-slate-900">Instalar Aplicação</span>
-                </button>
+                {!isInsideAPKApp() && (
+                  <a
+                    href={APK_DOWNLOAD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setDrawerOpen(false)}
+                    className="w-full text-left px-3 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0F4C9C] transition flex items-center justify-between border border-blue-200/80 cursor-pointer shadow-2xs my-1"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Smartphone className="w-4 h-4 text-[#0F4C9C]" />
+                      <span className="font-extrabold text-slate-900 text-xs">Baixar App Android (.APK)</span>
+                    </div>
+                    <Download className="w-4 h-4 text-[#FFC20E]" />
+                  </a>
+                )}
               </div>
 
               {/* Role switcher toggle */}

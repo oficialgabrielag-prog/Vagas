@@ -29,6 +29,12 @@ export const cld = new Cloudinary({
   }
 });
 
+export const cleanDocumentUrl = (url: string) => {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  // Substituir /image/upload/ por /auto/upload/ para permitir documentos
+  return url.replace('/image/upload/', '/auto/upload/');
+};
+
 /**
  * Generate an optimized Cloudinary image object with auto-format and auto-quality
  */

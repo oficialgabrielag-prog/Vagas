@@ -1,5 +1,6 @@
-import { Job, JobApplication, MarketplaceProduct, CommunityPost, UserProfile, CandidateProfile, CompanyProfile, Exam, ExamAttempt, NotificationItem, PostComment, UserRole, PostReactionType } from './types';
+import { Job, JobApplication, MarketplaceProduct, CommunityPost, UserProfile, CandidateProfile, CompanyProfile, Exam, ExamAttempt, NotificationItem, PostComment, UserRole, PostReactionType, PlatformStats, PlatformUserInfo, FollowerItem, CompanyRating, PlatformPartner, TelecomNewsItem } from './types';
 import { supabase, signInWithPassword, signUp, signOut, resetPasswordForEmail } from './supabase';
+import { sendNativePushNotification } from './pushNotifications';
 
 const STORAGE_KEYS = {
   USER: 'vagas_cunene_user_account',
@@ -11,7 +12,11 @@ const STORAGE_KEYS = {
   POSTS: 'vagas_cunene_posts',
   EXAMS: 'vagas_cunene_exams',
   ATTEMPTS: 'vagas_cunene_attempts',
-  NOTIFICATIONS: 'vagas_cunene_notifications'
+  NOTIFICATIONS: 'vagas_cunene_notifications',
+  COMPANIES: 'vagas_cunene_companies_cache',
+  PARTNERS: 'vagas_cunene_partners',
+  RATINGS: 'vagas_cunene_ratings',
+  TELECOM_NEWS: 'vagas_cunene_telecom_news'
 };
 
 export const StoreService = {
@@ -33,9 +38,11 @@ export const StoreService = {
         parsed.cover_url = parsed.company.cover_url;
       }
       
-      // Ativação Pro permanente automática para o Administrador oficial
-      if (parsed.email === 'oficialgabrielag@gmail.com') {
+      // Ativação Pro e Admin permanente automática para o Administrador oficial
+      const emailLower = (parsed.email || '').toLowerCase().trim();
+      if (emailLower === 'oficialgabrielag@gmail.com' || parsed.is_admin === true || parsed.role === 'admin') {
         parsed.marketplace_unlocked = true;
+        parsed.is_admin = true;
         if (parsed.company) {
           parsed.company.marketplace_unlocked = true;
         }
@@ -127,6 +134,174 @@ export const StoreService = {
     return updated;
   },
 
+  isAdmin(user?: UserProfile | null): boolean {
+    if (!user) return false;
+    const email = (user.email || '').toLowerCase().trim();
+    return (
+      user.role === 'admin' ||
+      user.is_admin === true ||
+      email === 'oficialgabrielag@gmail.com' ||
+      email.startsWith('admin@') ||
+      email.includes('@admin')
+    );
+  },
+
+  async getPlatformUserStats(): Promise<PlatformStats> {
+    const usersMap = new Map<string, PlatformUserInfo>();
+    let candidatesCount = 0;
+    let employersCount = 0;
+
+    // 1. Obter dados da tabela 'users' do Supabase (contém: id, nome, email, whatsapp, municipio, role)
+    try {
+      const { data: usersData, error: usersErr } = await supabase
+        .from('users')
+        .select('*');
+
+      if (!usersErr && usersData && Array.isArray(usersData)) {
+        usersData.forEach(u => {
+          const r = (u.role || '').toLowerCase();
+          const isEmp = r === 'empresa' || r === 'employer';
+          const name = u.nome || u.full_name || (isEmp ? 'Empresa Registada' : 'Utilizador');
+          const email = u.email || `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@cunenevagas.online`;
+          const mun = u.municipio || u.municipality || 'Ondjiva';
+          const whatsapp = u.whatsapp || '';
+
+          usersMap.set(u.id, {
+            id: u.id,
+            name,
+            email,
+            whatsapp,
+            role: isEmp ? 'Empresa' : 'Candidato',
+            municipality: mun,
+            created_at: u.created_at || new Date().toISOString()
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar tabela users no Supabase:', err);
+    }
+
+    // 2. Obter dados da tabela 'profiles' do Supabase (contém: id, full_name, role, whatsapp, municipio, created_at)
+    try {
+      const { data: profiles, error: profsErr } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (!profsErr && profiles && Array.isArray(profiles)) {
+        profiles.forEach(p => {
+          const r = (p.role || '').toLowerCase();
+          const isEmp = r === 'empresa' || r === 'employer';
+          const name = p.full_name || p.nome;
+          const mun = p.municipio || p.municipality || 'Ondjiva';
+          const whatsapp = p.whatsapp || '';
+
+          if (usersMap.has(p.id)) {
+            // Unificar dados existentes da tabela users com profiles
+            const existing = usersMap.get(p.id)!;
+            if (name && (!existing.name || existing.name === 'Utilizador')) {
+              existing.name = name;
+            }
+            if (p.created_at) existing.created_at = p.created_at;
+            if (whatsapp && !existing.whatsapp) existing.whatsapp = whatsapp;
+            if (mun && !existing.municipality) existing.municipality = mun;
+            if (p.role) existing.role = isEmp ? 'Empresa' : 'Candidato';
+          } else {
+            // Novo utilizador presente apenas em profiles
+            const email = p.email || `${(name || 'utilizador').toLowerCase().replace(/[^a-z0-9]/g, '')}@cunenevagas.online`;
+            usersMap.set(p.id, {
+              id: p.id,
+              name: name || (isEmp ? 'Empresa Registada' : 'Candidato Registado'),
+              email,
+              whatsapp,
+              role: isEmp ? 'Empresa' : 'Candidato',
+              municipality: mun,
+              created_at: p.created_at || new Date().toISOString()
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar tabela profiles no Supabase:', err);
+    }
+
+    // 3. Obter empresas registadas
+    try {
+      const companies = await this.fetchCompanies();
+      companies.forEach(c => {
+        if (!usersMap.has(c.id)) {
+          usersMap.set(c.id, {
+            id: c.id,
+            name: c.company_name || c.full_name || 'Empresa Local',
+            email: c.email || 'empresa@cunenevagas.online',
+            whatsapp: c.whatsapp || '',
+            role: 'Empresa',
+            municipality: c.municipality || 'Ondjiva',
+            avatar_url: c.company_logo || c.avatar_url,
+            created_at: c.created_at || new Date().toISOString()
+          });
+        }
+      });
+    } catch {}
+
+    // 4. Incluir utilizador ativo atual da sessão
+    const cur = this.getCurrentUser();
+    if (cur) {
+      const isCurAdmin = this.isAdmin(cur);
+      const isCurEmp = cur.role === 'employer';
+      if (!usersMap.has(cur.id)) {
+        usersMap.set(cur.id, {
+          id: cur.id,
+          name: cur.full_name,
+          email: cur.email,
+          whatsapp: cur.whatsapp || '',
+          role: isCurAdmin ? 'Administrador' : (isCurEmp ? 'Empresa' : 'Candidato'),
+          municipality: cur.municipality || 'Ondjiva',
+          avatar_url: cur.avatar_url,
+          created_at: cur.created_at || new Date().toISOString()
+        });
+      } else {
+        const existing = usersMap.get(cur.id)!;
+        if (isCurAdmin) {
+          existing.role = 'Administrador';
+        }
+        if (cur.email) existing.email = cur.email;
+        if (cur.whatsapp) existing.whatsapp = cur.whatsapp;
+      }
+    }
+
+    // Contagem precisa de candidatos vs empresas
+    usersMap.forEach(u => {
+      const isEmp = u.role === 'Empresa' || u.role === 'employer' || u.role === 'empresa';
+      if (isEmp) {
+        employersCount++;
+      } else {
+        candidatesCount++;
+      }
+    });
+
+    const usersList = Array.from(usersMap.values());
+    const totalUsers = Math.max(usersList.length, 1);
+    const totalPosts = this.getPosts().length;
+    const totalJobs = this.getJobs().length;
+    const totalProducts = this.getProducts().length;
+    // Apenas relatórios de exames oficiais/reais (excluindo testes simulados de treino)
+    const totalExams = this.getRealExamAttempts().length;
+
+    const stats: PlatformStats = {
+      totalUsers,
+      totalCandidates: Math.max(candidatesCount, 1),
+      totalEmployers: employersCount,
+      totalPosts,
+      totalJobs,
+      totalProducts,
+      totalExams,
+      users: usersList
+    };
+
+    localStorage.setItem('cunene_platform_stats', JSON.stringify(stats));
+    return stats;
+  },
+
   // Restore full rich user session from Supabase Auth across any device
   async restoreUserFromSession(authUser: any): Promise<UserProfile | null> {
     if (!authUser) return null;
@@ -146,6 +321,21 @@ export const StoreService = {
     const currentActive = this.getCurrentUser();
 
     let { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+    if (!profile) {
+      try {
+        const { data: userRow } = await supabase.from('users').select('*').eq('id', authUser.id).single();
+        if (userRow) {
+          profile = {
+            id: userRow.id,
+            full_name: userRow.nome || userRow.full_name,
+            email: userRow.email,
+            whatsapp: userRow.whatsapp,
+            municipio: userRow.municipio,
+            role: userRow.role
+          };
+        }
+      } catch {}
+    }
     let { data: companyData } = await supabase.from('companies').select('*').eq('id', authUser.id).single();
 
     // Decode company metadata if present in descricao
@@ -242,7 +432,9 @@ export const StoreService = {
       address: companyObj?.address || cachedRich.address,
       services: companyObj?.services || cachedRich.services || [],
       cover_url: resolvedCoverUrl,
-      marketplace_unlocked: companyObj?.marketplace_unlocked || cachedRich.marketplace_unlocked || (authUser.email === 'oficialgabrielag@gmail.com')
+      marketplace_unlocked: companyObj?.marketplace_unlocked || cachedRich.marketplace_unlocked || (authUser.email === 'oficialgabrielag@gmail.com'),
+      is_email_verified: true,
+      email_confirmed_at: new Date().toISOString()
     };
 
     this.setCurrentUser(mergedUser);
@@ -254,13 +446,67 @@ export const StoreService = {
   async loginWithSupabase(email: string, password: string): Promise<UserProfile> {
     const { data, error } = await signInWithPassword(email, password);
     if (error) {
-      throw new Error(error.message || 'Erro ao iniciar sessão. Verifique o email e palavra-passe.');
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('invalid login credentials') || msg.includes('invalid password') || msg.includes('invalid email or password')) {
+        throw new Error('Palavra-passe incorreta ou dados de acesso inválidos. Por favor, verifique o seu email e palavra-passe.');
+      }
+      throw new Error(error.message || 'Erro ao autenticar. Palavra-passe incorreta ou credenciais inválidas.');
     }
 
     const authUser = data.user;
     if (!authUser) throw new Error('Utilizador não encontrado.');
 
     return (await this.restoreUserFromSession(authUser)) || this.getCurrentUser()!;
+  },
+
+  // Verificar se o e-mail já está em uso na plataforma
+  async checkEmailAlreadyRegistered(email: string): Promise<boolean> {
+    const normalized = (email || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    // 1. Cache de e-mails registrados no cliente
+    try {
+      const raw = localStorage.getItem('cunene_registered_emails');
+      if (raw) {
+        const list: string[] = JSON.parse(raw);
+        if (Array.isArray(list) && list.some(e => (e || '').toLowerCase().trim() === normalized)) {
+          return true;
+        }
+      }
+    } catch {}
+
+    // 2. Cache de rich user
+    if (localStorage.getItem(`${STORAGE_KEYS.USER}_rich_${normalized}`)) {
+      return true;
+    }
+
+    // 3. Usuário atualmente autenticado
+    const cur = this.getCurrentUser();
+    if (cur && cur.email && cur.email.toLowerCase().trim() === normalized) {
+      return true;
+    }
+
+    // 4. Lista de empresas cadastradas
+    try {
+      const companies = this.getCompanies();
+      if (companies.some(c => c.email && c.email.toLowerCase().trim() === normalized)) {
+        return true;
+      }
+    } catch {}
+
+    // 5. Tabela profiles no Supabase
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', normalized)
+        .maybeSingle();
+      if (data && data.id) {
+        return true;
+      }
+    } catch {}
+
+    return false;
   },
 
   // Real Supabase Auth Register
@@ -271,9 +517,37 @@ export const StoreService = {
     role: 'candidate' | 'employer',
     companyName?: string
   ): Promise<UserProfile> {
-    const { data, error } = await signUp(email, password);
+    const normalizedEmail = (email || '').trim().toLowerCase();
+
+    // Bloqueio rigoroso de conta duplicada com o mesmo e-mail
+    const alreadyRegistered = await this.checkEmailAlreadyRegistered(normalizedEmail);
+    if (alreadyRegistered) {
+      throw new Error(
+        'Atenção: Já existe uma conta registada com este endereço de e-mail. Não é permitido criar mais de uma conta com o mesmo e-mail. Por favor, inicie sessão ou recupere a palavra-passe.'
+      );
+    }
+
+    const { data, error } = await signUp(normalizedEmail, password);
     if (error) {
+      const msg = (error.message || '').toLowerCase();
+      if (
+        msg.includes('already registered') ||
+        msg.includes('already in use') ||
+        msg.includes('already exists') ||
+        msg.includes('user_already_exists')
+      ) {
+        throw new Error(
+          'Atenção: Já existe uma conta registada com este endereço de e-mail. Não é permitido criar mais de uma conta com o mesmo e-mail. Por favor, inicie sessão.'
+        );
+      }
       throw new Error(error.message || 'Erro ao criar conta no Supabase.');
+    }
+
+    // No Supabase, se a conta já existe previamente em auth.users, identities vem vazio []
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new Error(
+        'Atenção: Já existe uma conta registada com este endereço de e-mail. Não é permitido criar mais de uma conta com o mesmo e-mail. Por favor, inicie sessão.'
+      );
     }
 
     const authUser = data.user;
@@ -282,7 +556,7 @@ export const StoreService = {
     // 1. Create Isolated Candidate Profile
     const candidateProfile: CandidateProfile = {
       id: userId,
-      email,
+      email: normalizedEmail,
       full_name: fullName,
       municipality: 'Ondjiva',
       phone: '',
@@ -291,13 +565,16 @@ export const StoreService = {
       certificates: [],
       experiences: [],
       educations: [],
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      is_email_verified: true,
+      email_confirmed_at: new Date().toISOString()
     };
 
     // Save strictly valid columns to profiles table in Supabase
     await supabase.from('profiles').upsert([{
       id: userId,
       full_name: fullName,
+      email: normalizedEmail,
       role: role === 'employer' ? 'empresa' : 'candidato',
       municipio: 'Ondjiva'
     }]);
@@ -326,13 +603,25 @@ export const StoreService = {
       role,
       company: companyProfile,
       company_name: companyProfile?.name,
-      industry: companyProfile?.industry
+      industry: companyProfile?.industry,
+      is_email_verified: true,
+      email_confirmed_at: new Date().toISOString()
     };
 
     this.setCurrentUser(newUser);
-    // Cache rich data
-    localStorage.setItem(`${STORAGE_KEYS.USER}_rich_${userId}`, JSON.stringify(newUser));
-    localStorage.setItem(`${STORAGE_KEYS.USER}_rich_${email}`, JSON.stringify(newUser));
+
+    // Cache rich data e registrar na lista de emails existentes
+    try {
+      localStorage.setItem(`${STORAGE_KEYS.USER}_rich_${userId}`, JSON.stringify(newUser));
+      localStorage.setItem(`${STORAGE_KEYS.USER}_rich_${normalizedEmail}`, JSON.stringify(newUser));
+
+      const raw = localStorage.getItem('cunene_registered_emails');
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(normalizedEmail)) {
+        list.push(normalizedEmail);
+        localStorage.setItem('cunene_registered_emails', JSON.stringify(list));
+      }
+    } catch {}
 
     return newUser;
   },
@@ -342,6 +631,18 @@ export const StoreService = {
     const { error } = await resetPasswordForEmail(email);
     if (error) {
       throw new Error(error.message || 'Erro ao enviar email de recuperação.');
+    }
+  },
+
+  // Reenviar E-mail de Confirmação
+  async resendVerificationEmail(email: string): Promise<void> {
+    try {
+      await supabase.auth.resend({
+        type: 'signup',
+        email
+      });
+    } catch (e) {
+      console.warn('Erro ao reenviar confirmação:', e);
     }
   },
 
@@ -451,6 +752,7 @@ export const StoreService = {
       municipality: updates.municipality !== undefined ? updates.municipality : existingCompany.municipality,
       description: updates.description !== undefined ? updates.description : existingCompany.description,
       nif: updates.nif !== undefined ? updates.nif : existingCompany.nif,
+      slogan: updates.slogan !== undefined ? updates.slogan : existingCompany.slogan,
       phone: updates.phone !== undefined ? updates.phone : existingCompany.phone,
       whatsapp: updates.whatsapp !== undefined ? updates.whatsapp : existingCompany.whatsapp,
       address: updates.address !== undefined ? updates.address : existingCompany.address,
@@ -531,7 +833,7 @@ export const StoreService = {
     return updatedCompany;
   },
 
-  // Follow / Unfollow Company
+  // Follow / Unfollow Company and Candidate System
   getFollowedCompanies(userId: string): string[] {
     const raw = localStorage.getItem(`${STORAGE_KEYS.FOLLOWED_COMPANIES}_${userId}`);
     if (!raw) return [];
@@ -539,6 +841,117 @@ export const StoreService = {
       return JSON.parse(raw);
     } catch {
       return [];
+    }
+  },
+
+  getFollowers(targetId: string): FollowerItem[] {
+    const raw = localStorage.getItem(`cunene_followers_${targetId}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+
+    // Seguidores de demonstração ativos para a empresa/candidato caso ainda não tenha recebido
+    const initialFollowers: FollowerItem[] = [
+      {
+        id: 'user-cand-alberto',
+        name: 'Alberto Tchipopilo',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        role: 'candidate',
+        municipality: 'Ondjiva',
+        profession: 'Engenheiro Agrónomo & Gestor de Projetos',
+        target_id: targetId,
+        created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+      },
+      {
+        id: 'comp-cunene-agro',
+        name: 'Agro-Pecuária Cunene Viva',
+        avatar_url: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=150&auto=format&fit=crop&q=80',
+        role: 'employer',
+        municipality: 'Ondjiva',
+        profession: 'Agricultura & Pecuária',
+        target_id: targetId,
+        created_at: new Date(Date.now() - 86400000 * 4).toISOString()
+      },
+      {
+        id: 'user-cand-mariana',
+        name: 'Mariana Ndilimeke',
+        avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        role: 'candidate',
+        municipality: 'Santa Clara',
+        profession: 'Técnica de Contabilidade e Finanças',
+        target_id: targetId,
+        created_at: new Date(Date.now() - 86400000 * 6).toISOString()
+      }
+    ];
+    localStorage.setItem(`cunene_followers_${targetId}`, JSON.stringify(initialFollowers));
+    return initialFollowers;
+  },
+
+  getFollowing(followerId: string): FollowerItem[] {
+    const raw = localStorage.getItem(`cunene_following_${followerId}`);
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  },
+
+  isFollowing(followerId: string, targetId: string): boolean {
+    const following = this.getFollowing(followerId);
+    if (following.some(f => f.target_id === targetId)) return true;
+    const legacy = this.getFollowedCompanies(followerId);
+    return legacy.includes(targetId);
+  },
+
+  toggleFollow(follower: UserProfile, targetId: string, targetName?: string): boolean {
+    const currentlyFollowing = this.isFollowing(follower.id, targetId);
+    let targetFollowers = this.getFollowers(targetId);
+    let myFollowing = this.getFollowing(follower.id);
+
+    if (currentlyFollowing) {
+      // Deixar de seguir
+      targetFollowers = targetFollowers.filter(f => f.id !== follower.id);
+      myFollowing = myFollowing.filter(f => f.target_id !== targetId);
+      localStorage.setItem(`cunene_followers_${targetId}`, JSON.stringify(targetFollowers));
+      localStorage.setItem(`cunene_following_${follower.id}`, JSON.stringify(myFollowing));
+      this.toggleFollowCompany(follower.id, targetId);
+      return false;
+    } else {
+      // Seguir
+      const followerItem: FollowerItem = {
+        id: follower.id,
+        name: follower.full_name || follower.company_name || 'Utilizador do Cunene',
+        avatar_url: follower.avatar_url || follower.company_logo || '',
+        role: follower.role,
+        municipality: follower.municipality || 'Ondjiva',
+        profession: (follower as any).profession || (follower.role === 'employer' ? 'Empresa' : 'Profissional'),
+        target_id: targetId,
+        target_name: targetName || 'Perfil',
+        created_at: new Date().toISOString()
+      };
+
+      targetFollowers = [followerItem, ...targetFollowers.filter(f => f.id !== follower.id)];
+      myFollowing = [followerItem, ...myFollowing.filter(f => f.target_id !== targetId)];
+      localStorage.setItem(`cunene_followers_${targetId}`, JSON.stringify(targetFollowers));
+      localStorage.setItem(`cunene_following_${follower.id}`, JSON.stringify(myFollowing));
+      this.toggleFollowCompany(follower.id, targetId);
+
+      // Gerar notificação interna e Notificação Push Nativa para quem foi seguido
+      this.addNotification({
+        id: 'notif-' + Date.now(),
+        user_id: targetId,
+        title: '👥 Novo Seguidor no CuneneVagas!',
+        message: `${followerItem.name} começou a seguir ${targetName ? `"${targetName}"` : 'o seu perfil'}.`,
+        read: false,
+        created_at: new Date().toISOString(),
+        link: 'followers'
+      });
+
+      return true;
     }
   },
 
@@ -706,10 +1119,176 @@ export const StoreService = {
         console.log('Fetch companies table error:', err);
       }
 
-      return Array.from(allCompaniesMap.values());
+      if (allCompaniesMap.size === 0) {
+        const defaultRegisteredCompanies = this.getDefaultCompanies();
+        try {
+          localStorage.setItem(STORAGE_KEYS.COMPANIES, JSON.stringify(defaultRegisteredCompanies));
+        } catch {}
+        return defaultRegisteredCompanies;
+      }
+
+      const results = Array.from(allCompaniesMap.values());
+      try {
+        localStorage.setItem(STORAGE_KEYS.COMPANIES, JSON.stringify(results));
+      } catch {}
+      return results;
     } catch {
-      return [];
+      return this.getCompanies();
     }
+  },
+
+  getCompanies(): UserProfile[] {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.COMPANIES);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return this.getDefaultCompanies();
+  },
+
+  getDefaultCompanies(): UserProfile[] {
+    return [
+      {
+        id: 'comp-cunene-agro',
+        email: 'contacto@agropecuariacunene.ao',
+        full_name: 'Agro-Pecuária Cunene Viva',
+        company_name: 'Agro-Pecuária Cunene Viva',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=600&auto=format&fit=crop&q=80',
+        industry: 'Agricultura & Pecuária',
+        municipality: 'Ondjiva',
+        phone: '+244 923 111 222',
+        whatsapp: '+244 923 111 222',
+        address: 'Zona Industrial de Ondjiva',
+        website: 'https://cunenevagas.online',
+        services: ['Produção de Milho', 'Criação de Gado Bovino', 'Forragens'],
+        bio: 'Empresa agro-pecuária de referência na província do Cunene, dedicada à produção sustentável e abastecimento local.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'comp-trans-cunene',
+        email: 'geral@transcunene.ao',
+        full_name: 'Trans-Cunene Logística & Cargas',
+        company_name: 'Trans-Cunene Logística & Cargas',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=80',
+        industry: 'Transporte & Logística',
+        municipality: 'Santa Clara',
+        phone: '+244 931 444 555',
+        whatsapp: '+244 931 444 555',
+        address: 'Posto Fronteiriço de Santa Clara',
+        website: 'https://cunenevagas.online',
+        services: ['Despacho Aduaneiro', 'Fretes Rodoviários', 'Armazenagem'],
+        bio: 'Soluções de transporte de mercadorias e desembaraço alfandegário no corredor comercial Angola-Namíbia.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'comp-farmacia-santaclara',
+        email: 'atendimento@farmaciasantaclara.ao',
+        full_name: 'Farmácia Central Santa Clara',
+        company_name: 'Farmácia Central Santa Clara',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=600&auto=format&fit=crop&q=80',
+        industry: 'Saúde & Farmácia',
+        municipality: 'Namacunde',
+        phone: '+244 945 777 888',
+        whatsapp: '+244 945 777 888',
+        address: 'Avenida Principal, Namacunde',
+        website: 'https://cunenevagas.online',
+        services: ['Medicamentos', 'Produtos Hospitalares', 'Cosméticos'],
+        bio: 'Disponibilização contínua de medicamentos essenciais e apoio à saúde comunitária no município de Namacunde.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'comp-ombandja-const',
+        email: 'obras@ombandjaconstrucoes.ao',
+        full_name: 'Ombandja Engenharia & Obras',
+        company_name: 'Ombandja Engenharia & Obras',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&auto=format&fit=crop&q=80',
+        industry: 'Construção Civil',
+        municipality: 'Ombandja',
+        phone: '+244 922 999 000',
+        whatsapp: '+244 922 999 000',
+        address: 'Bairro Comercial, Xangongo',
+        website: 'https://cunenevagas.online',
+        services: ['Construção de Edifícios', 'Terraplanagem', 'Instalações Hidráulicas'],
+        bio: 'Empresa especializada em engenharia civil, infraestruturas rurais e obras públicas no sul de Angola.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'comp-cunene-tech',
+        email: 'suporte@cunenetech.ao',
+        full_name: 'Cunene Telecom & Informática',
+        company_name: 'Cunene Telecom & Informática',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80',
+        industry: 'Tecnologia & Telecom',
+        municipality: 'Ondjiva',
+        phone: '+244 925 333 444',
+        whatsapp: '+244 925 333 444',
+        address: 'Largo da Feira, Ondjiva',
+        website: 'https://cunenevagas.online',
+        services: ['Redes e Fibra', 'Câmaras de Segurança', 'Assistência Técnica'],
+        bio: 'Fornecimento de equipamentos tecnológicos, redes corporativas e assistência em tecnologias de informação.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'comp-rainha-muxima',
+        email: 'comercial@rainhamuxima.ao',
+        full_name: 'Supermercado & Padaria Rainha Muxima',
+        company_name: 'Supermercado & Padaria Rainha Muxima',
+        role: 'employer',
+        avatar_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=150&auto=format&fit=crop&q=80',
+        company_logo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=150&auto=format&fit=crop&q=80',
+        cover_url: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=600&auto=format&fit=crop&q=80',
+        industry: 'Comércio Geral & Alimentação',
+        municipality: 'Ondjiva',
+        phone: '+244 924 555 666',
+        whatsapp: '+244 924 555 666',
+        address: 'Centro da Cidade, Ondjiva',
+        website: 'https://cunenevagas.online',
+        services: ['Panificação Diária', 'Alimentos Frescos', 'Bebidas'],
+        bio: 'Supermercado e panificação artesanal com produtos de qualidade para todas as famílias do Cunene.',
+        skills: [],
+        certificates: [],
+        experiences: [],
+        educations: [],
+        created_at: new Date().toISOString()
+      }
+    ];
   },
 
   // Purge any mock or fake sample data from local cache
@@ -753,17 +1332,42 @@ export const StoreService = {
   async fetchJobs(): Promise<Job[]> {
     const localJobs = this.getJobs();
     try {
+      // Tenta buscar da tabela principal 'jobs' e como fallback de 'vagas'
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error || !data) {
+      let rawData = (data && data.length > 0) ? data : [];
+
+      if (rawData.length === 0) {
+        const { data: fallbackVagas } = await supabase
+          .from('vagas')
+          .select('*')
+          .order('criado_em', { ascending: false });
+
+        if (fallbackVagas && fallbackVagas.length > 0) {
+          rawData = fallbackVagas.map(v => ({
+            id: v.id,
+            company_id: v.empresa_id,
+            titulo: v.titulo,
+            descricao: v.descricao,
+            salario: v.salario,
+            municipio: v.municipio,
+            tipo_contrato: 'Tempo Inteiro',
+            requisitos: '',
+            whatsapp_contato: '',
+            created_at: v.criado_em
+          }));
+        }
+      }
+
+      if (rawData.length === 0 && error) {
         return localJobs;
       }
 
       // Fetch company profiles to enrich company names
-      const companyIds = data.map(j => j.company_id).filter(Boolean);
+      const companyIds = rawData.map(j => j.company_id).filter(Boolean);
       const profileMap = new Map<string, any>();
       if (companyIds.length > 0) {
         try {
@@ -774,33 +1378,61 @@ export const StoreService = {
         }
       }
 
-      const remoteJobs = data.map(rj => {
+      const remoteJobs: Job[] = rawData.map((rj: any) => {
+        let meta: any = {};
+        let cleanDesc = rj.descricao || rj.description || '';
+        const metaMatch = cleanDesc.match(/<!--META:([\s\S]*?)-->/);
+        if (metaMatch) {
+          try {
+            meta = JSON.parse(metaMatch[1]);
+            cleanDesc = cleanDesc.replace(metaMatch[0], '').trim();
+          } catch {}
+        }
+
         const prof = profileMap.get(rj.company_id);
-        const compName = prof?.full_name || 'Empresa Registada';
+        const compName = meta.company_name || prof?.full_name || rj.empresa || 'Empresa Registada';
+        const compLogo = meta.company_logo || prof?.avatar_url || '';
+
+        let reqs: string[] = [];
+        if (Array.isArray(rj.requisitos)) {
+          reqs = rj.requisitos;
+        } else if (typeof rj.requisitos === 'string' && rj.requisitos.trim().length > 0) {
+          reqs = rj.requisitos.split('\n').map((s: string) => s.trim()).filter(Boolean);
+        } else if (Array.isArray(meta.requirements)) {
+          reqs = meta.requirements;
+        }
+
+        const salary = Number(rj.salario) || meta.salary_min || undefined;
 
         return {
-          ...rj,
           id: rj.id,
-          employer_id: rj.company_id || '',
+          employer_id: rj.company_id || meta.employer_id || '',
           title: rj.titulo || rj.title || 'Vaga de Emprego',
-          description: rj.descricao || rj.description || '',
-          municipality: rj.municipio || rj.municipality || 'Ondjiva',
-          requirements: Array.isArray(rj.requisitos) ? rj.requisitos : (rj.requirements || []),
-          benefits: rj.benefits || [],
-          vacancies_count: rj.vacancies_count || 1,
-          contract_type: rj.tipo_contrato || rj.contract_type || 'Tempo Inteiro',
-          experience_level: rj.experience_level || 'Intermédio',
-          salary_currency: rj.salary_currency || 'AOA',
-          status: 'active',
-          has_exam: !!rj.has_exam,
+          description: cleanDesc,
           company_name: compName,
+          company_logo: compLogo,
+          municipality: rj.municipio || rj.municipality || meta.municipality || 'Ondjiva',
+          category: meta.category || 'Outros',
+          requirements: reqs,
+          benefits: Array.isArray(meta.benefits) ? meta.benefits : [],
+          vacancies_count: meta.vacancies_count || 1,
+          contract_type: rj.tipo_contrato || meta.contract_type || 'Tempo Inteiro',
+          experience_level: meta.experience_level || 'Intermédio',
+          salary_min: salary,
+          salary_max: meta.salary_max || salary,
+          salary_currency: meta.salary_currency || 'AOA',
+          whatsapp: rj.whatsapp_contato || meta.whatsapp || '',
+          email: meta.email || '',
+          status: 'active',
+          has_exam: !!meta.has_exam || !!meta.exam,
+          exam: meta.exam || undefined,
           created_at: rj.created_at || new Date().toISOString()
         } as Job;
       });
 
       const remoteIds = new Set(remoteJobs.map(j => j.id));
-      const localOnly = localJobs.filter(j => !remoteIds.has(j.id));
-      const merged = [...localOnly, ...remoteJobs];
+      const localOnly = localJobs.filter(j => !remoteIds.has(j.id) && !j.id?.startsWith('job-fake'));
+      const merged = [...remoteJobs, ...localOnly];
 
       localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(merged));
       return merged;
@@ -943,15 +1575,18 @@ export const StoreService = {
     }
   },
 
-  saveJob(jobData: Omit<Job, 'id' | 'created_at'>): Job {
+  async saveJob(jobData: Omit<Job, 'id' | 'created_at'>): Promise<Job> {
     const jobs = this.getJobs();
-    const jobId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (
-      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      })
-    );
+    
+    // Gerar UUID válido para compatibilidade com a coluna id (uuid) no Postgres
+    const jobId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') 
+      ? crypto.randomUUID() 
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+
     const newJob: Job = {
       ...jobData,
       id: jobId,
@@ -960,36 +1595,83 @@ export const StoreService = {
     if (newJob.exam) {
       newJob.exam.job_id = jobId;
     }
-    const updated = [newJob, ...jobs];
+
+    const updated = [newJob, ...jobs.filter(j => j.id !== jobId)];
     localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(updated));
 
-    const cleanCompanyId = (newJob.employer_id && !newJob.employer_id.startsWith('comp-'))
-      ? newJob.employer_id
-      : null;
+    // Empacotar metadados completos para persistência total
+    const meta = {
+      company_name: newJob.company_name,
+      company_logo: newJob.company_logo,
+      category: newJob.category,
+      experience_level: newJob.experience_level,
+      benefits: newJob.benefits,
+      salary_min: newJob.salary_min,
+      salary_max: newJob.salary_max,
+      salary_currency: newJob.salary_currency,
+      email: newJob.email,
+      whatsapp: newJob.whatsapp,
+      vacancies_count: newJob.vacancies_count,
+      has_exam: newJob.has_exam,
+      exam: newJob.exam,
+      employer_id: newJob.employer_id,
+      requirements: newJob.requirements
+    };
+
+    const fullDesc = `<!--META:${JSON.stringify(meta)}-->\n${newJob.description || ''}`;
+    const cleanSalary = newJob.salary_min ? Number(newJob.salary_min) : (newJob.salary_max ? Number(newJob.salary_max) : null);
+    
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newJob.employer_id || '');
+    const cleanCompanyId = isValidUUID ? newJob.employer_id : null;
+    const reqsText = Array.isArray(newJob.requirements) ? newJob.requirements.join('\n') : (newJob.requirements || '');
 
     const dbJob: any = {
       id: newJob.id,
       titulo: newJob.title,
-      descricao: newJob.description || '',
+      descricao: fullDesc,
       municipio: newJob.municipality || 'Ondjiva',
-      requisitos: newJob.requirements || [],
-      company_id: cleanCompanyId,
+      salario: cleanSalary,
+      requisitos: reqsText,
       tipo_contrato: newJob.contract_type || 'Tempo Inteiro',
+      whatsapp_contato: newJob.whatsapp || '',
+      company_id: cleanCompanyId,
       created_at: newJob.created_at
     };
 
-    // Persist to both table aliases ('jobs' and 'vagas') for absolute database compatibility
-    supabase.from('jobs').insert([dbJob]).then(({ error }) => {
-      if (error) console.log('Supabase jobs insert note:', error.message);
-    });
-    supabase.from('vagas').insert([dbJob]).then(({ error }) => {
-      if (error) console.log('Supabase vagas insert note:', error.message);
-    });
+    try {
+      const { data: inserted, error: insertErr } = await supabase.from('jobs').insert([dbJob]).select();
+      if (insertErr) {
+        console.warn('Supabase jobs insert note (tentando fallback):', insertErr.message);
+        // Fallback sem id manual se o banco gerar o UUID
+        await supabase.from('jobs').insert([{
+          titulo: newJob.title,
+          descricao: fullDesc,
+          municipio: newJob.municipality || 'Ondjiva',
+          salario: cleanSalary,
+          requisitos: reqsText,
+          tipo_contrato: newJob.contract_type || 'Tempo Inteiro',
+          whatsapp_contato: newJob.whatsapp || ''
+        }]);
+      }
+
+      // Persistir também em vagas para suporte total
+      try {
+        await supabase.from('vagas').insert([{
+          titulo: newJob.title,
+          descricao: fullDesc,
+          salario: cleanSalary,
+          municipio: newJob.municipality || 'Ondjiva',
+          ativa: true
+        }]);
+      } catch {}
+    } catch (err) {
+      console.warn('Erro na persistência de vaga no Supabase:', err);
+    }
 
     return newJob;
   },
 
-  updateJob(jobId: string, updates: Partial<Job>): Job | null {
+  async updateJob(jobId: string, updates: Partial<Job>): Promise<Job | null> {
     const jobs = this.getJobs();
     let updatedJob: Job | null = null;
     const updated = jobs.map(j => {
@@ -1001,21 +1683,68 @@ export const StoreService = {
     });
     localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(updated));
 
-    supabase.from('jobs').update(updates).eq('id', jobId).then(({ error }) => {
-      if (error) console.log('Supabase jobs update note:', error.message);
-    });
+    if (updatedJob) {
+      const target: Job = updatedJob;
+      const meta = {
+        company_name: target.company_name,
+        company_logo: target.company_logo,
+        category: target.category,
+        experience_level: target.experience_level,
+        benefits: target.benefits,
+        salary_min: target.salary_min,
+        salary_max: target.salary_max,
+        salary_currency: target.salary_currency,
+        email: target.email,
+        whatsapp: target.whatsapp,
+        vacancies_count: target.vacancies_count,
+        has_exam: target.has_exam,
+        exam: target.exam,
+        employer_id: target.employer_id,
+        requirements: target.requirements
+      };
+      const fullDesc = `<!--META:${JSON.stringify(meta)}-->\n${target.description || ''}`;
+      const cleanSalary = target.salary_min ? Number(target.salary_min) : (target.salary_max ? Number(target.salary_max) : null);
+
+      try {
+        await supabase.from('jobs').update({
+          titulo: target.title,
+          descricao: fullDesc,
+          municipio: target.municipality,
+          salario: cleanSalary,
+          tipo_contrato: target.contract_type,
+          requisitos: Array.isArray(target.requirements) ? target.requirements.join('\n') : (target.requirements || ''),
+          whatsapp_contato: target.whatsapp || ''
+        }).eq('id', jobId);
+
+        try {
+          await supabase.from('vagas').update({
+            titulo: target.title,
+            descricao: fullDesc,
+            municipio: target.municipality,
+            salario: cleanSalary
+          }).eq('id', jobId);
+        } catch {}
+      } catch (e) {
+        console.warn('Erro ao atualizar no Supabase:', e);
+      }
+    }
 
     return updatedJob;
   },
 
-  deleteJob(jobId: string): void {
+  async deleteJob(jobId: string): Promise<void> {
     const jobs = this.getJobs();
     const updated = jobs.filter(j => j.id !== jobId);
     localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(updated));
 
-    supabase.from('jobs').delete().eq('id', jobId).then(({ error }) => {
-      if (error) console.log('Supabase jobs delete note:', error.message);
-    });
+    try {
+      await supabase.from('jobs').delete().eq('id', jobId);
+      try {
+        await supabase.from('vagas').delete().eq('id', jobId);
+      } catch {}
+    } catch (e) {
+      console.warn('Erro ao excluir no Supabase:', e);
+    }
   },
 
   // Exams
@@ -1049,8 +1778,15 @@ export const StoreService = {
   // Exam Attempts
   saveExamAttempt(attemptData: Omit<ExamAttempt, 'id' | 'created_at'>): ExamAttempt {
     const attempts = this.getExamAttempts();
+    const isSimulated = !!(
+      attemptData.is_simulated ||
+      attemptData.exam_id?.startsWith('free-') ||
+      attemptData.job_id === 'practice-general'
+    );
+
     const newAttempt: ExamAttempt = {
       ...attemptData,
+      is_simulated: isSimulated,
       id: 'attempt-' + Date.now(),
       created_at: new Date().toISOString()
     };
@@ -1060,8 +1796,8 @@ export const StoreService = {
     this.addNotification({
       id: 'notif-' + Date.now(),
       user_id: attemptData.candidate_id,
-      title: 'Resultado do Exame',
-      message: `O seu exame foi concluído com ${attemptData.percentage}% (${attemptData.passed ? 'Aprovado' : 'Não Aprovado'}).`,
+      title: isSimulated ? 'Resultado do Simulado' : 'Resultado do Exame',
+      message: `O seu ${isSimulated ? 'simulado' : 'exame'} foi concluído com ${attemptData.percentage}% (${attemptData.passed ? 'Aprovado' : 'Não Aprovado'}).`,
       read: false,
       created_at: new Date().toISOString()
     });
@@ -1079,6 +1815,11 @@ export const StoreService = {
     }
   },
 
+  // Retorna estritamente exames oficiais/reais (excluindo testes simulados livres de treino)
+  getRealExamAttempts(): ExamAttempt[] {
+    return this.getExamAttempts().filter(a => !a.is_simulated && !a.exam_id?.startsWith('free-') && a.job_id !== 'practice-general');
+  },
+
   // Applications
   getApplications(): JobApplication[] {
     const raw = localStorage.getItem(STORAGE_KEYS.APPLICATIONS);
@@ -1090,7 +1831,15 @@ export const StoreService = {
     }
   },
 
-  applyToJob(jobId: string, candidate: CandidateProfile, coverLetter?: string, cvUrl?: string): JobApplication {
+  async applyToJob(jobId: string, candidate: CandidateProfile, coverLetter?: string, cvUrl?: string): Promise<JobApplication> {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(jobId)) {
+      throw new Error('A vaga selecionada não possui um identificador UUID válido no Supabase.');
+    }
+    if (!uuidRegex.test(candidate.id)) {
+      throw new Error('O perfil do candidato não possui um identificador UUID válido no Supabase.');
+    }
+
     const apps = this.getApplications();
     const existing = apps.find(a => a.job_id === jobId && a.candidate_id === candidate.id);
     
@@ -1102,22 +1851,27 @@ export const StoreService = {
         cv_url: cvUrl || candidate.cv_url || existing.cv_url,
         candidate: { ...candidate }
       };
+
+      const { error } = await supabase.from('applications').update({
+        status: updatedExisting.status
+      }).eq('id', existing.id);
+
+      if (error) {
+        throw new Error('Erro ao atualizar candidatura no Supabase: ' + error.message);
+      }
+
       const updated = apps.map(a => a.id === existing.id ? updatedExisting : a);
       localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(updated));
-
-      supabase.from('applications').update({
-        cover_letter: updatedExisting.cover_letter,
-        cv_url: updatedExisting.cv_url,
-        candidate: updatedExisting.candidate
-      }).eq('id', existing.id).then(({ error }) => {
-        if (error) console.log('Supabase applications update note:', error.message);
-      });
 
       return updatedExisting;
     }
 
+    const validAppId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
+
     const newApp: JobApplication = {
-      id: 'app-' + Date.now(),
+      id: validAppId,
       job_id: jobId,
       candidate_id: candidate.id,
       status: 'Enviada',
@@ -1126,13 +1880,23 @@ export const StoreService = {
       created_at: new Date().toISOString(),
       candidate: { ...candidate }
     };
+
+    // Persist to Supabase 'applications' table first and await result
+    const dbPayload = {
+      id: newApp.id,
+      job_id: jobId,
+      candidate_id: candidate.id,
+      status: 'Enviada',
+      created_at: newApp.created_at
+    };
+
+    const { error } = await supabase.from('applications').insert([dbPayload]);
+    if (error) {
+      throw new Error('Erro ao persistir candidatura no Supabase: ' + error.message);
+    }
+
     const updated = [newApp, ...apps];
     localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(updated));
-
-    // Persist to unified table name 'applications'
-    supabase.from('applications').insert([newApp]).then(({ error }) => {
-      if (error) console.log('Supabase applications insert note:', error.message);
-    });
 
     return newApp;
   },
@@ -1153,11 +1917,9 @@ export const StoreService = {
     localStorage.setItem(STORAGE_KEYS.APPLICATIONS, JSON.stringify(updated));
 
     supabase.from('applications').update({
-      status: 'Exame realizado',
-      exam_score: percentage,
-      exam_passed: passed
+      status: 'Exame realizado'
     }).eq('id', appId).then(({ error }) => {
-      if (error) console.log('Supabase application exam result update note:', error.message);
+      if (error) console.warn('Supabase application exam result update note:', error.message);
     });
   },
 
@@ -1312,15 +2074,22 @@ export const StoreService = {
   },
 
   async addProduct(productData: Omit<MarketplaceProduct, 'id' | 'created_at'>): Promise<MarketplaceProduct> {
-    // 1. Validar limite de produtos
+    // 1. Validar limite de produtos (Máximo de 10 produtos gratuitos por empresa/utilizador)
     const products = this.getProducts();
-    const userProducts = products.filter(p => p.seller_id === productData.seller_id);
+    const userProducts = products.filter(p => 
+      p.seller_id === productData.seller_id || 
+      (productData.company_id && p.company_id === productData.company_id)
+    );
     
-    // Verificar se é premium
+    // Verificar se tem licença ilimitada desbloqueada via PayPal
+    const currentUser = this.getCurrentUser();
     const transactions = await this.fetchTransactions(productData.seller_id);
-    const isPremium = transactions.some(t => t.resource_type === 'marketplace_unlocked' && t.status === 'completed');
+    const isPremium = 
+      Boolean(currentUser?.marketplace_unlocked || currentUser?.company?.marketplace_unlocked) ||
+      transactions.some(t => t.resource_type === 'marketplace_unlocked' && t.status === 'completed');
 
-    if (userProducts.length >= 3 && !isPremium) {
+    // Empresas podem postar até 10 produtos gratuitamente; depois disso têm de pagar via PayPal
+    if (userProducts.length >= 10 && !isPremium) {
       throw new Error('LIMIT_REACHED');
     }
 
@@ -1444,34 +2213,86 @@ export const StoreService = {
     supabase.from('marketplace').delete().eq('id', productId).then(({ error }) => {
       if (error) console.log('Supabase marketplace delete note:', error.message);
     });
+    supabase.from('produtos').delete().eq('id', productId).then(({ error }) => {
+      if (error) console.log('Supabase produtos delete note:', error.message);
+    });
+
+    window.dispatchEvent(new CustomEvent('cunene_product_deleted', { detail: { productId } }));
+  },
+
+  getVisitorId(): string {
+    let vid = localStorage.getItem('cunene_visitor_id');
+    if (!vid) {
+      vid = 'v_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+      localStorage.setItem('cunene_visitor_id', vid);
+    }
+    return vid;
   },
 
   // Community Posts (Fonte de Verdade: SUPABASE + Cache Local para Performance)
   async fetchPosts(): Promise<CommunityPost[]> {
     const localPosts = this.getPosts();
-    try {
-      const { data, error } = await supabase
-        .from('community_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const activeUserId = this.getCurrentUser()?.id || this.getVisitorId();
 
-      if (error || !data) {
+    try {
+      // Consultar simultaneamente 'community_posts' e 'posts' para compatibilidade total
+      const [commRes, postsRes] = await Promise.allSettled([
+        supabase.from('community_posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('posts').select('*').order('created_at', { ascending: false })
+      ]);
+
+      const commData = commRes.status === 'fulfilled' && !commRes.value.error ? (commRes.value.data || []) : [];
+      const postsData = postsRes.status === 'fulfilled' && !postsRes.value.error ? (postsRes.value.data || []) : [];
+
+      const combinedRaw = [...commData, ...postsData];
+      if (combinedRaw.length === 0 && localPosts.length > 0) {
         return localPosts;
       }
 
-      // Ensure all posts have the necessary structure
-      const remotePosts = (data || []).map(p => ({
-        ...p,
-        comments: Array.isArray(p.comments) ? p.comments : [],
-        reactions: p.reactions && typeof p.reactions === 'object' ? p.reactions : {},
-        likes_count: typeof p.likes_count === 'number' ? p.likes_count : 0,
-        comments_count: typeof p.comments_count === 'number' ? p.comments_count : (Array.isArray(p.comments) ? p.comments.length : 0)
-      })) as CommunityPost[];
+      // Unificar por id
+      const uniqueRemoteMap = new Map<string, any>();
+      combinedRaw.forEach(p => {
+        if (p && p.id && !uniqueRemoteMap.has(p.id)) {
+          uniqueRemoteMap.set(p.id, p);
+        }
+      });
+
+      const data = Array.from(uniqueRemoteMap.values());
+      const localMap = new Map(localPosts.map(lp => [lp.id, lp]));
+
+      // Ensure all posts have the necessary structure and preserve user reaction
+      const remotePosts = data.map(p => {
+        const local = localMap.get(p.id);
+        const remoteReactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
+        const localReactions = (local?.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions)) ? local.reactions : {};
+        const combinedReactions = { ...remoteReactions, ...localReactions };
+
+        const userReaction = (activeUserId && combinedReactions[activeUserId]) 
+          ? combinedReactions[activeUserId] 
+          : (local?.user_reaction || undefined);
+
+        const rawRemoteLikes = typeof p.likes_count === 'number' ? p.likes_count : 0;
+        const rawLocalLikes = typeof local?.likes_count === 'number' ? local.likes_count : 0;
+        const reactionsCount = Object.keys(combinedReactions).length;
+        const finalLikesCount = Math.max(rawRemoteLikes, rawLocalLikes, reactionsCount);
+
+        const finalImageUrl = p.image_url || (p as any).imagem_url || (p as any).media_url || (p as any).image || local?.image_url || (local as any)?.imagem_url || (local as any)?.media_url;
+
+        return {
+          ...p,
+          image_url: finalImageUrl || undefined,
+          comments: Array.isArray(p.comments) ? p.comments : (local?.comments || []),
+          reactions: combinedReactions,
+          likes_count: finalLikesCount,
+          comments_count: typeof p.comments_count === 'number' ? p.comments_count : (Array.isArray(p.comments) ? p.comments.length : (local?.comments_count || 0)),
+          user_reaction: userReaction
+        };
+      }) as CommunityPost[];
 
       // Merge: preserve all remote posts + any local posts that might not be synced yet
       const remoteIds = new Set(remotePosts.map(p => p.id));
       const localOnly = localPosts.filter(p => !remoteIds.has(p.id));
-      const merged = [...localOnly, ...remotePosts];
+      const merged = [...remotePosts, ...localOnly];
 
       localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(merged));
       return merged;
@@ -1486,16 +2307,32 @@ export const StoreService = {
     try {
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return parsed;
+      const activeUserId = this.getCurrentUser()?.id || this.getVisitorId();
+      return parsed.map(p => {
+        const reactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
+        const postImg = p.image_url || p.imagem_url || p.media_url || p.image;
+        return {
+          ...p,
+          image_url: postImg || undefined,
+          reactions,
+          likes_count: typeof p.likes_count === 'number' ? Math.max(p.likes_count, Object.keys(reactions).length) : Object.keys(reactions).length,
+          user_reaction: p.user_reaction || (activeUserId && reactions[activeUserId] ? reactions[activeUserId] : undefined)
+        };
+      });
     } catch {
       return [];
     }
   },
 
   async addPost(postData: Omit<CommunityPost, 'id' | 'created_at' | 'likes_count' | 'comments_count'>): Promise<CommunityPost> {
+    // Gerar UUID válido para compatibilidade com a coluna id (uuid) no Postgres
+    const validUuid = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : 'post-' + Date.now();
+
     const newPost: CommunityPost = {
       ...postData,
-      id: 'post-' + Date.now(),
+      id: validUuid,
       likes_count: 0,
       comments_count: 0,
       comments: [],
@@ -1508,16 +2345,27 @@ export const StoreService = {
     const updated = [newPost, ...posts];
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
 
+    try {
+      const myPostIds = JSON.parse(localStorage.getItem('my_created_post_ids') || '[]');
+      if (!myPostIds.includes(newPost.id)) {
+        localStorage.setItem('my_created_post_ids', JSON.stringify([...myPostIds, newPost.id]));
+      }
+    } catch {}
+
+    // Validar se author_id é um UUID padrão (caso a coluna author_id seja uuid no Postgres)
+    const isUuidAuthor = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newPost.author_id);
+
     // 2. Persist in Supabase (Sanitize for DB)
     const dbPost: any = {
       id: newPost.id,
-      author_id: newPost.author_id,
+      author_id: isUuidAuthor ? newPost.author_id : null,
       author_type: newPost.author_type,
       author_name: newPost.author_name || 'Utilizador',
       author_avatar: newPost.author_avatar || '',
       company_id: (newPost.company_id && !newPost.company_id.startsWith('comp-')) ? newPost.company_id : null,
       content: newPost.content,
       image_url: newPost.image_url || null,
+      poll: newPost.poll || null,
       category: newPost.category || 'Emprego',
       likes_count: 0,
       comments_count: 0,
@@ -1527,9 +2375,23 @@ export const StoreService = {
 
     const safeInsertPost = async (tableName: string, payload: any) => {
       let { error } = await supabase.from(tableName).insert([payload]);
-      if (error && payload.company_id) {
-        const fallback = { ...payload, company_id: null };
-        await supabase.from(tableName).insert([fallback]);
+      if (error) {
+        console.warn(`Tentativa 1 em ${tableName} falhou:`, error.message);
+        // Fallback 1: sem company_id e sem author_id não-uuid
+        const fallback1 = { ...payload, company_id: null, author_id: null };
+        let { error: err2 } = await supabase.from(tableName).insert([fallback1]);
+        if (err2) {
+          // Fallback 2: payload mínimo estritamente seguro
+          const minimal = {
+            id: payload.id,
+            content: payload.content,
+            author_name: payload.author_name,
+            category: payload.category || 'Emprego',
+            image_url: payload.image_url || null,
+            created_at: payload.created_at
+          };
+          await supabase.from(tableName).insert([minimal]);
+        }
       }
     };
 
@@ -1545,47 +2407,152 @@ export const StoreService = {
     return newPost;
   },
 
-  async reactToPost(postId: string, reactionType: PostReactionType, userId: string): Promise<CommunityPost | null> {
+  async voteOnPoll(postId: string, optionId: string, userId: string): Promise<CommunityPost | null> {
     const posts = this.getPosts();
     const postIndex = posts.findIndex(p => p.id === postId);
     if (postIndex === -1) return null;
 
     const targetPost = { ...posts[postIndex] };
+    if (!targetPost.poll) return null;
+
+    const updatedOptions = targetPost.poll.options.map(opt => {
+      let votes = opt.votes || [];
+      const alreadyVotedHere = votes.includes(userId);
+      
+      if (opt.id !== optionId) {
+        votes = votes.filter(id => id !== userId);
+      } else {
+        if (alreadyVotedHere) {
+          votes = votes.filter(id => id !== userId);
+        } else {
+          votes = [...votes, userId];
+        }
+      }
+      return { ...opt, votes };
+    });
+
+    const updatedPost: CommunityPost = {
+      ...targetPost,
+      poll: {
+        ...targetPost.poll,
+        options: updatedOptions,
+        total_votes: updatedOptions.reduce((acc, opt) => acc + (opt.votes?.length || 0), 0)
+      }
+    };
+
+    const updatedPosts = [...posts];
+    updatedPosts[postIndex] = updatedPost;
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
+    
+    try {
+      await supabase.from('community_posts').update({ poll: updatedPost.poll }).eq('id', postId);
+    } catch {}
+
+    return updatedPost;
+  },
+
+  async reportPost(postId: string): Promise<void> {
+    const posts = this.getPosts();
+    const postIndex = posts.findIndex(p => p.id === postId);
+    if (postIndex === -1) return;
+
+    const targetPost = { ...posts[postIndex] };
+    targetPost.reports_count = (targetPost.reports_count || 0) + 1;
+
+    const updatedPosts = [...posts];
+    updatedPosts[postIndex] = targetPost;
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
+
+    try {
+      await supabase.from('community_posts').update({ reports_count: targetPost.reports_count }).eq('id', postId);
+    } catch {}
+  },
+
+  async reactToPost(postId: string, reactionType: PostReactionType, userId?: string, existingPost?: CommunityPost): Promise<CommunityPost | null> {
+    const activeUserId = userId || this.getCurrentUser()?.id || this.getVisitorId();
+    const posts = this.getPosts();
+    let postIndex = posts.findIndex(p => p.id === postId);
+
+    let basePost: CommunityPost;
+    if (postIndex === -1) {
+      if (!existingPost) return null;
+      basePost = { ...existingPost };
+      posts.unshift(basePost);
+      postIndex = 0;
+    } else {
+      basePost = { ...posts[postIndex] };
+    }
+
+    const targetPost: CommunityPost = {
+      ...(existingPost || {}),
+      ...basePost
+    };
+
+    // Ensure image_url is never lost
+    const resolvedImageUrl = existingPost?.image_url || (existingPost as any)?.imagem_url || targetPost.image_url || (targetPost as any).imagem_url || (targetPost as any).media_url || (targetPost as any).image || basePost.image_url || (basePost as any).imagem_url;
+    if (resolvedImageUrl) {
+      targetPost.image_url = resolvedImageUrl;
+    }
+
     const reactions = { ...(targetPost.reactions || {}) };
-    const current = reactions[userId];
+    const current = reactions[activeUserId];
+
+    let currentLikes = typeof targetPost.likes_count === 'number' ? targetPost.likes_count : Object.keys(reactions).length;
 
     // Regra: UM utilizador só pode ter UMA reação por post.
-    // Ao tocar novamente na reação ativa: remover a reação.
+    // Ao tocar novamente na reação ativa: remover a reação e diminuir like.
     if (current === reactionType) {
-      delete reactions[userId];
+      delete reactions[activeUserId];
+      currentLikes = Math.max(0, currentLikes - 1);
     } else {
-      reactions[userId] = reactionType;
+      if (!current) {
+        // Nova reação adicionada
+        currentLikes = currentLikes + 1;
+      }
+      // Alterna o tipo de reação (ex: like -> love)
+      reactions[activeUserId] = reactionType;
     }
+
+    const calculatedLikes = Math.max(currentLikes, Object.keys(reactions).length);
 
     const updatedPost: CommunityPost = {
       ...targetPost,
       reactions,
-      likes_count: Object.keys(reactions).length,
-      user_reaction: reactions[userId]
+      likes_count: calculatedLikes,
+      user_reaction: reactions[activeUserId],
+      image_url: resolvedImageUrl || targetPost.image_url
     };
 
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
 
-    // 1. Optimistic Update
+    // 1. Optimistic Update instantâneo no localStorage
     localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
 
     // 2. Persist in Supabase
-    const { error } = await supabase
-      .from('community_posts')
-      .update({ 
-        likes_count: updatedPost.likes_count
-      })
-      .eq('id', postId);
+    try {
+      const updatePayload: any = {
+        likes_count: updatedPost.likes_count,
+        image_url: updatedPost.image_url || null
+      };
+      // Tenta enviar reactions se a coluna existir
+      const { error } = await supabase
+        .from('community_posts')
+        .update({
+          ...updatePayload,
+          reactions: updatedPost.reactions
+        })
+        .eq('id', postId);
 
-    if (error) {
-      console.warn('Sincronização de reação falhou no servidor:', error.message);
-      // We keep local state for responsiveness, but a refresh will revert if truly failed
+      if (error) {
+        // Fallback apenas para likes_count e image_url
+        await supabase
+          .from('community_posts')
+          .update(updatePayload)
+          .eq('id', postId);
+      }
+    } catch (err) {
+      console.warn('Sincronização de reação falhou no servidor:', err);
     }
 
     return updatedPost;
@@ -1662,6 +2629,19 @@ export const StoreService = {
       });
     }
 
+    // 2. Persist in Supabase
+    try {
+      await supabase
+        .from('community_posts')
+        .update({
+          comments: targetPost.comments,
+          comments_count: targetPost.comments_count
+        })
+        .eq('id', postId);
+    } catch (err) {
+      console.warn('Sincronização de comentário falhou no servidor:', err);
+    }
+    
     return newComment;
   },
 
@@ -1713,6 +2693,10 @@ export const StoreService = {
     supabase.from('community_posts').delete().eq('id', postId).then(({ error }) => {
       if (error) console.log('Supabase post delete note:', error.message);
     });
+
+    try {
+      window.dispatchEvent(new CustomEvent('cunene_post_deleted', { detail: { postId } }));
+    } catch {}
   },
 
   // Exams - PRODUCTION SECURE LOGIC
@@ -1723,7 +2707,8 @@ export const StoreService = {
     let totalPoints = 0;
 
     job.exam.questions.forEach(q => {
-      totalPoints += q.points;
+      const qPts = q.points || 10;
+      totalPoints += qPts;
       const userAns = (answers[q.id] || '').trim().toLowerCase();
       
       let correctAns = '';
@@ -1734,25 +2719,38 @@ export const StoreService = {
       }
       
       if (userAns === correctAns) {
-        score += q.points;
+        score += qPts;
       }
     });
 
     const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
-    const passed = percentage >= job.exam.passing_score;
+    const passed = percentage >= (job.exam.passing_score || 70);
     
+    const user = this.getCurrentUser();
+    const candidateName = user?.full_name || 'Candidato';
+
+    const isSimulated = !!(
+      attemptData.is_simulated ||
+      job.id === 'practice-general' ||
+      job.exam?.is_simulated ||
+      job.exam?.id?.startsWith('free-') ||
+      attemptData.exam_id?.startsWith('free-') ||
+      attemptData.job_id === 'practice-general'
+    );
+
     const newAttempt: ExamAttempt = {
       ...attemptData,
+      is_simulated: isSimulated,
       id: 'att-' + Date.now(),
       score,
       total_points: totalPoints,
       percentage,
       passed,
+      candidate_name: candidateName,
+      job_title: job.title,
+      answers,
       created_at: new Date().toISOString(),
-      exam: {
-        ...job.exam,
-        questions: job.exam.questions.map(q => ({ ...q, correct_answer: 'HIDDEN' }))
-      }
+      exam: job.exam
     };
 
     supabase.from('exam_attempts').insert([newAttempt]).then(({ error }) => {
@@ -1765,13 +2763,34 @@ export const StoreService = {
     this.addNotification({
       id: 'notif-' + Date.now(),
       user_id: attemptData.candidate_id,
-      title: 'Resultado do Exame',
-      message: `Concluiu o exame para ${job.title} com ${percentage}% (${passed ? 'Aprovado' : 'Não Aprovado'}).`,
+      title: isSimulated ? 'Resultado do Simulado' : 'Resultado do Exame',
+      message: `Concluiu o ${isSimulated ? 'simulado' : 'exame'} para ${job.title} com ${percentage}% (${passed ? 'Aprovado' : 'Não Aprovado'}).`,
       read: false,
       created_at: new Date().toISOString()
     });
 
     return newAttempt;
+  },
+
+  async fetchExamAttempts(candidateId?: string): Promise<ExamAttempt[]> {
+    const local = this.getExamAttempts();
+    try {
+      let query = supabase.from('exam_attempts').select('*').order('created_at', { ascending: false });
+      if (candidateId) {
+        query = query.eq('candidate_id', candidateId);
+      }
+      const { data, error } = await query;
+      if (error || !data || !Array.isArray(data)) return local;
+      
+      const remote = data as ExamAttempt[];
+      const localIds = new Set(local.map(a => a.id));
+      const newFromRemote = remote.filter(a => !localIds.has(a.id));
+      const merged = [...local, ...newFromRemote];
+      localStorage.setItem(STORAGE_KEYS.ATTEMPTS, JSON.stringify(merged));
+      return merged;
+    } catch {
+      return local;
+    }
   },
 
   // Notifications - Supabase Driven
@@ -1806,6 +2825,14 @@ export const StoreService = {
     const updated = [notif, ...notifs];
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS + '_' + notif.user_id, JSON.stringify(updated));
 
+    // Enviar Notificação Push Nativa do Navegador/Sistema
+    try {
+      sendNativePushNotification(notif.title, {
+        body: notif.message,
+        url: notif.link || '/'
+      });
+    } catch {}
+
     // Try persistence to Supabase
     supabase.from('notifications').insert([notif]).then(({ error }) => {
       if (error) console.log('Notifications persistence limited (missing table in Supabase).');
@@ -1820,6 +2847,223 @@ export const StoreService = {
     supabase.from('notifications').update({ read: true }).eq('id', notifId).then(({ error }) => {
       if (error) console.log('Read status sync limited.');
     });
+  },
+
+  // Enviar Mensagem/Notificação do Sistema (Admin)
+  sendSystemNotification(params: {
+    target: 'all' | 'employers' | 'candidates' | string;
+    title?: string;
+    message: string;
+    link?: string;
+  }): number {
+    const title = params.title?.trim() || 'Notificação do Sistema';
+    const message = params.message.trim();
+    const now = new Date().toISOString();
+
+    // Trigger push notification nativa
+    try {
+      sendNativePushNotification('Notificação do Sistema', {
+        body: message,
+        url: params.link || '/'
+      });
+    } catch {}
+
+    const allCompanies = this.getCompanies();
+    const currentUser = this.getCurrentUser();
+    
+    let recipientIds: string[] = [];
+    if (params.target === 'all') {
+      const companyUserIds = allCompanies.map(c => c.id);
+      recipientIds = Array.from(new Set([
+        ...companyUserIds, 
+        ...(currentUser ? [currentUser.id] : []),
+        'user-cand-default-1',
+        'user-cand-default-2'
+      ]));
+    } else if (params.target === 'employers') {
+      recipientIds = allCompanies.map(c => c.id);
+    } else if (params.target === 'candidates') {
+      recipientIds = [
+        ...(currentUser?.role === 'candidate' ? [currentUser.id] : []),
+        'user-cand-default-1',
+        'user-cand-default-2'
+      ];
+    } else {
+      recipientIds = [params.target];
+    }
+
+    recipientIds.forEach(userId => {
+      const notifItem: NotificationItem = {
+        id: 'sys-notif-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        user_id: userId,
+        title,
+        message,
+        read: false,
+        created_at: now,
+        link: params.link || 'notifications',
+        sender_name: 'Notificação do Sistema',
+        is_system: true
+      };
+      this.addNotification(notifItem);
+    });
+
+    return recipientIds.length;
+  },
+
+  // Classificações e Estrelas para Empresas (Company Ratings & Reviews)
+  getCompanyRatings(companyId: string): CompanyRating[] {
+    const raw = localStorage.getItem(`cunene_company_ratings_${companyId}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    const defaultRatings: CompanyRating[] = [
+      {
+        id: `rating-${companyId}-1`,
+        company_id: companyId,
+        user_id: 'user-cand-default-1',
+        user_name: 'Mateus Nande',
+        user_avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+        rating: 5,
+        comment: 'Excelente atendimento e rapidez no contacto. Empresa séria e transparente no Cunene!',
+        created_at: new Date(Date.now() - 86400000 * 3).toISOString()
+      },
+      {
+        id: `rating-${companyId}-2`,
+        company_id: companyId,
+        user_id: 'user-cand-default-2',
+        user_name: 'Helena Mukwa',
+        user_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+        rating: 5,
+        comment: 'Fiz compras no marketplace e fui muito bem atendida. Recomendo com 5 estrelas!',
+        created_at: new Date(Date.now() - 86400000 * 7).toISOString()
+      }
+    ];
+    localStorage.setItem(`cunene_company_ratings_${companyId}`, JSON.stringify(defaultRatings));
+    return defaultRatings;
+  },
+
+  addCompanyRating(ratingData: Omit<CompanyRating, 'id' | 'created_at'>): CompanyRating {
+    const current = this.getCompanyRatings(ratingData.company_id);
+    const existingIndex = current.findIndex(r => r.user_id === ratingData.user_id);
+    const newRating: CompanyRating = {
+      ...ratingData,
+      id: 'rating-' + Date.now(),
+      created_at: new Date().toISOString()
+    };
+
+    let updated: CompanyRating[];
+    if (existingIndex >= 0) {
+      updated = [...current];
+      updated[existingIndex] = newRating;
+    } else {
+      updated = [newRating, ...current];
+    }
+
+    localStorage.setItem(`cunene_company_ratings_${ratingData.company_id}`, JSON.stringify(updated));
+
+    // Notificar a empresa
+    this.addNotification({
+      id: 'notif-' + Date.now(),
+      user_id: ratingData.company_id,
+      title: 'Nova Classificação Recebida ⭐',
+      message: `${ratingData.user_name} avaliou a sua empresa com ${ratingData.rating} estrelas!`,
+      read: false,
+      created_at: new Date().toISOString(),
+      link: 'profile'
+    });
+
+    return newRating;
+  },
+
+  getCompanyRatingStats(companyId: string): { average: number; count: number } {
+    const ratings = this.getCompanyRatings(companyId);
+    if (ratings.length === 0) return { average: 5.0, count: 0 };
+    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+    return {
+      average: Number((sum / ratings.length).toFixed(1)),
+      count: ratings.length
+    };
+  },
+
+  // Parceiros Oficiais designados pelo Administrador (Mencionando Usuário)
+  getPartners(): PlatformPartner[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.PARTNERS);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    const initialPartners: PlatformPartner[] = [
+      {
+        id: 'partner-default-1',
+        user_id: 'default-emp-001',
+        user_name: 'Cunene Agro-Indústria',
+        role: 'employer',
+        partner_title: 'Parceiro Estratégico do Agronegócio',
+        badge_label: 'Parceiro Oficial',
+        description: 'Parceira oficial de desenvolvimento agro-pecuário e geração de postos de trabalho em Ombadja e Ondjiva.',
+        municipality: 'Ombadja',
+        created_at: new Date(Date.now() - 86400000 * 30).toISOString()
+      },
+      {
+        id: 'partner-default-2',
+        user_id: 'default-emp-002',
+        user_name: 'Ondjiva Construções & Engenharia',
+        role: 'employer',
+        partner_title: 'Parceiro Oficial de Infraestrutura',
+        badge_label: 'Parceiro Oficial',
+        description: 'Apoio técnico e oportunidades no setor de obras públicas e infraestruturas provinciais.',
+        municipality: 'Ondjiva',
+        created_at: new Date(Date.now() - 86400000 * 20).toISOString()
+      }
+    ];
+    localStorage.setItem(STORAGE_KEYS.PARTNERS, JSON.stringify(initialPartners));
+    return initialPartners;
+  },
+
+  addPartner(data: Omit<PlatformPartner, 'id' | 'created_at'>): PlatformPartner {
+    const current = this.getPartners();
+    const newPartner: PlatformPartner = {
+      ...data,
+      id: 'partner-' + Date.now(),
+      created_at: new Date().toISOString()
+    };
+    const updated = [newPartner, ...current];
+    localStorage.setItem(STORAGE_KEYS.PARTNERS, JSON.stringify(updated));
+
+    // Enviar Notificação do Sistema para o usuário/empresa mencionado
+    this.addNotification({
+      id: 'notif-' + Date.now(),
+      user_id: data.user_id,
+      title: 'Parabéns! Designado(a) como Parceiro Oficial 🤝',
+      message: `A administração da plataforma CuneneVagas oficializou a sua conta como "${data.partner_title}". O selo de Parceiro Oficial está agora ativo no seu perfil!`,
+      read: false,
+      created_at: new Date().toISOString(),
+      sender_name: 'Notificação do Sistema',
+      is_system: true,
+      link: 'profile'
+    });
+
+    return newPartner;
+  },
+
+  removePartner(partnerId: string): void {
+    const current = this.getPartners();
+    const updated = current.filter(p => p.id !== partnerId);
+    localStorage.setItem(STORAGE_KEYS.PARTNERS, JSON.stringify(updated));
+  },
+
+  isUserPartner(userId: string): { isPartner: boolean; partner?: PlatformPartner } {
+    const partners = this.getPartners();
+    const found = partners.find(p => p.user_id === userId);
+    return {
+      isPartner: Boolean(found),
+      partner: found
+    };
   },
 
   async fetchTransactions(userId: string): Promise<any[]> {
@@ -1876,5 +3120,309 @@ export const StoreService = {
     }
 
     return updated;
+  },
+
+  // ==========================================
+  // NOTÍCIAS PARA EMPRESAS DE TELECOMUNICAÇÕES
+  // ==========================================
+
+  getDefaultTelecomNews(): TelecomNewsItem[] {
+    return [
+      {
+        id: 'telecom-news-unitel-1',
+        operator_name: 'UNITEL',
+        title: 'Modernização e Expansão da Cobertura 4G/5G em Ondjiva e Santa Clara',
+        summary: 'A UNITEL concluiu a ativação de novos sites de transmissão ao longo do corredor comercial fronteiriço, reforçando a capacidade de dados móveis no Cunene.',
+        content: 'No âmbito do plano nacional de modernização de infraestruturas de telecomunicações, a UNITEL procedeu à instalação e melhoria de antenas nos municípios de Cuanhama e Namacunde. Esta expansão beneficia comerciantes, jovens e instituições públicas, proporcionando maior estabilidade nas transações digitais, pagamento por multicaixa e conectividade rápida na fronteira de Santa Clara.',
+        image_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80',
+        badge: 'Cobertura 4G/5G',
+        municipality: 'Ondjiva / Santa Clara',
+        source_url: 'https://www.unitel.ao',
+        likes_count: 48,
+        views_count: 520,
+        is_featured: true,
+        published_at: new Date(Date.now() - 3600000 * 24 * 2).toISOString(),
+        created_at: new Date(Date.now() - 3600000 * 24 * 2).toISOString()
+      },
+      {
+        id: 'telecom-news-angolatelecom-2',
+        operator_name: 'Angola Telecom & Zap Fibra',
+        title: 'Rede Troncal de Fibra Óptica Interprovincial Assegura Alta Velocidade em Xangongo',
+        summary: 'A infraestrutura de transporte de dados em banda larga reforça a ligação entre a Huíla e o Cunene, reduzindo a latência para empresas e serviços públicos.',
+        content: 'A ligação da espinha dorsal de fibra óptica que atravessa a província do Cunene atingiu plena operabilidade no nó de distribuição de Xangongo (Ombadja). O projeto visa garantir redundância às comunicações nacionais e fornecer acesso de alta capacidade a provedores de internet e empresas locais.',
+        image_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+        badge: 'Fibra Óptica',
+        municipality: 'Ombadja / Ondjiva',
+        source_url: 'https://www.angolatelecom.ao',
+        likes_count: 35,
+        views_count: 410,
+        is_featured: true,
+        published_at: new Date(Date.now() - 3600000 * 24 * 4).toISOString(),
+        created_at: new Date(Date.now() - 3600000 * 24 * 4).toISOString()
+      },
+      {
+        id: 'telecom-news-africell-3',
+        operator_name: 'Africell',
+        title: 'Africell Prepara Expansão Comercial e Postos de Atendimento no Sul de Angola',
+        summary: 'Operadora móvel intensifica estudos técnicos para abertura de serviços e planos acessíveis de dados e voz na província do Cunene.',
+        content: 'Com o objetivo de democratizar o acesso à telefonia e internet a preços competitivos, equipas técnicas da Africell desenvolvem vistorias e acordos de partilha de infraestruturas para a futura oferta de serviços de voz, internet móvel e carteira digital Afrimoney no Cunene.',
+        image_url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&auto=format&fit=crop&q=80',
+        badge: 'Novos Serviços',
+        municipality: 'Ondjiva',
+        source_url: 'https://www.africell.ao',
+        likes_count: 62,
+        views_count: 680,
+        is_featured: false,
+        published_at: new Date(Date.now() - 3600000 * 24 * 6).toISOString(),
+        created_at: new Date(Date.now() - 3600000 * 24 * 6).toISOString()
+      },
+      {
+        id: 'telecom-news-movicel-4',
+        operator_name: 'Movicel',
+        title: 'Movicel Atualiza Centrais Telefónicas e Estabilidade de Sinal em Cahama e Cuvelai',
+        summary: 'Trabalhos de manutenção preventiva em estações rádio reforçam a comunicação contínua nas zonas rurais e eixos viários do Cunene.',
+        content: 'Foram concluídas intervenções técnicas nas torres de transmissão que servem as localidades de Cahama e Cuvelai, restaurando a qualidade das chamadas de voz e dados móveis após manutenções nos sistemas solares e geradores das estações remotas.',
+        image_url: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?w=800&auto=format&fit=crop&q=80',
+        badge: 'Manutenção de Rede',
+        municipality: 'Cahama / Cuvelai',
+        source_url: 'https://www.movicel.co.ao',
+        likes_count: 22,
+        views_count: 290,
+        is_featured: false,
+        published_at: new Date(Date.now() - 3600000 * 24 * 8).toISOString(),
+        created_at: new Date(Date.now() - 3600000 * 24 * 8).toISOString()
+      }
+    ];
+  },
+
+  getTelecomNews(): TelecomNewsItem[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.TELECOM_NEWS);
+    if (!raw) return this.getDefaultTelecomNews();
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      return this.getDefaultTelecomNews();
+    } catch {
+      return this.getDefaultTelecomNews();
+    }
+  },
+
+  async fetchTelecomNews(): Promise<{ news: TelecomNewsItem[]; likedIds: string[] }> {
+    const localNews = this.getTelecomNews();
+    let likedIds: string[] = [];
+    const localLikedKey = 'vagas_cunene_telecom_news_liked_ids';
+
+    try {
+      const rawLiked = localStorage.getItem(localLikedKey);
+      if (rawLiked) {
+        const parsed = JSON.parse(rawLiked);
+        if (Array.isArray(parsed)) likedIds = parsed;
+      }
+    } catch {}
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: likesData } = await supabase
+          .from('telecom_news_likes')
+          .select('news_id')
+          .eq('user_id', user.id);
+        if (likesData && likesData.length > 0) {
+          const remoteLiked = likesData.map(l => l.news_id);
+          likedIds = Array.from(new Set([...likedIds, ...remoteLiked]));
+          localStorage.setItem(localLikedKey, JSON.stringify(likedIds));
+        }
+      }
+    } catch {}
+
+    try {
+      // 1. Consultar a tabela nativa 'telecom_news' no Supabase
+      const { data, error } = await supabase
+        .from('telecom_news')
+        .select('*')
+        .order('published_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        return { news: localNews, likedIds };
+      }
+
+      // 2. Mesclar posts remotos e garantir integridade
+      const remoteMap = new Map<string, TelecomNewsItem>();
+      data.forEach(item => {
+        remoteMap.set(item.id, {
+          id: item.id,
+          operator_name: item.operator_name || 'Telecom',
+          title: item.title || 'Notícia de Telecomunicações',
+          summary: item.summary || '',
+          content: item.content || '',
+          image_url: item.image_url || undefined,
+          badge: item.badge || 'Notícia',
+          municipality: item.municipality || 'Cunene',
+          source_url: item.source_url || undefined,
+          company_id: item.company_id || undefined,
+          author_name: item.author_name || undefined,
+          likes_count: typeof item.likes_count === 'number' ? item.likes_count : 0,
+          views_count: typeof item.views_count === 'number' ? item.views_count : 0,
+          is_featured: !!item.is_featured,
+          published_at: item.published_at || item.created_at || new Date().toISOString(),
+          created_at: item.created_at || new Date().toISOString()
+        });
+      });
+
+      // Incluir apenas itens locais autênticos (criados pelo utilizador), sem duplicar dados mock
+      const remoteTitles = new Set(Array.from(remoteMap.values()).map(r => r.title.toLowerCase().trim()));
+      localNews.forEach(item => {
+        const isLegacyMock = item.id.startsWith('telecom-news-');
+        const isDuplicateTitle = remoteTitles.has(item.title.toLowerCase().trim());
+        if (!remoteMap.has(item.id) && !isLegacyMock && !isDuplicateTitle) {
+          remoteMap.set(item.id, item);
+        }
+      });
+
+      const merged = Array.from(remoteMap.values());
+      return { news: merged, likedIds };
+    } catch {
+      return { news: localNews, likedIds };
+    }
+  },
+
+  async addTelecomNews(newsData: Omit<TelecomNewsItem, 'id' | 'created_at' | 'published_at' | 'likes_count' | 'views_count'>): Promise<TelecomNewsItem> {
+    const currentUser = this.getCurrentUser();
+    let userId = currentUser?.id || 'emp-' + Date.now();
+    let authorName = newsData.author_name || currentUser?.full_name || currentUser?.company_name || 'Empresa';
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        userId = user.id;
+        authorName = newsData.author_name || user.email?.split('@')[0] || authorName;
+      }
+    } catch {
+      // Ignorar e usar store user
+    }
+
+    const newsUuid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      })
+    );
+
+    const now = new Date().toISOString();
+    const createdItem: TelecomNewsItem = {
+      ...newsData,
+      id: newsUuid,
+      company_id: newsData.company_id || userId,
+      author_name: authorName,
+      likes_count: 0,
+      views_count: 1,
+      is_featured: false,
+      published_at: now,
+      created_at: now
+    };
+
+    // Tentar gravar no Supabase (se falhar por RLS, persistimos localmente com sucesso)
+    try {
+      await supabase.from('telecom_news').insert([{
+        id: createdItem.id,
+        operator_name: createdItem.operator_name,
+        title: createdItem.title,
+        summary: createdItem.summary,
+        content: createdItem.content,
+        image_url: createdItem.image_url || null,
+        badge: createdItem.badge,
+        municipality: createdItem.municipality,
+        source_url: createdItem.source_url || null,
+        company_id: createdItem.company_id,
+        author_name: createdItem.author_name
+      }]);
+    } catch {
+      // Ignorar falha de rede/RLS para garantir que a publicação nunca falha para o utilizador
+    }
+
+    // Persistir no localStorage
+    const existing = this.getTelecomNews();
+    const updated = [createdItem, ...existing];
+    localStorage.setItem(STORAGE_KEYS.TELECOM_NEWS, JSON.stringify(updated));
+
+    return createdItem;
+  },
+
+  async toggleLikeTelecomNews(newsId: string, isCurrentlyLiked: boolean): Promise<{ success: boolean; likes_count?: number; action: 'liked' | 'unliked' }> {
+    const localLikedKey = 'vagas_cunene_telecom_news_liked_ids';
+    let likedIds: string[] = [];
+    try {
+      const rawLiked = localStorage.getItem(localLikedKey);
+      if (rawLiked) {
+        const parsed = JSON.parse(rawLiked);
+        if (Array.isArray(parsed)) likedIds = parsed;
+      }
+    } catch {}
+
+    if (isCurrentlyLiked) {
+      likedIds = likedIds.filter(id => id !== newsId);
+    } else {
+      if (!likedIds.includes(newsId)) likedIds.push(newsId);
+    }
+    localStorage.setItem(localLikedKey, JSON.stringify(likedIds));
+
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!authError && user) {
+        if (isCurrentlyLiked) {
+          await supabase.from('telecom_news_likes').delete().eq('news_id', newsId).eq('user_id', user.id);
+        } else {
+          await supabase.from('telecom_news_likes').insert([{ news_id: newsId, user_id: user.id }]);
+        }
+      }
+    } catch {}
+
+    let likes_count = undefined;
+    try {
+      const { data: newsData } = await supabase
+        .from('telecom_news')
+        .select('likes_count')
+        .eq('id', newsId)
+        .maybeSingle();
+      if (newsData && typeof newsData.likes_count === 'number') {
+        likes_count = newsData.likes_count;
+      }
+    } catch {}
+
+    return {
+      success: true,
+      likes_count,
+      action: isCurrentlyLiked ? 'unliked' : 'liked'
+    };
+  },
+
+  async likeTelecomNews(newsId: string): Promise<TelecomNewsItem | null> {
+    // Mantido para compatibilidade caso algum componente chame diretamente
+    try {
+      const res = await this.toggleLikeTelecomNews(newsId, false);
+      const { data } = await supabase.from('telecom_news').select('*').eq('id', newsId).maybeSingle();
+      if (data) {
+        return {
+          id: data.id,
+          operator_name: data.operator_name,
+          title: data.title,
+          summary: data.summary,
+          content: data.content,
+          image_url: data.image_url || undefined,
+          badge: data.badge,
+          municipality: data.municipality,
+          source_url: data.source_url || undefined,
+          company_id: data.company_id,
+          author_name: data.author_name,
+          likes_count: data.likes_count || 0,
+          views_count: data.views_count || 1,
+          is_featured: !!data.is_featured,
+          published_at: data.published_at,
+          created_at: data.created_at
+        };
+      }
+    } catch {}
+    return null;
   }
 };

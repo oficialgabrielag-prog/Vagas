@@ -1,9 +1,10 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, MapPin, ShoppingBag, MessageCircle, Share2, Heart, Store, Calendar, CheckCircle } from 'lucide-react';
+import { X, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StoreService } from '../lib/store';
+import { ProductDetailPage } from '../pages/ProductDetailPage';
 
 export const ProdutoDetalhe = ({
   product: initialProduct,
@@ -19,16 +20,48 @@ export const ProdutoDetalhe = ({
   const [notFound, setNotFound] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialProduct);
 
   useEffect(() => {
     let isMounted = true;
     const fetchProduct = async () => {
-      setLoading(true);
       const targetId = id || initialProduct?.id;
       if (!targetId) {
         if (isMounted) {
-          setNotFound(true);
+          if (!initialProduct) setNotFound(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Se já temos initialProduct, exiba imediatamente e valide em segundo plano
+      if (initialProduct && String(initialProduct.id) === String(targetId)) {
+        if (isMounted) {
+          setProduct(initialProduct);
+          setNotFound(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+
+      // Tente buscar do cache local primeiro para velocidade e robustez
+      let found = null;
+      const cache = localStorage.getItem('produtos_cache');
+      if (cache) {
+        try {
+          const parsed = JSON.parse(cache);
+          if (Array.isArray(parsed)) {
+            found = parsed.find(p => String(p.id) === String(targetId)) || null;
+          }
+        } catch {}
+      }
+
+      if (found) {
+        if (isMounted) {
+          setProduct(found);
+          setNotFound(false);
           setLoading(false);
         }
         return;
@@ -42,7 +75,7 @@ export const ProdutoDetalhe = ({
           .eq('id', targetId)
           .single();
 
-        let found = data;
+        found = data;
 
         // Se der erro ou não encontrar, busque da tabela real 'marketplace'
         if (!found || error) {
@@ -92,19 +125,6 @@ export const ProdutoDetalhe = ({
           }
         }
 
-        // Se mesmo assim não achar, use o cache local
-        if (!found) {
-          const cache = localStorage.getItem('produtos_cache');
-          if (cache) {
-            try {
-              const parsed = JSON.parse(cache);
-              if (Array.isArray(parsed)) {
-                found = parsed.find(p => String(p.id) === String(targetId)) || null;
-              }
-            } catch {}
-          }
-        }
-
         if (isMounted) {
           if (found) {
             setProduct(found);
@@ -114,23 +134,8 @@ export const ProdutoDetalhe = ({
           }
         }
       } catch {
-        const cache = localStorage.getItem('produtos_cache');
-        let found = null;
-        if (cache) {
-          try {
-            const parsed = JSON.parse(cache);
-            if (Array.isArray(parsed)) {
-              found = parsed.find(p => String(p.id) === String(targetId)) || null;
-            }
-          } catch {}
-        }
         if (isMounted) {
-          if (found) {
-            setProduct(found);
-            setNotFound(false);
-          } else {
-            setNotFound(true);
-          }
+          setNotFound(true);
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -140,7 +145,7 @@ export const ProdutoDetalhe = ({
     fetchProduct();
 
     return () => { isMounted = false; };
-  }, [id]);
+  }, [id, initialProduct]);
 
   useEffect(() => {
     if (currentUser && product) {
@@ -195,174 +200,16 @@ export const ProdutoDetalhe = ({
     );
   }
 
-  const companyNameFromUser = product.users?.company_name;
-  const sellerCompany = companies.find(c => c.id === product.seller_id || c.id === product.company_id);
-  const displayCompanyName = companyNameFromUser || sellerCompany?.company_name || sellerCompany?.full_name || 'Vendedor Local';
-
-  const handleWhatsAppContact = (phone, title) => {
-    if (!phone) return;
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    if (!cleanPhone) return;
-    const message = encodeURIComponent(`Olá, vi o produto "${title}" no CuneneVagas e gostaria de obter mais informações.`);
-    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
-  };
-
-  const handleShare = async () => {
-    const shareUrl = window.location.origin + '#marketplace/produto/' + product.id;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: product.title,
-          text: `Confira "${product.title}" por ${product.price?.toLocaleString()} ${product.currency || 'AOA'} no CuneneVagas.`,
-          url: shareUrl,
-        });
-        return;
-      } catch {}
-    }
-    navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const handleToggleSave = async () => {
-    if (!currentUser) {
-      onOpenAuth();
-      return;
-    }
-    const updated = await StoreService.toggleSaveProductSupabase(currentUser.id, product.id);
-    setSaved(updated.includes(product.id));
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 my-auto max-h-[92vh] flex flex-col">
-        {/* Header Bar */}
-        <div className="bg-[#0F4C9C] p-4 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-[#FFC20E]" />
-            <h3 className="text-sm font-extrabold">Detalhes do Produto • Marketplace</h3>
-          </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
-          {/* Main Image */}
-          <div className="w-full h-64 sm:h-80 bg-slate-100 rounded-2xl overflow-hidden relative border border-slate-200">
-            {product.image_url ? (
-              <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-300">
-                <ShoppingBag className="w-16 h-16" />
-              </div>
-            )}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-sm">
-              <MapPin className="w-3.5 h-3.5 text-[#0F4C9C]" />
-              <span className="text-xs font-black text-slate-800 uppercase">{product.municipality}</span>
-            </div>
-            <span className={`absolute top-3 right-3 px-3 py-1 rounded-xl text-xs font-bold ${
-              product.status === 'available' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-white'
-            }`}>
-              {product.status === 'available' ? 'Disponível' : 'Esgotado'}
-            </span>
-          </div>
-
-          {/* Title & Price */}
-          <div className="space-y-2">
-            <span className="text-xs font-bold text-[#0F4C9C] uppercase tracking-wider block">{product.category}</span>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-snug">{product.title}</h1>
-            <p className="text-2xl font-black text-[#0F4C9C]">
-              {product.price?.toLocaleString()} {product.currency || 'AOA'}
-            </p>
-          </div>
-
-          {/* Description */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-            <h4 className="text-xs font-bold text-slate-500 uppercase">Descrição do Produto</h4>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-              {product.description || 'Nenhuma descrição detalhada fornecida pelo vendedor.'}
-            </p>
-          </div>
-
-          {/* Publication Date */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Publicado a {product.created_at ? new Date(product.created_at).toLocaleDateString('pt-AO') : 'Recente'}</span>
-          </div>
-
-          {/* Vendor / Company Card */}
-          <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-white p-1 shadow-xs border border-slate-200 overflow-hidden shrink-0">
-                {sellerCompany?.avatar_url ? (
-                  <img src={sellerCompany.avatar_url} alt="Logo" className="w-full h-full object-cover rounded-lg" />
-                ) : (
-                  <Store className="w-6 h-6 text-[#0F4C9C] m-auto mt-2" />
-                )}
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900">{displayCompanyName}</h4>
-                <p className="text-xs text-slate-500">{sellerCompany?.industry || 'Comércio Local'} • 📍 {sellerCompany?.municipality || 'Cunene'}</p>
-              </div>
-            </div>
-
-            {sellerCompany && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  if (onSelectCompany) onSelectCompany(sellerCompany);
-                }}
-                className="bg-white hover:bg-slate-100 text-[#0F4C9C] border border-[#0F4C9C] font-bold px-4 py-2 rounded-xl text-xs transition shadow-2xs"
-              >
-                Ver Loja da Empresa
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleToggleSave}
-              className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${
-                saved ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-              title="Guardar produto"
-            >
-              <Heart className={`w-4 h-4 ${saved ? 'fill-red-600' : ''}`} />
-              <span className="hidden sm:inline">{saved ? 'Guardado' : 'Guardar'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleShare}
-              className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold transition flex items-center gap-1.5"
-              title="Partilhar produto"
-            >
-              {copied ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-              <span>{copied ? 'Copiado!' : 'Partilhar'}</span>
-            </button>
-          </div>
-
-          {product.contact_phone ? (
-            <button
-              type="button"
-              onClick={() => handleWhatsAppContact(product.contact_phone, product.title)}
-              className="bg-[#25D366] hover:bg-[#128C7E] text-white font-extrabold px-5 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-2"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Contactar Vendedor (WhatsApp)</span>
-            </button>
-          ) : (
-            <span className="text-xs italic text-slate-400">Este vendedor ainda não disponibilizou contacto directo.</span>
-          )}
-        </div>
-      </div>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-white animate-fadeIn">
+      <ProductDetailPage
+        product={product}
+        onBack={onClose}
+        currentUser={currentUser}
+        companies={companies}
+        onSelectCompany={onSelectCompany}
+        onOpenAuth={onOpenAuth}
+      />
     </div>
   );
 };

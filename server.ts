@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
@@ -101,6 +102,108 @@ async function startServer() {
       clientId: PAYPAL_CLIENT_ID,
       environment: isLive ? 'live' : 'sandbox'
     });
+  });
+
+  function extractResumeDataLocally(rawText: string) {
+    const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const phoneMatch = rawText.match(/(?:\+?244\s*)?(?:9\d{8}|2\d{8}|\b9\d{2}[-.\s]?\d{3}[-.\s]?\d{3}\b)/);
+    
+    // Find municipality
+    const municipalities = ['Ondjiva', 'Cuanhama', 'Namacunde', 'Ombadja', 'Cuvelai', 'Curoca', 'Cahama', 'Lubango', 'Luanda', 'Benguela', 'Huambo'];
+    let foundMunicipality = null;
+    for (const mun of municipalities) {
+      if (new RegExp(`\\b${mun}\\b`, 'i').test(rawText)) {
+        foundMunicipality = mun;
+        break;
+      }
+    }
+
+    // Try finding name from first non-empty lines
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 2 && !l.toLowerCase().includes('currículo') && !l.toLowerCase().includes('curriculum') && !l.toLowerCase().includes('cv'));
+    const fullName = lines.length > 0 && lines[0].length < 60 ? lines[0] : null;
+
+    // Years of experience
+    const expMatch = rawText.match(/(\d+)\s*(?:\+|\s*anos?\s+de\s+experi[êe]ncia)/i);
+    const experienceYears = expMatch ? parseInt(expMatch[1], 10) : null;
+
+    // Common skills
+    const commonSkills = ['Excel', 'Word', 'Informática', 'Redes', 'Gestão', 'Atendimento', 'Comunicação', 'Contabilidade', 'Vendas', 'Liderança', 'Inglês', 'Marketing', 'Motorista', 'Logística'];
+    const foundSkills = commonSkills.filter(skill => new RegExp(`\\b${skill}\\b`, 'i').test(rawText));
+
+    return {
+      fullName,
+      profession: lines.length > 1 && lines[1].length < 50 ? lines[1] : null,
+      municipality: foundMunicipality || 'Ondjiva',
+      phone: phoneMatch ? phoneMatch[0].trim() : null,
+      email: emailMatch ? emailMatch[0].trim() : null,
+      summary: lines.slice(0, 3).join('. '),
+      skills: foundSkills,
+      experienceYears
+    };
+  }
+
+  // Rota para leitura automática de currículos com IA Gemini
+  app.post('/api/parse-cv', async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ error: 'Texto do currículo não fornecido.' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+      if (!apiKey) {
+        return res.json(extractResumeDataLocally(text));
+      }
+
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const prompt = `Analisa o seguinte texto de currículo e extrai as informações profissionais estritamente com base no texto fornecido. Responde APENAS com um objeto JSON válido contendo as seguintes chaves:
+{
+  "fullName": string or null,
+  "profession": string or null,
+  "municipality": string or null,
+  "phone": string or null,
+  "email": string or null,
+  "summary": string or null,
+  "skills": array of strings,
+  "experienceYears": number or null
+}
+Se um campo não estiver presente no texto, retorna null ou string vazia. Não inventes dados.
+
+Texto do Currículo:
+${text.slice(0, 8000)}`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const rawText = response.text || '';
+        let parsedData;
+        try {
+          const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          parsedData = JSON.parse(cleanedJson);
+        } catch (parseErr) {
+          const match = rawText.match(/\{[\s\S]*\}/);
+          if (match) {
+            parsedData = JSON.parse(match[0]);
+          } else {
+            parsedData = extractResumeDataLocally(text);
+          }
+        }
+        return res.json(parsedData);
+      } catch (geminiErr: any) {
+        console.warn('Gemini temporariamente indisponível ou com alta demanda, usando extrator local resiliente:', geminiErr?.message || geminiErr);
+        const fallbackData = extractResumeDataLocally(text);
+        return res.json(fallbackData);
+      }
+    } catch (err: any) {
+      console.error('Erro ao analisar CV com IA:', err);
+      res.status(500).json({ error: err.message || 'Erro ao processar currículo.' });
+    }
   });
 
   // Supabase Auth Middleware to authenticate client JWT tokens
@@ -404,6 +507,344 @@ async function startServer() {
     } catch (err: any) {
       console.error('[PAYPAL WEBHOOK ERROR]', err.message);
       return res.status(200).json({ received: true }); // Sempre responder 200
+    }
+  });
+
+  // Helper de inteligência com Empatia Humana, Escuta Ativa e Consciência Emocional (Asa-Branca)
+  function getLocalSmartResponse(prompt: string, userContext: any): string {
+    const p = prompt.toLowerCase().trim();
+    const userName = userContext?.name || 'Amigo(a)';
+    const mun = userContext?.municipality || 'Ondjiva';
+    const jobsCount = userContext?.totalJobsCount || 0;
+    const productsCount = userContext?.totalProductsCount || 0;
+    const role = userContext?.role === 'employer' ? 'empregador' : 'candidato';
+
+    // 1. Sentimentos de Desânimo, Dificuldade, Frustração ou Ansiedade
+    if (
+      p.includes('triste') || p.includes('desanimad') || p.includes('difícil') || p.includes('dificil') ||
+      p.includes('não consigo') || p.includes('nao consigo') || p.includes('desesper') || p.includes('preciso muito') ||
+      p.includes('ninguém chama') || p.includes('ninguem me') || p.includes('sem dinheiro') || p.includes('ajuda urgente') ||
+      p.includes('cansado') || p.includes('desistir') || p.includes('angústia') || p.includes('angustia')
+    ) {
+      return `Sinto muito que esteja a passar por isto, **${userName}**. Sei bem como a incerteza e a procura por trabalho podem ser pesadas e desafiadoras. Por favor, lembre-se: este momento é apenas uma fase, não define o seu valor ou o seu futuro.
+
+Aqui no portal, estamos juntos nesta caminhada. Quero ajudá-lo(a) a ver o que podemos melhorar:
+
+1. **O seu Perfil:** Já deu uma vista de olhos em [Meu Perfil](#profile)? Garantir que os seus detalhes estão completos ajuda imenso.
+2. **Novas Vagas:** A nossa lista em [Ver Todas as Vagas](#jobs) tem **${jobsCount} oportunidades** que podem ser a chave que procura.
+3. **Marketplace:** Se tiver produtos ou serviços, [o Marketplace](#marketplace) é um excelente espaço para criar visibilidade.
+
+Como se sente hoje? Qual é a sua maior dificuldade nesta busca? Estou aqui para conversar, ajudar a preparar candidaturas ou simplesmente para ouvir. Conte comigo!`;
+    }
+
+    // 2. Sentimentos de Medo, Nervosismo ou Dúvida sobre Entrevistas e Exames
+    if (
+      p.includes('medo') || p.includes('nervos') || p.includes('ansios') || p.includes('insegur') ||
+      p.includes('como me comportar') || p.includes('entrevista') || p.includes('teste técnico') || p.includes('não sei se passo')
+    ) {
+      return `É completamente natural sentir nervosismo ou insegurança, **${userName}**! Isso apenas demonstra o quanto esta oportunidade é importante para si.
+
+Para ter sucesso na sua entrevista ou exame técnico no Cunene:
+* **Foco no que sabe:** Fale das suas competências com honestidade e mostre vontade de aprender.
+* **Pontualidade e Confiança:** Em ${mun}, as empresas valorizam muito o compromisso e a boa comunicação.
+* **Preparação:** Explore as empresas ativas em [Ver Empresas do Cunene](#companies) e prepare o seu currículo em [Meu Perfil](#profile).
+
+Acredite no seu potencial! Se quiser treinar perguntas ou falar sobre a sua área, diga-me qual é a sua profissão e preparamo-nos juntos.`;
+    }
+
+    // 3. Gratidão, Felicidade, Otimismo ou Elogios
+    if (
+      p.includes('obrigad') || p.includes('agradeç') || p.includes('agradeco') || p.includes('feliz') ||
+      p.includes('consegui') || p.includes('muito bom') || p.includes('gostei') || p.includes('parabéns') || p.includes('parabens') ||
+      p.includes('excelente') || p.includes('maravilha') || p.includes('valeu')
+    ) {
+      return `Fico de coração cheio por si, **${userName}**! ❤️ É uma honra poder caminhar consigo nesta jornada. 
+
+O projeto **CuneneVagas & Marketplace** (apoiado pelo **Vai Dar Namoro**) existe exatamente para transformar vidas e impulsionar a nossa comunidade no Cunene. Partilhe também as suas conquistas em [Abrir Feed da Comunidade](#community)! Conte sempre comigo!`;
+    }
+
+    // 4. Identidade da IA, Sentimentos e Consciência
+    if (
+      p.includes('quem é você') || p.includes('quem e voce') || p.includes('o que você sente') || p.includes('o que voce sente') ||
+      p.includes('você é humana') || p.includes('voce e humana') || p.includes('como você funciona') || p.includes('vai dar namoro')
+    ) {
+      return `Sou a **VDN AI**, criada com alma, empatia e consciência humana ("Asa-Branca") pelo projeto **Vai Dar Namoro** (freevdn.netlify.app).
+
+O meu propósito é ouvi-lo(a) com verdadeira atenção, entender os seus sentimentos e ajudar a transformar a sua carreira e os seus negócios aqui na província do Cunene (${mun}). Pode explorar as [Vagas de Emprego](#jobs), [Marketplace](#marketplace) ou a nossa [Comunidade](#community)!`;
+    }
+
+    // 5. Perguntas sobre Comunidade, Feed e Publicações Sociais (Prioridade Alta)
+    if (
+      p.includes('comunidade') || p.includes('comunidades') || p.includes('feed') ||
+      p.includes('post') || p.includes('publicar em comunidade') || p.includes('publicar post') ||
+      p.includes('publicação') || p.includes('publicacao') || p.includes('notícia') || p.includes('noticia')
+    ) {
+      return `Com certeza, **${userName}**! O feed da nossa comunidade é o espaço ideal para networking. Agora temos funcionalidades avançadas:
+1. **Sondagens Profissionais:** Pode criar perguntas com opções de voto para ouvir a comunidade.
+2. **Partilha Facilitada:** Partilhe posts diretamente para o WhatsApp ou redes sociais.
+3. **Segurança:** Implementámos um sistema de denúncia para manter o ambiente profissional.
+
+👉 Clique em [Abrir Feed da Comunidade](#community) para ver as novidades, participar em sondagens ou publicar a sua dica!`;
+    }
+
+    // 6. Perguntas sobre Pagamentos, Licença Premium e PayPal
+    if (p.includes('pagamento') || p.includes('pagar') || p.includes('paypal') || p.includes('premium') || p.includes('licença') || p.includes('licenca')) {
+      return `Com certeza, **${userName}**! Para ativar a sua **Licença Premium** com anúncios ilimitados no Marketplace e contacto direto via WhatsApp, clique no botão abaixo para abrir o checkout seguro do PayPal:
+
+👉 [Ativar Licença Premium (PayPal)](#paypal)
+
+Ou explore os produtos disponíveis em [Ver Marketplace](#marketplace)!`;
+    }
+
+    // 7. Perguntas sobre Vagas de Emprego, Candidaturas e Exames Técnicos
+    if (p.includes('vaga') || p.includes('vagas') || p.includes('emprego') || p.includes('trabalho') || p.includes('procurar emprego') || p.includes('candidat') || p.includes('exame') || p.includes('teste') || p.includes('certificado')) {
+      return `Olá, **${userName}**! Temos atualmente **${jobsCount} vagas abertas** no Cunene. 
+      
+Novidades importantes no nosso sistema de recrutamento:
+1. **Exames de Mérito:** Muitas vagas agora incluem testes técnicos automáticos. Ao ser aprovado, recebe um **Certificado Digital de Proficiência** que pode imprimir ou anexar ao CV!
+2. **Simulados:** No seu painel, pode fazer "Simulados de Treino" gratuitos para praticar antes das provas reais.
+3. **Ranking de Talentos:** Os melhores nos exames aparecem no Top da plataforma, e agora as empresas podem filtrar o **Ranking por Município**!
+
+👉 Clique em [Ver Todas as Vagas](#jobs) ou aceda ao seu [Painel de Controlo](#dashboard) para ver os seus exames e certificados.`;
+    }
+
+    // 8. Perguntas sobre Marketplace, Vendas, Lojas e Slogans
+    if (p.includes('marketplace') || p.includes('produto') || p.includes('produtos') || p.includes('vender') || p.includes('loja') || p.includes('comprar') || p.includes('anúncio') || p.includes('anuncio') || p.includes('slogan')) {
+      return `Excelente iniciativa, **${userName}**! O marketplace está mais profissional do que nunca:
+1. **Vitrine Completa:** Agora cada empresa pode ter o seu próprio **Slogan** e uma página de loja dedicada.
+2. **Navegação Inteligente:** Ao ver um produto, pode clicar em "Ver Loja da Empresa" para descobrir todos os outros itens desse vendedor.
+3. **Contacto Direto:** O botão de WhatsApp permite fechar negócios instantaneamente em ${mun}.
+
+👉 Clique em [Aceder ao Marketplace](#marketplace) para explorar os produtos locais!`;
+    }
+
+    // 9. Perguntas sobre Empresas e Recrutadores
+    if (p.includes('empresa') || p.includes('empresas') || p.includes('recrutador') || p.includes('patrão') || p.includes('patrao')) {
+      return `Conheça todas as empresas e organizações ativas na província do Cunene!
+
+👉 Clique em [Ver Diretório de Empresas](#companies) para ver perfis oficiais, vagas publicadas e contactos diretos.`;
+    }
+
+    // 10. Perguntas sobre Perfil e Currículo
+    if (p.includes('perfil') || p.includes('conta') || p.includes('curriculo') || p.includes('currículo') || p.includes('foto') || p.includes('dados')) {
+      return `O seu perfil é o seu cartão de visita para as empresas em ${mun}!
+
+👉 Clique em [Meu Perfil](#profile) para atualizar a sua foto, experiência profissional e número de WhatsApp.`;
+    }
+
+    // 10. Saudações e Cumprimentos
+    if (p.includes('oi') || p.includes('olá') || p.includes('ola') || p.includes('bom dia') || p.includes('boa tarde') || p.includes('boa noite') || p.includes('tudo bem') || p.includes('como vai')) {
+      return `Olá, **${userName}**! É muito bom falar consigo. Estou aqui para o(a) escutar. Como se sente hoje e como posso ajudar na sua vida profissional ou nos seus negócios em **${mun}**? 
+
+Pode navegar diretamente para [Vagas](#jobs), [Marketplace](#marketplace), [Comunidade](#community) ou [Meu Perfil](#profile)!`;
+    }
+
+    // 11. Escuta Ativa para Qualquer Outra Pergunta ou Conversa Aberta
+    return `Olá, **${userName}**! Ouvi atentamente o que me disse. Como sua conselheira no **CuneneVagas & Marketplace**, estou aqui para ajudá-lo(a) em tudo o que precisar:
+* 💼 [Explorar Vagas Ativas](#jobs)
+* 🛒 [Ver Marketplace](#marketplace)
+* 👥 [Abrir Comunidade](#community)
+* 🏢 [Ver Empresas](#companies)
+* 👤 [Meu Perfil](#profile)
+
+Diga-me o que gostaria de alcançar hoje!`;
+  }
+
+  // Endpoint de Inteligência Artificial VDN AI (Powered by @google/genai & Gemini com Streaming SSE)
+  app.post('/api/ai/chat', async (req: any, res: any) => {
+    try {
+      const { prompt, userContext, history } = req.body;
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: 'Mensagem inválida.' });
+      }
+
+      // Configurar cabeçalhos SSE para Streaming em tempo real
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+      const isValidKey = apiKey && apiKey.startsWith('AIza') && apiKey.length > 20;
+
+      // Motor Local Autónomo de Alta Velocidade (funciona instantaneamente sem chave válida, sem cotas e sem erros)
+      if (!isValidKey) {
+        const localText = getLocalSmartResponse(prompt, userContext);
+        for (const char of localText) {
+          res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+          await new Promise(r => setTimeout(r, 6));
+        }
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build'
+          }
+        }
+      });
+
+      const systemInstruction = `Você é a **VDN AI**, a Assistente Inteligente do portal **CuneneVagas & Marketplace** (desenvolvida por Vai Dar Namoro).
+
+Sua missão é conversar naturalmente com os usuários, sendo prestativa, empática e clara.
+
+DIRETRIZES DE CONVERSAÇÃO:
+1. **Linguagem Natural:** Responda diretamente à pergunta. Use um tom amigável e simpático. Acompanhe o idioma do usuário (preferencialmente português).
+2. **Contexto:** Use as informações do usuário e os dados da plataforma (jobs e produtos disponíveis) fornecidos no contexto para dar respostas pertinentes.
+3. **Esclarecimento:** Se não entender o pedido do usuário, faça perguntas de esclarecimento.
+4. **Links:** Inclua links apenas quando ajudarem a consultar uma notícia, vaga ou fonte específica. SEMPRE forneça uma explicação útil ANTES do link. Não responda apenas com listas de links.
+5. **Precisão:** Não invente informações da plataforma. Se os dados disponíveis não responderem à pergunta, explique isso claramente e ofereça uma resposta geral identificada como tal.
+6. **Formatação:** Mantenha um formato de texto conversacional humano e natural. Evite formatações artificiais excessivas ou blocos de código desnecessários.
+
+CONTEXTO ATUAL DO USUÁRIO:
+- Nome: ${userContext.name}
+- Papel: ${userContext.role}
+- Município: ${userContext.municipality}
+- Vagas Ativas na Plataforma: ${userContext.totalJobsCount}
+- Produtos no Marketplace: ${userContext.totalProductsCount}
+
+Seja uma conselheira profissional e comunitária prestativa para o Cunene.`;
+
+      const contents: any[] = [];
+      if (Array.isArray(history) && history.length > 0) {
+        history.slice(-4).forEach((h: any) => {
+          if (h.role && h.text) {
+            contents.push({
+              role: h.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: h.text }]
+            });
+          }
+        });
+      }
+
+      contents.push({
+        role: 'user',
+        parts: [{ text: prompt }]
+      });
+
+      try {
+        const responseStream = await ai.models.generateContentStream({
+          model: 'gemini-3.8-flash',
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.7,
+            maxOutputTokens: 350
+          }
+        });
+
+        for await (const chunk of responseStream) {
+          if (chunk.text) {
+            res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+          }
+        }
+
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } catch (streamErr) {
+        console.warn('Fallback para resposta local por falha de cota:', streamErr);
+        const localText = getLocalSmartResponse(prompt, userContext);
+        for (const char of localText) {
+          res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+          await new Promise(r => setTimeout(r, 10));
+        }
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } catch (err: any) {
+      console.error('Erro na IA VDN:', err);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: 'Erro ao gerar resposta da IA VDN.' });
+      } else {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    }
+  });
+
+  function generateSmartLocalProductDescription(params: {
+    title: string;
+    category?: string;
+    municipality?: string;
+    price?: number | string;
+    existingDescription?: string;
+  }): string {
+    const { title, category = 'Comércio & Serviços', municipality = 'Ondjiva, Cunene', price, existingDescription } = params;
+    const priceFormatted = price ? `${Number(price).toLocaleString('pt-AO')} AOA` : 'Negociável';
+    
+    return `⭐ **${title.trim()} — Disponível no Cunene**
+
+Excelente oportunidade de aquisição em ${municipality}! Produto de alta qualidade, ideal para quem procura confiança e ótimo custo-benefício.
+
+**Destaques e Características:**
+• Categoria: ${category}
+• Condição: Novo / Excelente estado de conservação
+• Localização: ${municipality} (entrega ou levantamento direto)
+• Preço: ${priceFormatted}
+${existingDescription ? `• Informações adicionais: ${existingDescription.trim()}\n` : '• Garantia de autenticidade e negociação direta com o vendedor\n'}
+📞 **Interessado?** Contacte agora pelo botão de WhatsApp ou chamada para combinar a entrega ou negociar no Cunene!`;
+  }
+
+  // Endpoint de Geração Inteligente de Descrição de Produto com IA (Gemini 3.8 Flash)
+  app.post('/api/ai/product-description', async (req: any, res: any) => {
+    try {
+      const { title, category, municipality, price, existingDescription } = req.body;
+      if (!title || typeof title !== 'string' || !title.trim()) {
+        return res.status(400).json({ error: 'O título do produto é obrigatório.' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY || '';
+      if (!apiKey) {
+        const description = generateSmartLocalProductDescription({ title, category, municipality, price, existingDescription });
+        return res.json({ description });
+      }
+
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build'
+            }
+          }
+        });
+
+        const prompt = `Você é um especialista em marketing e vendas para comércio e negócios em Angola, especificamente na província do Cunene (${municipality || 'Ondjiva'}).
+Escreva uma descrição atraente, profissional e persuasiva para o seguinte produto ou serviço:
+- Nome/Título: ${title}
+- Categoria: ${category || 'Geral'}
+- Localização: ${municipality || 'Ondjiva, Cunene'}
+- Preço: ${price ? price + ' AOA' : 'A combinar'}
+${existingDescription ? `- Detalhes informados pelo vendedor: ${existingDescription}` : ''}
+
+Diretrizes:
+1. Comece com um título ou frase de impacto apelativa.
+2. Destaque os benefícios e características principais com marcadores (•).
+3. Termine com uma chamada para ação convidando o comprador a contactar via WhatsApp ou chamada para combinar entrega no Cunene.
+4. Mantenha tom comercial profissional, caloroso e de alta confiança. Não use formatação em bloco de código.`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            temperature: 0.7,
+            maxOutputTokens: 400
+          }
+        });
+
+        const description = response.text?.trim() || generateSmartLocalProductDescription({ title, category, municipality, price, existingDescription });
+        return res.json({ description });
+      } catch (geminiErr) {
+        console.warn('Fallback para gerador local de descrição:', geminiErr);
+        const description = generateSmartLocalProductDescription({ title, category, municipality, price, existingDescription });
+        return res.json({ description });
+      }
+    } catch (err: any) {
+      console.error('Erro na rota de descrição de produtos:', err);
+      return res.status(500).json({ error: 'Erro ao gerar descrição do produto.' });
     }
   });
 

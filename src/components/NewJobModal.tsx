@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Briefcase, FileText } from 'lucide-react';
+import { X, Plus, Trash2, Briefcase, FileText, Sparkles } from 'lucide-react';
 import { Job, UserProfile, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, ExamQuestion, Exam } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { uploadToCloudinary } from '../lib/cloudinary';
+import { EXAM_TEMPLATES } from '../lib/examTemplates';
 
 interface NewJobModalProps {
   isOpen: boolean;
@@ -41,10 +42,11 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
   const [questions, setQuestions] = useState<Array<{
     id: string;
     question_text: string;
-    question_type: 'multiple_choice' | 'true_false';
+    question_type: 'multiple_choice' | 'true_false' | 'short_answer';
     options: string[];
     correct_answer: string;
     points: number;
+    explanation?: string;
   }>>([
     {
       id: 'q1',
@@ -56,7 +58,26 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
     }
   ]);
 
+  const handleApplyTemplate = (templateId: string) => {
+    const tpl = EXAM_TEMPLATES.find(t => t.id === templateId);
+    if (!tpl) return;
+    setExamTitle(tpl.title);
+    setExamDescription(tpl.description);
+    setExamTimeLimit(String(tpl.time_limit_minutes));
+    setPassingScore(String(tpl.passing_score));
+    setQuestions(tpl.questions.map((q, idx) => ({
+      id: `q${idx + 1}`,
+      question_text: q.question_text,
+      question_type: q.question_type as any,
+      options: q.options ? [...q.options] : [],
+      correct_answer: q.correct_answer,
+      points: q.points || 20,
+      explanation: q.explanation
+    })));
+  };
+
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen || !currentUser) return null;
@@ -89,12 +110,15 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
     ]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description) {
       setError('Por favor, preencha o título e a descrição da vaga.');
       return;
     }
+
+    setSubmitting(true);
+    setError('');
 
     try {
       const requirements = requirementsText.split('\n').filter(Boolean);
@@ -110,6 +134,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
           question_type: q.question_type,
           options: q.options,
           correct_answer: btoa(encodeURIComponent(q.correct_answer)), // Obfuscated fallback
+          explanation: q.explanation,
           points: q.points || 10,
           is_required: true
         }));
@@ -128,7 +153,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
         };
       }
 
-      StoreService.saveJob({
+      await StoreService.saveJob({
         employer_id: currentUser.id,
         title,
         company_name: currentUser.company_name || currentUser.full_name,
@@ -156,6 +181,8 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
       onClose();
     } catch {
       setError('Erro ao criar vaga. Tente novamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -309,6 +336,27 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
 
             {hasExam && (
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                {/* Templates Selector */}
+                <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-5 h-5 text-[#0F4C9C] shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Carregar Modelo Pronto de Exame</span>
+                      <span className="text-[11px] text-slate-500">Preencha perguntas e notas com 1 clique</span>
+                    </div>
+                  </div>
+                  <select
+                    onChange={e => handleApplyTemplate(e.target.value)}
+                    defaultValue=""
+                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#0F4C9C]"
+                  >
+                    <option value="" disabled>Escolha um Modelo Profissional...</option>
+                    {EXAM_TEMPLATES.map(t => (
+                      <option key={t.id} value={t.id}>{t.title} ({t.category})</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Título do Exame</label>
@@ -367,7 +415,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
 
                 <div className="space-y-3 pt-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">Perguntas do Exame</span>
+                    <span className="text-xs font-bold text-slate-700">Perguntas do Exame ({questions.length})</span>
                     <button
                       type="button"
                       onClick={handleAddQuestion}
@@ -381,15 +429,35 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                     <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold text-slate-600">Pergunta {idx + 1}</span>
-                        {questions.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
-                            className="text-red-500 hover:text-red-700 p-1"
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={q.question_type}
+                            onChange={e => {
+                              const updated = [...questions];
+                              const newType = e.target.value as any;
+                              updated[idx].question_type = newType;
+                              if (newType === 'true_false') {
+                                updated[idx].options = ['Verdadeiro', 'Falso'];
+                                updated[idx].correct_answer = 'Verdadeiro';
+                              }
+                              setQuestions(updated);
+                            }}
+                            className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                            <option value="multiple_choice">Escolha Múltipla</option>
+                            <option value="true_false">Verdadeiro/Falso</option>
+                            <option value="short_answer">Resposta Escrita Curta</option>
+                          </select>
+                          {questions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
+                              className="text-red-500 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <input
@@ -404,31 +472,66 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                       />
 
-                      <div className="space-y-1">
-                        <span className="text-[11px] font-semibold text-slate-500">Opções (separadas por vírgula ou lista):</span>
-                        <input
-                          type="text"
-                          value={q.options.join(', ')}
-                          onChange={e => {
-                            const updated = [...questions];
-                            updated[idx].options = e.target.value.split(',').map(s => s.trim());
-                            setQuestions(updated);
-                          }}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                        />
-                      </div>
+                      {q.question_type === 'multiple_choice' && (
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-semibold text-slate-500">Opções (separadas por vírgula):</span>
+                          <input
+                            type="text"
+                            value={q.options.join(', ')}
+                            onChange={e => {
+                              const updated = [...questions];
+                              updated[idx].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                              setQuestions(updated);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                          />
+                        </div>
+                      )}
 
                       <div>
-                        <span className="text-[11px] font-semibold text-slate-500">Resposta Correta Exata:</span>
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          {q.question_type === 'true_false' ? 'Resposta Correta (Verdadeiro ou Falso):' : 'Resposta Correta Exata:'}
+                        </span>
+                        {q.question_type === 'true_false' ? (
+                          <select
+                            value={q.correct_answer}
+                            onChange={e => {
+                              const updated = [...questions];
+                              updated[idx].correct_answer = e.target.value;
+                              setQuestions(updated);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white mt-1"
+                          >
+                            <option value="Verdadeiro">Verdadeiro</option>
+                            <option value="Falso">Falso</option>
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={q.correct_answer}
+                            onChange={e => {
+                              const updated = [...questions];
+                              updated[idx].correct_answer = e.target.value;
+                              setQuestions(updated);
+                            }}
+                            placeholder="Resposta correta esperada..."
+                            className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                          />
+                        )}
+                      </div>
+                      
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-500">Explicação / Feedback (Opcional):</span>
                         <input
                           type="text"
-                          value={q.correct_answer}
+                          value={q.explanation || ''}
                           onChange={e => {
                             const updated = [...questions];
-                            updated[idx].correct_answer = e.target.value;
+                            updated[idx].explanation = e.target.value;
                             setQuestions(updated);
                           }}
-                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                          placeholder="Ex: A resposta está correta porque..."
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs mt-1"
                         />
                       </div>
                     </div>
@@ -440,10 +543,11 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
 
           <button
             type="submit"
-            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-4"
+            disabled={submitting}
+            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-4"
           >
-            <Plus className="w-4 h-4" />
-            <span>Publicar Vaga e Exame Oficial</span>
+            <Plus className={`w-4 h-4 ${submitting ? 'animate-spin' : ''}`} />
+            <span>{submitting ? 'A publicar vaga no banco de dados...' : 'Publicar Vaga e Exame Oficial'}</span>
           </button>
         </form>
       </div>

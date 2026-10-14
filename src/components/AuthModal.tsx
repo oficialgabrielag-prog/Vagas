@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, UserCheck, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 
@@ -53,7 +53,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     try {
       let user: UserProfile;
       if (authMode === 'register') {
-        user = await StoreService.registerWithSupabase(email, password, fullName || email.split('@')[0], role, companyName);
+        const cleanEmail = email.trim().toLowerCase();
+        const alreadyExists = await StoreService.checkEmailAlreadyRegistered(cleanEmail);
+        if (alreadyExists) {
+          setError('Atenção: Já existe uma conta registada com este endereço de e-mail. Não é permitido criar mais de uma conta com o mesmo e-mail.');
+          setLoading(false);
+          return;
+        }
+        user = await StoreService.registerWithSupabase(cleanEmail, password, fullName || cleanEmail.split('@')[0], role, companyName);
       } else {
         user = await StoreService.loginWithSupabase(email, password);
       }
@@ -95,8 +102,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         {/* Body */}
         <div className="p-6">
           {error && (
-            <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-xl text-sm border border-red-100">
-              {error}
+            <div className="mb-4 bg-rose-50 text-rose-700 p-3.5 rounded-xl text-sm border border-rose-200 space-y-2 animate-fadeIn">
+              <div className="font-medium">{error}</div>
+              {error.includes('Já existe uma conta') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setAuthMode('login');
+                  }}
+                  className="text-xs font-bold text-[#0F4C9C] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  👉 Iniciar Sessão com este e-mail
+                </button>
+              )}
             </div>
           )}
 
@@ -109,27 +128,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {authMode === 'register' && (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700">Tipo de Conta</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="p-1 bg-slate-100 rounded-xl grid grid-cols-2 gap-1">
                   <button
                     type="button"
                     onClick={() => setRole('candidate')}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition ${
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition ${
                       role === 'candidate'
-                        ? 'border-[#0F4C9C] bg-[#0F4C9C]/10 text-[#0F4C9C]'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        ? 'bg-[#0F4C9C] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <User className="w-4 h-4" /> Candidato
+                    <UserCheck className="w-4 h-4" /> Candidato
                   </button>
                   <button
                     type="button"
                     onClick={() => setRole('employer')}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition ${
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition ${
                       role === 'employer'
-                        ? 'border-[#0F4C9C] bg-[#0F4C9C]/10 text-[#0F4C9C]'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        ? 'bg-[#0F4C9C] text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Building2 className="w-4 h-4" /> Empresa

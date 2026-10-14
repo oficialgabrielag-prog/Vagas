@@ -11,6 +11,7 @@ interface HomeProps {
   onSelectJob: (job: Job) => void;
   onSelectCompany: (company: UserProfile) => void;
   onSelectPost?: (post: CommunityPost) => void;
+  onSelectProduct?: (product: MarketplaceProduct) => void;
   currentUser: UserProfile | null;
   onOpenAuth: () => void;
 }

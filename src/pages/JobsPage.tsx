@@ -1,20 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Search, MapPin, Briefcase, Filter, Calendar, DollarSign, ArrowRight, Bookmark } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, Calendar, Clock, DollarSign, ArrowRight, Bookmark, ChevronRight } from 'lucide-react';
 import { Job, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 
 interface JobsPageProps {
   jobs: Job[];
+  companies?: UserProfile[];
   currentUser: UserProfile | null;
   onSelectJob: (job: Job) => void;
+  onSelectCompany?: (company: UserProfile) => void;
 }
 
-export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJob }) => {
-  const [keyword, setKeyword] = useState('');
+export const JobsPage: React.FC<JobsPageProps> = ({ jobs, companies = [], currentUser, onSelectJob, onSelectCompany }) => {
   const [selectedMunicipality, setSelectedMunicipality] = useState('Todos');
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedContract, setSelectedContract] = useState('Todos');
   const [selectedExperience, setSelectedExperience] = useState('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [savedJobIds, setSavedJobIds] = useState<string[]>(
     currentUser ? StoreService.getSavedJobs(currentUser.id) : []
@@ -22,20 +24,18 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJ
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-      const matchKeyword =
-        !keyword ||
-        job.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        job.company_name.toLowerCase().includes(keyword.toLowerCase()) ||
-        job.description.toLowerCase().includes(keyword.toLowerCase());
+      const matchMunicipality = selectedMunicipality === 'Todos' || (job.municipality && job.municipality.toLowerCase() === selectedMunicipality.toLowerCase());
+      const matchCategory = selectedCategory === 'Todas' || (job.category && job.category.toLowerCase() === selectedCategory.toLowerCase());
+      const matchContract = selectedContract === 'Todos' || (job.contract_type && job.contract_type.toLowerCase() === selectedContract.toLowerCase());
+      const matchExperience = selectedExperience === 'Todos' || (job.experience_level && job.experience_level.toLowerCase() === selectedExperience.toLowerCase());
+      const matchSearch = !searchTerm || 
+        (job.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.company_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.description || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchMunicipality = selectedMunicipality === 'Todos' || job.municipality === selectedMunicipality;
-      const matchCategory = selectedCategory === 'Todas' || job.category === selectedCategory;
-      const matchContract = selectedContract === 'Todos' || job.contract_type === selectedContract;
-      const matchExperience = selectedExperience === 'Todos' || job.experience_level === selectedExperience;
-
-      return matchKeyword && matchMunicipality && matchCategory && matchContract && matchExperience;
+      return matchMunicipality && matchCategory && matchContract && matchExperience && matchSearch;
     });
-  }, [jobs, keyword, selectedMunicipality, selectedCategory, selectedContract, selectedExperience]);
+  }, [jobs, selectedMunicipality, selectedCategory, selectedContract, selectedExperience, searchTerm]);
 
   const handleToggleSave = (e: React.MouseEvent, jobId: string) => {
     e.stopPropagation();
@@ -48,58 +48,81 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJ
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Page Header */}
-      <div className="bg-[#0F4C9C] text-white p-8 rounded-3xl shadow-lg relative overflow-hidden">
-        <div className="max-w-2xl relative z-10 space-y-2">
-          <span className="text-xs uppercase tracking-widest font-bold text-[#FFC20E]">
-            Oportunidades Profissionais
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
+      
+      {/* 1. Cabeçalho Corporativo e Limpo */}
+      <div className="pb-6 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <span className="text-xs uppercase tracking-widest font-bold text-[#123D73] block mb-1">
+            Oportunidades em Angola
           </span>
-          <h1 className="text-3xl font-extrabold">Vagas de Emprego no Cunene</h1>
-          <p className="text-slate-200 text-sm">
-            Encontre a posição ideal para impulsionar a sua carreira na província do Cunene.
+          <h1 className="text-3xl sm:text-4xl font-black text-[#263449] tracking-tight">
+            Vagas de Emprego
+          </h1>
+          <p className="text-sm text-[#66758A] mt-1.5 max-w-xl">
+            Explora vagas abertas, candidata-te diretamente e encontra a posição ideal para a tua carreira.
           </p>
+        </div>
+
+        <div className="text-xs text-[#66758A] font-semibold bg-[#F8FAFC] border border-slate-200/80 px-3.5 py-2 rounded-xl">
+          Total de vagas disponíveis: <strong className="text-[#123D73] font-bold">{filteredJobs.length}</strong>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Keyword Search */}
-          <div className="flex-1 flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-300">
-            <Search className="w-5 h-5 text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={keyword}
-              onChange={e => setKeyword(e.target.value)}
-              placeholder="Pesquisar por cargo, empresa ou palavra-chave..."
-              className="w-full bg-transparent text-slate-800 text-sm focus:outline-none"
-            />
-          </div>
+      {/* 2. Barra de Filtros Direta (Sem caixas ou cards pesados) */}
+      <div className="bg-[#F8FAFC] border border-slate-200/80 p-4 sm:p-5 rounded-2xl space-y-4">
+        
+        {/* Barra de Busca rápida */}
+        <div className="flex items-center gap-2.5 bg-white border border-slate-200 px-3.5 py-2.5 rounded-xl">
+          <Search className="w-4 h-4 text-[#66758A] shrink-0" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Pesquisar por cargo, empresa ou palavra-chave..."
+            className="w-full text-xs sm:text-sm text-[#263449] placeholder:text-[#66758A]/80 outline-none bg-transparent font-medium"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="text-xs text-[#66758A] hover:text-[#263449] font-bold px-1"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
 
-          {/* Municipality Filter */}
-          <div className="md:w-64">
+        {/* Seletores de Filtros Abertos */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          
+          <div>
+            <label className="block text-[11px] font-bold text-[#66758A] uppercase tracking-wider mb-1">
+              Município
+            </label>
             <select
               value={selectedMunicipality}
               onChange={e => setSelectedMunicipality(e.target.value)}
-              className="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-sm bg-slate-50 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-[#263449] font-medium outline-none cursor-pointer"
             >
               <option value="Todos">Todos os Municípios</option>
+              <option value="Luanda">Luanda</option>
+              <option value="Lubango">Lubango</option>
+              <option value="Huambo">Huambo</option>
+              <option value="Benguela">Benguela</option>
               {CUNENE_MUNICIPALITIES.map(m => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </div>
-        </div>
 
-        {/* Secondary Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Categoria</label>
+            <label className="block text-[11px] font-bold text-[#66758A] uppercase tracking-wider mb-1">
+              Categoria
+            </label>
             <select
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-[#263449] font-medium outline-none cursor-pointer"
             >
               <option value="Todas">Todas as Categorias</option>
               {JOB_CATEGORIES.map(c => (
@@ -109,13 +132,15 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJ
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tipo de Contrato</label>
+            <label className="block text-[11px] font-bold text-[#66758A] uppercase tracking-wider mb-1">
+              Regime de Trabalho
+            </label>
             <select
               value={selectedContract}
               onChange={e => setSelectedContract(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-[#263449] font-medium outline-none cursor-pointer"
             >
-              <option value="Todos">Todos os Contratos</option>
+              <option value="Todos">Todos os Regimes</option>
               <option value="Tempo Inteiro">Tempo Inteiro</option>
               <option value="Meio Tempo">Meio Tempo</option>
               <option value="Contrato">Contrato</option>
@@ -125,11 +150,13 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJ
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Experiência</label>
+            <label className="block text-[11px] font-bold text-[#66758A] uppercase tracking-wider mb-1">
+              Experiência
+            </label>
             <select
               value={selectedExperience}
               onChange={e => setSelectedExperience(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white text-[#263449] font-medium outline-none cursor-pointer"
             >
               <option value="Todos">Todos os Níveis</option>
               <option value="Júnior">Júnior</option>
@@ -138,82 +165,118 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, currentUser, onSelectJ
               <option value="Especialista">Especialista</option>
             </select>
           </div>
+
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="flex justify-between items-center text-sm text-slate-600 font-medium">
-        <p>A mostrar <span className="font-bold text-[#0F4C9C]">{filteredJobs.length}</span> vagas encontradas</p>
-      </div>
-
-      {/* Jobs List */}
+      {/* 3. Lista Aberta de Vagas (Sem Cards Caixotes - Padrão Aberto e Limpo) */}
       {filteredJobs.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm space-y-4">
-          <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-xl font-bold text-slate-800">Nenhuma vaga encontrada</h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Não encontrámos vagas com os filtros selecionados. Tente pesquisar por outros termos ou municípios.
+        <div className="py-16 text-center space-y-3">
+          <Briefcase className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="text-lg font-bold text-[#263449]">Nenhuma vaga encontrada</h3>
+          <p className="text-xs sm:text-sm text-[#66758A] max-w-md mx-auto">
+            Não encontramos vagas com os filtros selecionados. Tente ajustar os termos de pesquisa ou municípios.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="divide-y divide-slate-100 border-t border-b border-slate-100">
           {filteredJobs.map(job => {
             const isSaved = savedJobIds.includes(job.id);
             return (
               <div
                 key={job.id}
                 onClick={() => onSelectJob(job)}
-                className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition border border-slate-200 cursor-pointer flex flex-col justify-between group"
+                className="py-4 sm:py-5 px-2 sm:px-4 hover:bg-[#F8FAFC] rounded-xl transition cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
               >
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="meta-text">
-                      <span className="text-[#0F4C9C]">{job.category}</span>
-                      <span className="meta-separator"></span>
-                      <span>{job.contract_type}</span>
-                    </div>
-                    <button
-                      onClick={e => handleToggleSave(e, job.id)}
-                      className={`p-2 rounded-xl transition-all ${
-                        isSaved ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-amber-500 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-amber-500' : ''}`} />
-                    </button>
+                {/* Esquerda: Identificação da Empresa + Cargo */}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-sm text-[#123D73] shrink-0 overflow-hidden shadow-2xs">
+                    {job.company_logo ? (
+                      <img src={job.company_logo} alt={job.company_name} className="w-full h-full object-cover" />
+                    ) : (
+                      (job.company_name || 'E').charAt(0)
+                    )}
                   </div>
 
-                  <h3 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-[#0F4C9C] transition-colors mb-1">
-                    {job.title}
-                  </h3>
-                  <p className="text-sm font-bold text-slate-500 mb-4">{job.company_name}</p>
-
-                  <p className="text-slate-600 text-sm line-clamp-2 mb-6 leading-relaxed font-medium">
-                    {job.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-4 text-[11px] font-black uppercase tracking-tight text-slate-400 mb-6">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-[#0F4C9C]" />
-                      <span>{job.municipality}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[11px] font-bold text-[#123D73] uppercase tracking-wide">
+                        {job.category || 'Geral'}
+                      </span>
+                      <span className="text-slate-300">·</span>
+                      <span className="text-[11px] text-[#66758A] font-medium">
+                        {job.contract_type || 'Tempo inteiro'}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-900">
-                      <DollarSign className="w-3.5 h-3.5 text-[#0F4C9C]" />
-                      <span>{job.salary_min && job.salary_max ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.salary_currency}` : 'Salário Negociável'}</span>
-                    </div>
+
+                    <h3 className="text-sm sm:text-base font-bold text-[#263449] group-hover:text-[#123D73] transition truncate">
+                      {job.title}
+                    </h3>
+
+                    <p 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onSelectCompany) {
+                          const comp = companies.find(c => c.id === job.employer_id || c.company_name === job.company_name);
+                          if (comp) {
+                            onSelectCompany(comp);
+                          } else {
+                            onSelectCompany({
+                              id: job.employer_id || 'comp',
+                              company_name: job.company_name,
+                              full_name: job.company_name,
+                              role: 'employer'
+                            } as any);
+                          }
+                        }
+                      }}
+                      className="text-xs text-[#66758A] hover:underline hover:text-[#123D73] transition cursor-pointer font-medium mt-0.5"
+                    >
+                      {job.company_name}
+                    </p>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">{new Date(job.created_at).toLocaleDateString('pt-AO')}</span>
-                  <span className="font-bold text-[#0F4C9C] group-hover:underline flex items-center gap-1">
-                    Ver detalhes e candidatar <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
+                {/* Direita: Metadados em linha aberta + Ação */}
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-[#66758A] pl-16 md:pl-0">
+                  <div className="flex items-center gap-1.5 min-w-[90px]">
+                    <MapPin className="w-3.5 h-3.5 text-[#66758A]" />
+                    <span>{job.municipality || 'Cunene'}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 min-w-[90px]">
+                    <Calendar className="w-3.5 h-3.5 text-[#66758A]" />
+                    <span>{new Date(job.created_at).toLocaleDateString('pt-AO')}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 min-w-[100px] font-bold text-[#263449]">
+                    <DollarSign className="w-3.5 h-3.5 text-[#123D73]" />
+                    <span>
+                      {job.salary_min && job.salary_max 
+                        ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.salary_currency}`
+                        : (job.salary_min ? `${job.salary_min.toLocaleString()} ${job.salary_currency}` : 'A definir')}
+                    </span>
+                  </div>
+
+                  {/* Botão de Guardar Vaga */}
+                  <button
+                    onClick={e => handleToggleSave(e, job.id)}
+                    className={`p-2 rounded-xl transition cursor-pointer ${
+                      isSaved ? 'text-[#F5B91B] bg-amber-50' : 'text-slate-300 hover:text-[#F5B91B] hover:bg-slate-100'
+                    }`}
+                    title={isSaved ? 'Vaga guardada' : 'Guardar vaga'}
+                  >
+                    <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-[#F5B91B]' : ''}`} />
+                  </button>
+
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#123D73] group-hover:translate-x-1 transition hidden md:block shrink-0" />
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
     </div>
   );
 };

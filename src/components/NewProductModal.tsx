@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, ShoppingBag } from 'lucide-react';
+import { X, Plus, ShoppingBag, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { MarketplaceProduct, UserProfile, CUNENE_MUNICIPALITIES } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { ImageUploader } from './ImageUploader';
@@ -27,6 +27,55 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [showPayment, setShowPayment] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [aiSuccessMsg, setAiSuccessMsg] = useState<string | null>(null);
+
+  const handleGenerateAIDescription = async () => {
+    if (!title.trim()) {
+      setError('Por favor, informe primeiro o Título do Anúncio para a IA gerar a descrição.');
+      return;
+    }
+    setError('');
+    setIsGeneratingDescription(true);
+    setAiSuccessMsg(null);
+    try {
+      const res = await fetch('/api/ai/product-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          category,
+          municipality,
+          price: price ? Number(price) : undefined,
+          existingDescription: description
+        })
+      });
+      if (!res.ok) throw new Error('Falha na resposta do servidor');
+      const data = await res.json();
+      if (data.description) {
+        setDescription(data.description);
+        setAiSuccessMsg('✨ Descrição profissional gerada com IA! Pode ajustá-la livremente.');
+        setTimeout(() => setAiSuccessMsg(null), 5000);
+      }
+    } catch (e) {
+      // Fallback local se o servidor estiver sem rede
+      const priceFormatted = price ? `${Number(price).toLocaleString('pt-AO')} AOA` : 'Negociável';
+      const fallbackDesc = `⭐ **${title.trim()} — Disponível no Cunene**\n\nExcelente oportunidade em ${municipality}! Produto de alta qualidade na categoria ${category}, pronto para entrega ou levantamento.\n\n**Destaques:**\n• Categoria: ${category}\n• Município: ${municipality}\n• Preço: ${priceFormatted}\n• Condição: Novo / Excelente conservação\n\n📞 Contacte via WhatsApp ou chamada para combinar a entrega ou negociar!`;
+      setDescription(fallbackDesc);
+      setAiSuccessMsg('✨ Descrição gerada com sucesso! Pode personalizá-la.');
+      setTimeout(() => setAiSuccessMsg(null), 4000);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const currentCompanyProductsCount = React.useMemo(() => {
+    if (!currentUser) return 0;
+    const allProds = StoreService.getProducts();
+    return allProds.filter(p => p.seller_id === currentUser.id || (currentUser.company?.id && p.company_id === currentUser.company.id)).length;
+  }, [currentUser, isOpen]);
+
+  const isUnlimited = Boolean(currentUser?.marketplace_unlocked || currentUser?.company?.marketplace_unlocked);
 
   if (!isOpen || !currentUser) return null;
 
@@ -57,8 +106,9 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
       onProductCreated();
       onClose();
     } catch (err: any) {
-      if (err.message === 'LIMIT_REACHED') {
-        setError('Você atingiu o limite de 3 produtos gratuitos. Ative o Premium para publicar mais produtos.');
+      if (err.message === 'LIMIT_REACHED' || err.message?.includes('LIMIT_REACHED')) {
+        setError('A sua empresa atingiu o limite gratuito de 10 produtos. Para publicar produtos adicionais de forma ilimitada, efetue o pagamento seguro via PayPal.');
+        setShowPayment(true);
       } else {
         setError('Erro ao criar anúncio. Tente novamente.');
       }
@@ -80,7 +130,22 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
             Marketplace Local
           </span>
           <h2 className="text-xl sm:text-2xl font-bold mt-1">Criar Anúncio de Produto ou Serviço</h2>
-          <p className="text-xs sm:text-sm text-slate-200 mt-1">Venda ou divulgue os seus produtos no Cunene</p>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <p className="text-xs sm:text-sm text-slate-200">Venda ou divulgue os seus produtos no Cunene</p>
+            {isUnlimited ? (
+              <span className="text-[10px] font-extrabold text-emerald-300 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-400/40">
+                🌟 Produtos Ilimitados (PayPal Ativo)
+              </span>
+            ) : (
+              <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                currentCompanyProductsCount >= 10 
+                  ? 'bg-rose-950/70 text-rose-300 border-rose-400/50' 
+                  : 'bg-white/15 text-[#FFC20E] border-white/20'
+              }`}>
+                📦 {currentCompanyProductsCount}/10 produtos gratuitos
+              </span>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto">
@@ -185,9 +250,38 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Descrição Detalhada</label>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+              <label className="block text-xs font-semibold text-slate-700">Descrição Detalhada</label>
+              <button
+                type="button"
+                onClick={handleGenerateAIDescription}
+                disabled={isGeneratingDescription}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0F4C9C] bg-blue-50 hover:bg-blue-100/90 active:scale-95 px-2.5 py-1 rounded-lg border border-blue-200 transition cursor-pointer disabled:opacity-50"
+                title="Ajudar a criar uma descrição comercial persuasiva com Inteligência Artificial"
+              >
+                {isGeneratingDescription ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0F4C9C]" />
+                    <span>A gerar com IA...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-[#FFC20E]" />
+                    <span>Ajudar a criar descrição com IA</span>
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {aiSuccessMsg && (
+              <div className="mb-2 p-2 bg-emerald-50 text-emerald-800 rounded-xl text-[11px] font-bold border border-emerald-200 flex items-center gap-1.5 animate-fadeIn">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{aiSuccessMsg}</span>
+              </div>
+            )}
+
             <textarea
-              rows={3}
+              rows={4}
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Descreva o estado, condições de entrega ou detalhes do serviço..."

@@ -55,26 +55,27 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
   if (!isOpen || !currentUser) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto pt-12 sm:pt-6 pb-12 sm:pb-6">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 flex flex-col max-h-[85vh] my-auto animate-fadeIn">
         
-        {/* Header */}
-        <div className="bg-[#0F4C9C] p-6 text-white relative">
+        {/* Header - Sticky & Safe Top Padding */}
+        <div className="bg-[#0F4C9C] px-5 py-4 sm:p-6 text-white relative shrink-0">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition"
+            className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
           <span className="text-[10px] uppercase tracking-widest font-black text-[#FFC20E] block">
             Licença Empresarial
           </span>
-          <h2 className="text-xl sm:text-2xl font-black mt-1">Licença Marketplace</h2>
+          <h2 className="text-lg sm:text-2xl font-black mt-0.5 leading-tight">Licença Marketplace</h2>
           <p className="text-xs text-blue-100 mt-1">Ative as vendas online da sua empresa no Cunene</p>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-6">
+        {/* Modal Body - Scrollable */}
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
           {error && (
             <div className="bg-rose-50 text-rose-700 p-3.5 rounded-xl text-xs border border-rose-100 flex items-start gap-2.5 animate-fadeIn">
               <ShieldAlert className="w-4 h-4 text-rose-500 shrink-0" />

@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Phone, Mail, Globe, MessageCircle, Briefcase, ShoppingBag, Plus, Edit3, Trash2, Camera, Users, FileText, CheckCircle2, AlertCircle, X, Power, Award, CreditCard } from 'lucide-react';
-import { UserProfile, Job, MarketplaceProduct, CommunityPost, JobApplication, CUNENE_MUNICIPALITIES, JOB_CATEGORIES } from '../lib/types';
+import { Building2, MapPin, Phone, Mail, Globe, MessageCircle, Briefcase, ShoppingBag, Plus, Edit3, Trash2, Camera, Users, FileText, CheckCircle2, AlertCircle, X, Power, Award, CreditCard, Bell, Search, Filter, Star, ChevronRight } from 'lucide-react';
+import { UserProfile, Job, MarketplaceProduct, CommunityPost, JobApplication, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, FollowerItem, CompanyRating } from '../lib/types';
 import { StoreService } from '../lib/store';
-import { uploadToCloudinary } from '../lib/cloudinary';
+import { uploadToCloudinary, cleanDocumentUrl } from '../lib/cloudinary';
 import { ImageUploader } from './ImageUploader';
 import { PayPalPaymentModal } from './PayPalPaymentModal';
+import { MediaViewer } from './MediaViewer';
+import { EditarPerfilEmpresa } from './EditarPerfilEmpresa';
+import { FollowersModal } from './FollowersModal';
 
 interface EmployerProfileViewProps {
   currentUser: UserProfile;
   jobs: Job[];
   products: MarketplaceProduct[];
   posts: CommunityPost[];
+  applications?: JobApplication[];
   onOpenNewJob: () => void;
   onOpenNewProduct: () => void;
   onProfileUpdated: (updated: UserProfile) => void;
@@ -24,6 +28,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   jobs,
   products,
   posts,
+  applications: propApplications,
   onOpenNewJob,
   onOpenNewProduct,
   onProfileUpdated,
@@ -33,7 +38,23 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'store' | 'profile' | 'applications' | 'jobs' | 'payments'>('dashboard');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isFollowersModalOpen, setIsFollowersModalOpen] = useState(false);
+  const [followers, setFollowers] = useState<FollowerItem[]>(() => StoreService.getFollowers(currentUser.id));
+
+  React.useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (!e.detail?.targetId || e.detail.targetId === currentUser.id) {
+        setFollowers(StoreService.getFollowers(currentUser.id));
+      }
+    };
+    window.addEventListener('cunene_followers_updated', handleUpdate);
+    return () => window.removeEventListener('cunene_followers_updated', handleUpdate);
+  }, [currentUser.id]);
+
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState<string>('all');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState<{ url: string; type: 'image'; alt: string }[] | null>(null);
   
   // Product Edit modal state
   const [editingProduct, setEditingProduct] = useState<MarketplaceProduct | null>(null);
@@ -68,6 +89,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const [email, setEmail] = useState(company?.email || currentUser.email || '');
   const [website, setWebsite] = useState(company?.website || currentUser.website || '');
   const [nif, setNif] = useState(company?.nif || currentUser.nif || '');
+  const [slogan, setSlogan] = useState(company?.slogan || '');
   const [bio, setBio] = useState(company?.description || currentUser.bio || '');
   const [servicesText, setServicesText] = useState((company?.services || currentUser.services || []).join(', '));
   const [logoUrl, setLogoUrl] = useState(company?.logo_url || currentUser.company_logo || currentUser.avatar_url || '');
@@ -76,6 +98,12 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const [savingProfile, setSavingProfile] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // Sync form inputs with latest profile data on change or modal open
   React.useEffect(() => {
@@ -89,6 +117,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     setEmail(activeComp?.email || currentUser.email || '');
     setWebsite(activeComp?.website || currentUser.website || '');
     setNif(activeComp?.nif || currentUser.nif || '');
+    setSlogan(activeComp?.slogan || '');
     setBio(activeComp?.description || currentUser.bio || '');
     setServicesText((activeComp?.services || currentUser.services || []).join(', '));
     setLogoUrl(activeComp?.logo_url || currentUser.company_logo || currentUser.avatar_url || '');
@@ -101,8 +130,32 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const [postImage, setPostImage] = useState('');
   const [publishingPost, setPublishingPost] = useState(false);
 
-  // Applications
-  const [applications, setApplications] = useState<JobApplication[]>(() => StoreService.getApplications());
+  // Applications State & Robust Sync / Loading / Error Handling
+  const [applications, setApplications] = useState<JobApplication[]>(() => propApplications || StoreService.getApplications());
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [applicationsError, setApplicationsError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (propApplications && propApplications.length > 0) {
+      setApplications(propApplications);
+    } else {
+      setLoadingApplications(true);
+      setApplicationsError(null);
+      StoreService.fetchApplications()
+        .then(fetched => {
+          if (fetched && fetched.length > 0) {
+            setApplications(fetched);
+          }
+        })
+        .catch(err => {
+          setApplicationsError('Erro ao carregar candidaturas do servidor.');
+          console.warn('Erro ao carregar candidaturas:', err);
+        })
+        .finally(() => {
+          setLoadingApplications(false);
+        });
+    }
+  }, [propApplications]);
   
   // Payments State
   const [payments, setPayments] = useState<any[]>([]);
@@ -122,8 +175,14 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     }
   }, [activeTab, currentUser.id]);
 
-  // Strictly filter real data belonging to this company (not candidate)
-  const myJobs = jobs.filter(j => j.employer_id === currentUser.id);
+  // Robustly filter real data belonging to this company/employer
+  const myJobs = jobs.filter(j => 
+    j.employer_id === currentUser.id || 
+    (company?.id && j.company_id === company.id) ||
+    (company?.name && j.company_name?.toLowerCase() === company.name.toLowerCase()) ||
+    (currentUser.company_name && j.company_name?.toLowerCase() === currentUser.company_name.toLowerCase())
+  );
+
   const myProducts = products.filter(p => p.seller_id === currentUser.id || p.company_id === company?.id);
   const myPosts = posts.filter(p =>
     (p.author_id === currentUser.id ||
@@ -132,72 +191,31 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
      p.author_name?.toLowerCase() === (company?.name || '').toLowerCase()) &&
     (p.author_type === 'employer' || (p as any).post_type === 'employer')
   );
+
   const myJobIds = myJobs.map(j => j.id);
-  const myApplications = applications.filter(a => myJobIds.includes(a.job_id));
+  const myApplications = applications.filter(a => 
+    myJobIds.includes(a.job_id) ||
+    (company?.id && (a as any).company_id === company.id)
+  );
 
   // Calculated strictly from real data
   const activeJobsCount = myJobs.filter(j => j.status === 'active').length;
   const receivedAppsCount = myApplications.length;
+  const approvedAppsCount = myApplications.filter(a => a.status === 'Aprovada' || a.status === 'Contratada').length;
+  const pendingAppsCount = myApplications.filter(a => a.status === 'Em análise' || a.status === 'Enviada' || a.status === 'Selecionada para exame' || a.status === 'Exame realizado').length;
   const storeProductsCount = myProducts.length;
   const myPostsCount = myPosts.length;
 
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setErrorMessage('');
-    try {
-      const url = await uploadToCloudinary(file);
-      if (url.startsWith('blob:') || url.startsWith('data:')) {
-        throw new Error('Não foi possível carregar a imagem. Tente novamente.');
-      }
-      setCoverUrl(url);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao carregar imagem de capa.');
-    } finally {
-      setUploading(false);
+  // Real ratings data
+  const companyRatings = StoreService.getCompanyRatings(currentUser.id);
+  const ratingStats = StoreService.getCompanyRatingStats(currentUser.id);
+  const totalReviews = companyRatings.length;
+  const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  companyRatings.forEach(r => {
+    if (r.rating >= 1 && r.rating <= 5) {
+      starCounts[r.rating as keyof typeof starCounts]++;
     }
-  };
-
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingProfile(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    try {
-      const services = servicesText.split(',').map(s => s.trim()).filter(Boolean);
-
-      // Call updateCompanyProfile — strictly saves company profile without modifying candidate's name, avatar or bio!
-      const updatedCompany = StoreService.updateCompanyProfile(currentUser.id, {
-        name: companyName,
-        logo_url: logoUrl || undefined,
-        cover_url: coverUrl || undefined,
-        industry,
-        municipality,
-        address,
-        phone,
-        whatsapp,
-        email,
-        website,
-        nif,
-        description: bio,
-        services
-      });
-
-      const updatedUser = StoreService.getCurrentUser();
-      if (updatedUser) {
-        onProfileUpdated(updatedUser);
-      }
-      setIsEditingProfile(false);
-      setSuccessMessage('Perfil da empresa atualizado com sucesso! (O perfil de candidato permaneceu intacto)');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao guardar perfil da empresa.');
-    } finally {
-      setSavingProfile(false);
-    }
-  };
+  });
 
   const handlePublishBusinessPost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,7 +246,6 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     }
   };
 
-  // Job actions
   const handleToggleJobStatus = (job: Job) => {
     const nextStatus = job.status === 'active' ? 'closed' : 'active';
     StoreService.updateJob(job.id, { status: nextStatus });
@@ -236,10 +253,15 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   };
 
   const handleDeleteJob = (jobId: string) => {
-    if (window.confirm('Tem a certeza que deseja eliminar esta vaga?')) {
-      StoreService.deleteJob(jobId);
-      onProfileUpdated(currentUser);
-    }
+    setConfirmModal({
+      title: 'Eliminar Vaga?',
+      message: 'Tem a certeza de que deseja eliminar esta vaga de emprego? Os candidatos deixarão de ver este anúncio.',
+      confirmText: 'Eliminar Vaga',
+      onConfirm: () => {
+        StoreService.deleteJob(jobId);
+        onProfileUpdated(currentUser);
+      }
+    });
   };
 
   const openEditJob = (job: Job) => {
@@ -271,7 +293,6 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  // Product actions
   const handleToggleProductStatus = (prod: MarketplaceProduct) => {
     const nextStatus = prod.status === 'available' ? 'sold' : 'available';
     StoreService.updateProduct(prod.id, {
@@ -282,10 +303,15 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   };
 
   const handleDeleteProduct = (productId: string) => {
-    if (window.confirm('Excluir este produto da loja?')) {
-      StoreService.deleteProduct(productId);
-      onProductUpdated();
-    }
+    setConfirmModal({
+      title: 'Excluir Produto?',
+      message: 'Tem a certeza de que deseja excluir permanentemente este produto do Marketplace?',
+      confirmText: 'Excluir Produto',
+      onConfirm: () => {
+        StoreService.deleteProduct(productId);
+        onProductUpdated();
+      }
+    });
   };
 
   const openEditProduct = (prod: MarketplaceProduct) => {
@@ -327,12 +353,12 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20 text-[#172033]">
       {/* Header Banner */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="h-36 sm:h-48 bg-gradient-to-r from-[#0F4C9C] to-slate-900 relative">
+      <div className="bg-white rounded-3xl border border-[#E6EAF0] shadow-xs overflow-hidden">
+        <div className="h-40 sm:h-52 bg-gradient-to-r from-[#244F9A] to-[#193B70] relative">
           {company?.cover_url ? (
-            <img src={company.cover_url} alt="Capa da Empresa" className="w-full h-full object-cover opacity-80" />
+            <img src={company.cover_url} alt="Capa da Empresa" className="w-full h-full object-cover opacity-85" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-white/20">
               <Building2 className="w-20 h-20" />
@@ -343,39 +369,65 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
         <div className="px-6 pb-6 relative">
           <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between -mt-16 gap-4">
             <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
-              <div className="relative w-28 h-28 rounded-2xl bg-white p-1.5 shadow-lg border-2 border-white overflow-hidden shrink-0">
+              <div className="relative w-28 h-28 rounded-2xl bg-white p-1.5 shadow-md border-2 border-white overflow-hidden shrink-0">
                 {company?.logo_url ? (
                   <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                 ) : (
-                  <div className="w-full h-full bg-[#0F4C9C] text-white rounded-xl flex items-center justify-center font-bold text-3xl">
+                  <div className="w-full h-full bg-[#244F9A] text-white rounded-xl flex items-center justify-center font-bold text-3xl">
                     {(company?.name || companyName).charAt(0)}
                   </div>
                 )}
               </div>
               <div>
-                <div className="inline-flex items-center gap-1.5 bg-[#FFC20E]/20 text-amber-900 border border-[#FFC20E]/40 px-2.5 py-0.5 rounded-full text-xs font-bold mb-1">
-                  <Building2 className="w-3.5 h-3.5 text-[#0F4C9C]" /> Modo Empresa Oficial
+                <div className="inline-flex items-center gap-1.5 bg-[#F5B91B]/20 text-amber-900 border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-full text-xs font-bold mb-1">
+                  <Building2 className="w-3.5 h-3.5 text-[#244F9A]" /> Empresa Verificada
                 </div>
-                <h1 className="text-2xl font-extrabold text-slate-900">{company?.name || companyName}</h1>
-                <p className="text-xs font-bold text-[#0F4C9C]">{company?.industry || industry}</p>
+                <h1 className="text-2xl font-extrabold text-[#172033]">{company?.name || companyName}</h1>
+                <p className="text-xs font-bold text-[#244F9A]">{company?.industry || industry}</p>
                 <p className="text-xs text-slate-500 flex items-center justify-center sm:justify-start gap-1 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#0F4C9C]" /> {company?.municipality || municipality}, Cunene
+                  <MapPin className="w-3.5 h-3.5 text-[#244F9A]" /> {company?.municipality || municipality}, Cunene
                   {company?.nif && <span>• NIF: {company.nif}</span>}
                 </p>
+
+                {/* Rating Badge & Partner */}
+                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap">
+                  <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-0.5 rounded-full text-xs font-black">
+                    <Star className="w-3.5 h-3.5 fill-[#F5B91B] text-[#F5B91B]" />
+                    <span>{ratingStats.average.toFixed(1)} / 5.0</span>
+                    <span className="text-amber-700 font-semibold text-[11px]">
+                      ({totalReviews} avaliações)
+                    </span>
+                  </div>
+
+                  {StoreService.isUserPartner(currentUser.id).isPartner && (
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#244F9A] to-[#193B70] text-[#F5B91B] border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-full text-xs font-black shadow-2xs">
+                      <Award className="w-3.5 h-3.5 text-[#F5B91B]" />
+                      <span>🤝 {StoreService.isUserPartner(currentUser.id).partner?.partner_title || 'Parceiro Oficial'}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setIsFollowersModalOpen(true)}
+                className="bg-blue-50 hover:bg-blue-100 text-[#244F9A] font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 border border-blue-100 cursor-pointer shadow-2xs"
+                title="Ver quem seguiu a minha empresa"
+              >
+                <Users className="w-4 h-4 text-[#F5B91B]" />
+                <span>{followers.length} Seguidores</span>
+              </button>
               <button
                 onClick={() => setIsEditingProfile(true)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer border border-[#E6EAF0]"
               >
                 <Edit3 className="w-4 h-4" />
-                <span>Editar Perfil Empresa</span>
+                <span>Editar Empresa</span>
               </button>
               <button
                 onClick={onOpenNewJob}
-                className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-1.5"
+                className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Publicar Vaga</span>
@@ -384,14 +436,14 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           </div>
 
           {successMessage && (
-            <div className="mt-4 bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+            <div className="mt-4 bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 border border-emerald-200">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{successMessage}</span>
             </div>
           )}
 
           {errorMessage && (
-            <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+            <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 border border-red-200">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -399,176 +451,307 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
         </div>
 
         {/* Tab selector */}
-        <div className="flex border-t border-slate-200 px-6 text-xs font-bold overflow-x-auto">
+        <div className="flex border-t border-[#E6EAF0] px-6 text-xs font-bold overflow-x-auto bg-white">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap ${
-              activeTab === 'dashboard' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'dashboard' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            Painel da Empresa
+            Início
           </button>
           <button
             onClick={() => setActiveTab('jobs')}
-            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'jobs' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'jobs' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             <Briefcase className="w-4 h-4" /> Minhas Vagas ({myJobs.length})
           </button>
           <button
-            onClick={() => setActiveTab('store')}
-            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'store' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            onClick={() => setActiveTab('applications')}
+            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'applications' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" /> Minha Loja ({myProducts.length})
+            <Users className="w-4 h-4" /> Candidaturas ({receivedAppsCount})
           </button>
           <button
-            onClick={() => setActiveTab('applications')}
-            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'applications' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            onClick={() => setActiveTab('store')}
+            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'store' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <Users className="w-4 h-4" /> Candidaturas Recebidas ({myApplications.length})
+            <ShoppingBag className="w-4 h-4" /> Loja ({myProducts.length})
           </button>
           <button
             onClick={() => setActiveTab('profile')}
-            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap ${
-              activeTab === 'profile' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap cursor-pointer ${
+              activeTab === 'profile' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            Perfil Público & Serviços
+            Perfil
           </button>
           <button
             onClick={() => setActiveTab('payments')}
-            className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'payments' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'payments' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <CreditCard className="w-4 h-4" /> Pagamentos
+            <CreditCard className="w-4 h-4" /> Configurações
           </button>
         </div>
       </div>
 
-      {/* Tab: Dashboard */}
+      {/* Tab: Dashboard (Modernized to match user reference image precisely) */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
-          {/* Real Metrics Cards - 100% Calculated strictly from data */}
+          {/* Indicators / Metrics Cards - 4 Compact Indicators */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">Vagas Ativas</span>
-              <span className="text-2xl font-black text-[#0F4C9C]">{activeJobsCount}</span>
+            <div 
+              onClick={() => setActiveTab('jobs')}
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-400 block mb-1">Vagas publicadas</span>
+                <span className="text-2xl font-black text-[#244F9A]">{activeJobsCount}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">Candidaturas</span>
-              <span className="text-2xl font-black text-[#0F4C9C]">{receivedAppsCount}</span>
+
+            <div 
+              onClick={() => setActiveTab('applications')}
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-400 block mb-1">Candidaturas recebidas</span>
+                <span className="text-2xl font-black text-[#244F9A]">{receivedAppsCount}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">Produtos na Loja</span>
-              <span className="text-2xl font-black text-[#0F4C9C]">{storeProductsCount}</span>
+
+            <div 
+              onClick={() => setActiveTab('applications')}
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-400 block mb-1">Aprovadas</span>
+                <span className="text-2xl font-black text-emerald-600">{approvedAppsCount}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-400 block mb-1">Publicações da Empresa</span>
-              <span className="text-2xl font-black text-slate-700">{myPostsCount}</span>
+
+            <div 
+              onClick={() => setActiveTab('applications')}
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-400 block mb-1">Em análise</span>
+                <span className="text-2xl font-black text-amber-600">{pendingAppsCount}</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
             </div>
           </div>
 
-          {/* Quick Action Shortcuts */}
-          <div className="bg-slate-100 p-4 rounded-3xl flex flex-wrap gap-2 items-center">
-            <button
-              onClick={onOpenNewJob}
-              className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Publicar Vaga
-            </button>
-            <button
-              onClick={onOpenNewProduct}
-              className="bg-[#FFC20E] hover:bg-[#e5ae0a] text-slate-900 font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Adicionar Produto
-            </button>
-          </div>
+          {/* Desktop Two-Column Layout (Main Content + Star Rating Panel on Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left 2 Columns: Vagas Recentes, Recrute, Ações Rápidas */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Vagas Recentes */}
+              <div className="bg-white p-6 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-extrabold text-[#172033] flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-[#244F9A]" /> Vagas Recentes
+                  </h3>
+                  <button onClick={() => setActiveTab('jobs')} className="text-xs font-bold text-[#244F9A] hover:underline flex items-center gap-1 cursor-pointer">
+                    Ver todas <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
-          {/* Create Business Post / Comunicado Empresarial */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3">
-            <h4 className="text-xs font-bold text-slate-800">Publicar Comunicado ou Novidade da Empresa</h4>
-            <form onSubmit={handlePublishBusinessPost} className="space-y-3">
-              <textarea
-                rows={3}
-                required
-                value={postContent}
-                onChange={e => setPostContent(e.target.value)}
-                placeholder="Partilhe novidades, oportunidades de contratação, produtos ou serviços da empresa no Cunene..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
-              />
+                {myJobs.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <p className="text-xs text-slate-400">Nenhuma vaga publicada ainda.</p>
+                    <button onClick={onOpenNewJob} className="bg-[#244F9A] text-white font-bold px-4 py-2 rounded-xl text-xs">
+                      + Publicar Primeira Vaga
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myJobs.slice(0, 4).map(job => (
+                      <div 
+                        key={job.id} 
+                        onClick={() => onSelectJob(job)}
+                        className="p-3.5 rounded-2xl bg-slate-50/70 border border-[#E6EAF0] hover:border-[#244F9A] transition flex justify-between items-center cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-[#244F9A]/10 text-[#244F9A] flex items-center justify-center font-bold shrink-0">
+                            <Briefcase className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-[#172033] group-hover:text-[#244F9A] transition">{job.title}</h4>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                              <MapPin className="w-3 h-3 text-[#244F9A]" /> {job.municipality}, Cunene • <span className={`font-bold ${job.status === 'active' ? 'text-emerald-600' : 'text-slate-500'}`}>{job.status === 'active' ? 'Em aberto' : 'Encerrada'}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#244F9A] transition" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              <div className="flex flex-wrap justify-between items-center gap-2">
-                <select
-                  value={postCategory}
-                  onChange={e => setPostCategory(e.target.value as any)}
-                  className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold border-none"
-                >
-                  <option value="Empresas">Novidade Empresarial</option>
-                  <option value="Emprego">Oportunidade de Trabalho</option>
-                  <option value="Negócios">Parceria Comercial</option>
-                  <option value="Marketplace">Oferta de Produto</option>
-                </select>
-
+              {/* Recruitment Promo Banner */}
+              <div className="bg-gradient-to-r from-blue-50 via-indigo-50/50 to-amber-50/40 p-6 rounded-3xl border border-[#E6EAF0] shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center sm:text-left">
+                  <h4 className="text-sm font-black text-[#172033]">Recrute os melhores talentos</h4>
+                  <p className="text-xs text-slate-600">Publique vagas e encontre profissionais qualificados para a sua empresa no Cunene.</p>
+                </div>
                 <button
-                  type="submit"
-                  disabled={publishingPost || !postContent.trim()}
-                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-sm disabled:opacity-50"
+                  onClick={onOpenNewJob}
+                  className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
-                  {publishingPost ? 'A publicar...' : 'Publicar Comunicado'}
+                  <Plus className="w-4 h-4 text-[#F5B91B]" /> Publicar Nova Vaga
                 </button>
               </div>
-            </form>
-          </div>
 
-          {/* Recent Jobs Preview */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-900">Vagas Recentes da Empresa</h3>
-              <button onClick={() => setActiveTab('jobs')} className="text-xs font-bold text-[#0F4C9C] hover:underline">
-                Ver todas ({myJobs.length})
-              </button>
+              {/* Ações Rápidas */}
+              <div className="bg-white p-6 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-4">
+                <h3 className="text-sm font-extrabold text-[#172033]">Ações Rápidas</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <button
+                    onClick={onOpenNewJob}
+                    className="p-4 bg-[#244F9A] hover:bg-[#193B70] text-white rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-5 h-5 text-[#F5B91B]" />
+                    <span className="text-xs font-bold">Publicar Vaga</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('jobs')}
+                    className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
+                  >
+                    <Briefcase className="w-5 h-5 text-[#244F9A]" />
+                    <span className="text-xs font-bold">Gerir Vagas</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('applications')}
+                    className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
+                  >
+                    <Users className="w-5 h-5 text-[#244F9A]" />
+                    <span className="text-xs font-bold">Ver Candidaturas</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('store')}
+                    className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
+                  >
+                    <ShoppingBag className="w-5 h-5 text-[#244F9A]" />
+                    <span className="text-xs font-bold">Gerir Loja</span>
+                  </button>
+
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-notifications'))}
+                    className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer col-span-2 sm:col-span-1"
+                  >
+                    <Bell className="w-5 h-5 text-[#244F9A]" />
+                    <span className="text-xs font-bold">Notificações</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {myJobs.length === 0 ? (
-              <p className="text-xs text-slate-400 py-4 text-center">Nenhuma vaga publicada ainda.</p>
-            ) : (
-              <div className="space-y-2">
-                {myJobs.slice(0, 3).map(job => (
-                  <div key={job.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{job.title}</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        {job.municipality} • {job.contract_type} • Estado:{' '}
-                        <span className={`font-bold ${job.status === 'active' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                          {job.status === 'active' ? 'Ativa' : 'Encerrada'}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openEditJob(job)}
-                        className="text-xs text-slate-600 hover:text-slate-900 bg-white p-1.5 rounded-lg border border-slate-200"
-                        title="Editar vaga"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => onSelectJob(job)}
-                        className="text-xs font-bold text-[#0F4C9C] bg-white px-3 py-1.5 rounded-xl border border-slate-200 hover:border-[#0F4C9C]"
-                      >
-                        Ver Detalhes
-                      </button>
-                    </div>
+            {/* Right 1 Column: Painel de Avaliações por Estrelas (Mandatory Section) */}
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-5">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-extrabold text-[#172033] flex items-center gap-1.5">
+                    <Star className="w-4 h-4 fill-[#F5B91B] text-[#F5B91B]" /> Avaliações da Empresa
+                  </h3>
+                  <span className="text-xs font-bold text-[#244F9A]">Ver todas</span>
+                </div>
+
+                {totalReviews === 0 ? (
+                  <div className="text-center py-8 space-y-2 bg-slate-50 rounded-2xl p-4 border border-[#E6EAF0]">
+                    <Star className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-xs font-bold text-slate-700">Ainda não recebeste avaliações.</p>
+                    <p className="text-[11px] text-slate-500">As avaliações dos candidatos e clientes aparecerão aqui assim que forem registadas.</p>
                   </div>
-                ))}
+                ) : (
+                  <>
+                    {/* General Classification */}
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-3xl font-black text-[#172033]">{ratingStats.average.toFixed(1)}</span>
+                      <div>
+                        <div className="flex items-center gap-1 text-[#F5B91B]">
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <Star 
+                              key={s} 
+                              className={`w-4 h-4 ${s <= Math.round(ratingStats.average) ? 'fill-[#F5B91B]' : 'text-slate-300'}`} 
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">({totalReviews} avaliações)</span>
+                      </div>
+                    </div>
+
+                    {/* Distribution Bars */}
+                    <div className="space-y-1.5 pt-2 border-t border-[#E6EAF0]">
+                      {[5, 4, 3, 2, 1].map(stars => {
+                        const count = starCounts[stars as keyof typeof starCounts];
+                        const pct = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                        return (
+                          <div key={stars} className="flex items-center gap-2 text-xs">
+                            <span className="w-3 font-bold text-slate-600">{stars}</span>
+                            <Star className="w-3.5 h-3.5 fill-[#F5B91B] text-[#F5B91B] shrink-0" />
+                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-[#F5B91B] rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-8 text-right text-[11px] text-slate-400 font-semibold">{Math.round(pct)}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Recent Reviews */}
+                    <div className="pt-3 border-t border-[#E6EAF0] space-y-3">
+                      <h4 className="text-xs font-bold text-slate-700">Avaliações Recentes</h4>
+                      <div className="space-y-3">
+                        {companyRatings.slice(0, 3).map((rev: CompanyRating) => (
+                          <div key={rev.id} className="bg-slate-50 p-3 rounded-2xl border border-[#E6EAF0] space-y-1">
+                            <div className="flex justify-between items-start">
+                              <span className="text-xs font-bold text-slate-900">{rev.user_name || 'Utilizador'}</span>
+                              <div className="flex items-center gap-0.5 text-[#F5B91B]">
+                                {[...Array(rev.rating)].map((_, i) => (
+                                  <Star key={i} className="w-3 h-3 fill-[#F5B91B]" />
+                                ))}
+                              </div>
+                            </div>
+                            {rev.comment && (
+                              <p className="text-[11px] text-slate-600 leading-relaxed">{rev.comment}</p>
+                            )}
+                            <span className="text-[10px] text-slate-400 block">
+                              {new Date(rev.created_at).toLocaleDateString('pt-AO')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+
+              {/* Dica Card */}
+              <div className="bg-amber-50/60 p-5 rounded-3xl border border-amber-200/80 space-y-2">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                  <Star className="w-4 h-4 fill-[#F5B91B] text-[#F5B91B]" /> Dica
+                </div>
+                <p className="text-xs text-amber-900/80 leading-relaxed">
+                  Mantenha o seu perfil atualizado com logótipo nítido, morada exata e descrição detalhada para aumentar a confiança dos candidatos.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -578,19 +761,19 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Gestão de Vagas da Empresa</h3>
+              <h3 className="text-base font-extrabold text-[#172033]">Gestão de Vagas da Empresa</h3>
               <p className="text-xs text-slate-500">Crie, edite, publique, encerre ou remova as suas ofertas de emprego</p>
             </div>
             <button
               onClick={onOpenNewJob}
-              className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
+              className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Nova Vaga
             </button>
           </div>
 
           {myJobs.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-3xl border border-slate-200 space-y-3">
+            <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
               <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
               <h4 className="text-sm font-bold text-slate-800">Nenhuma vaga publicada ainda</h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -598,7 +781,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               </p>
               <button
                 onClick={onOpenNewJob}
-                className="bg-[#FFC20E] text-slate-900 font-bold px-5 py-2.5 rounded-xl text-xs shadow-sm inline-block"
+                className="bg-[#F5B91B] text-slate-900 font-bold px-5 py-2.5 rounded-xl text-xs shadow-sm inline-block cursor-pointer"
               >
                 + Publicar Primeira Vaga
               </button>
@@ -606,10 +789,10 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           ) : (
             <div className="space-y-3">
               {myJobs.map(job => (
-                <div key={job.id} className="bg-white p-4 rounded-3xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div key={job.id} className="bg-white p-4 rounded-3xl border border-[#E6EAF0] shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-slate-900">{job.title}</h4>
+                      <h4 className="text-sm font-bold text-[#172033]">{job.title}</h4>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         job.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                       }`}>
@@ -627,7 +810,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     <button
                       onClick={() => handleToggleJobStatus(job)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                         job.status === 'active' ? 'bg-amber-50 text-amber-800 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                       }`}
                     >
@@ -636,21 +819,21 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     </button>
                     <button
                       onClick={() => openEditJob(job)}
-                      className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 border border-slate-200"
+                      className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 border border-[#E6EAF0] cursor-pointer"
                       title="Editar vaga"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteJob(job.id)}
-                      className="p-2 rounded-xl text-red-600 hover:bg-red-50 border border-red-100"
+                      className="p-2 rounded-xl text-red-600 hover:bg-red-50 border border-red-100 cursor-pointer"
                       title="Excluir vaga"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => onSelectJob(job)}
-                      className="bg-[#0F4C9C] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#0c3c7d]"
+                      className="bg-[#244F9A] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#193B70] cursor-pointer"
                     >
                       Ver Detalhes
                     </button>
@@ -665,26 +848,50 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {/* Tab: Store ("Minha Loja") */}
       {activeTab === 'store' && (
         <div className="space-y-6">
-          <button onClick={() => setIsPaymentModalOpen(true)} className="bg-red-500 text-white p-4">FORÇAR PAYPAL</button>
-          {!(currentUser.company?.marketplace_unlocked || currentUser.marketplace_unlocked) && (
-            <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 space-y-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fadeIn">
-              <div className="space-y-1">
-                <span className="text-[10px] uppercase font-black text-[#FFC20E] tracking-wider block">Recurso Premium</span>
-                <h4 className="text-lg font-black">Ative o Marketplace da sua Empresa</h4>
-                <p className="text-xs text-slate-300 leading-relaxed max-w-xl">
-                  Para publicar produtos e serviços na vitrine oficial do CuneneVagas, a sua empresa necessita de uma Licença de Marketplace ativa. Ative com um pagamento único e seguro via PayPal.
+          {(currentUser.company?.marketplace_unlocked || currentUser.marketplace_unlocked) ? (
+            <div className="bg-emerald-900/90 text-white p-5 rounded-3xl border border-emerald-700/60 shadow-sm flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-[10px] uppercase font-black text-emerald-300 tracking-wider block">Plano Ilimitado Ativo</span>
+                <h4 className="text-sm sm:text-base font-black">Vitrine Marketplace Ilimitada</h4>
+                <p className="text-xs text-emerald-100/90 leading-relaxed">
+                  A sua empresa tem licença ativa e pode publicar produtos e serviços sem restrição de quantidade.
                 </p>
               </div>
-              <button
-                onClick={() => setIsPaymentModalOpen(true)}
-                className="bg-[#FFC20E] hover:bg-[#e5ae0a] text-slate-900 font-bold px-5 py-3 rounded-xl text-xs shadow-sm transition active:scale-95 shrink-0"
-              >
-                Ativar Licença com PayPal
-              </button>
+              <span className="text-xs font-black bg-emerald-800 text-emerald-200 px-3 py-1.5 rounded-xl shrink-0">
+                {myProducts.length} produtos ativos
+              </span>
+            </div>
+          ) : (
+            <div className={`p-5 rounded-3xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+              myProducts.length >= 10 ? 'bg-slate-900 text-white border-slate-800' : 'bg-blue-50/80 text-slate-800 border-blue-200/80'
+            }`}>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-md ${
+                    myProducts.length >= 10 ? 'bg-rose-500 text-white' : 'bg-[#244F9A] text-white'
+                  }`}>
+                    {myProducts.length >= 10 ? 'Limite Atingido' : 'Plano Gratuito'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-600">
+                    {myProducts.length} de 10 produtos gratuitos utilizados
+                  </span>
+                </div>
+                <h4 className={`text-sm sm:text-base font-black ${myProducts.length >= 10 ? 'text-white' : 'text-[#172033]'}`}>
+                  {myProducts.length >= 10 ? 'Atingiu o limite de 10 produtos' : `Pode publicar mais ${10 - myProducts.length} produtos gratuitamente`}
+                </h4>
+              </div>
+
+              {myProducts.length >= 10 && (
+                <button
+                  onClick={() => setIsPaymentModalOpen(true)}
+                  className="bg-[#F5B91B] hover:bg-[#e5ae0a] text-slate-900 font-extrabold px-5 py-3 rounded-xl text-xs shadow-sm transition active:scale-95 shrink-0 cursor-pointer"
+                >
+                  Pagar no PayPal (Ilimitado)
+                </button>
+              )}
             </div>
           )}
 
-          {/* Pagamento PayPal Modal */}
           <PayPalPaymentModal
             isOpen={isPaymentModalOpen}
             onClose={() => setIsPaymentModalOpen(false)}
@@ -697,19 +904,27 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Minha Loja & Meus Produtos</h3>
+              <h3 className="text-base font-extrabold text-[#172033]">Minha Loja & Meus Produtos</h3>
               <p className="text-xs text-slate-500">Faça a gestão dos produtos e serviços exibidos na sua vitrine</p>
             </div>
             <button
-              onClick={onOpenNewProduct}
-              className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
+              onClick={() => {
+                const isUnlocked = Boolean(currentUser.company?.marketplace_unlocked || currentUser.marketplace_unlocked);
+                if (myProducts.length >= 10 && !isUnlocked) {
+                  setIsPaymentModalOpen(true);
+                } else {
+                  onOpenNewProduct();
+                }
+              }}
+              className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Adicionar Produto
+              <Plus className="w-4 h-4" /> 
+              <span>Adicionar Produto</span>
             </button>
           </div>
 
           {myProducts.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-3xl border border-slate-200 space-y-3">
+            <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
               <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto" />
               <h4 className="text-sm font-bold text-slate-800">A sua loja ainda não tem produtos</h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -717,7 +932,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               </p>
               <button
                 onClick={onOpenNewProduct}
-                className="bg-[#FFC20E] text-slate-900 font-bold px-5 py-2 rounded-xl text-xs shadow-sm inline-block"
+                className="bg-[#F5B91B] text-slate-900 font-bold px-5 py-2 rounded-xl text-xs shadow-sm inline-block cursor-pointer"
               >
                 + Adicionar Primeiro Produto
               </button>
@@ -725,7 +940,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {myProducts.map(prod => (
-                <div key={prod.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between">
+                <div key={prod.id} className="bg-white rounded-3xl border border-[#E6EAF0] overflow-hidden shadow-2xs flex flex-col justify-between">
                   <div>
                     <div className="h-36 bg-slate-100 overflow-hidden relative">
                       {prod.image_url ? (
@@ -744,8 +959,8 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
                     <div className="p-4 space-y-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">{prod.category}</span>
-                      <h4 className="text-sm font-bold text-slate-900 line-clamp-1">{prod.title}</h4>
-                      <p className="text-xs font-black text-[#0F4C9C]">{prod.price.toLocaleString()} {prod.currency || 'AOA'}</p>
+                      <h4 className="text-sm font-bold text-[#172033] line-clamp-1">{prod.title}</h4>
+                      <p className="text-xs font-black text-[#244F9A]">{prod.price.toLocaleString()} {prod.currency || 'AOA'}</p>
                       <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{prod.description}</p>
                     </div>
                   </div>
@@ -753,21 +968,21 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   <div className="p-4 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between gap-2">
                     <button
                       onClick={() => handleToggleProductStatus(prod)}
-                      className="text-[11px] font-bold text-slate-600 hover:text-slate-900 py-1"
+                      className="text-[11px] font-bold text-slate-600 hover:text-slate-900 py-1 cursor-pointer"
                     >
                       {prod.status === 'available' ? 'Marcar Esgotado' : 'Marcar Disponível'}
                     </button>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEditProduct(prod)}
-                        className="text-slate-500 hover:text-slate-900 p-1.5 rounded-lg"
+                        className="text-slate-500 hover:text-slate-900 p-1.5 rounded-lg cursor-pointer"
                         title="Editar produto"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteProduct(prod.id)}
-                        className="text-red-500 hover:text-red-700 p-1.5 rounded-lg"
+                        className="text-red-500 hover:text-red-700 p-1.5 rounded-lg cursor-pointer"
                         title="Excluir produto"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -781,278 +996,245 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
         </div>
       )}
 
-      {/* Tab: Received Applications */}
-      {activeTab === 'applications' && (
-        <div className="space-y-4">
-          <h3 className="text-base font-extrabold text-slate-900">Candidaturas Recebidas das Suas Vagas</h3>
+      {/* Tab: Applications / Candidaturas */}
+      {activeTab === 'applications' && (() => {
+        const filteredCandidates = myApplications.filter(app => {
+          const job = jobs.find(j => j.id === app.job_id);
+          const candName = (app.candidate?.full_name || '').toLowerCase();
+          const candProf = (app.candidate?.profession || '').toLowerCase();
+          const jobTitle = (job?.title || '').toLowerCase();
+          const query = candidateSearchQuery.toLowerCase();
 
-          {myApplications.length === 0 ? (
-            <div className="bg-white p-12 text-center rounded-3xl border border-slate-200 text-slate-400 text-xs">
-              Nenhuma candidatura recebida até ao momento.
-            </div>
-          ) : (
-            myApplications.map(app => {
-              const job = jobs.find(j => j.id === app.job_id);
-              const attempts = StoreService.getExamAttempts();
-              const attempt = attempts.find(a => (a.application_id === app.id || a.job_id === app.job_id) && a.candidate_id === app.candidate_id);
-              const hasExam = job?.has_exam && job?.exam;
+          const matchesSearch = !query || candName.includes(query) || candProf.includes(query) || jobTitle.includes(query);
+          const matchesStatus = candidateStatusFilter === 'all' || app.status === candidateStatusFilter;
 
-              return (
-                <div key={app.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-[#0F4C9C] font-black text-lg flex items-center justify-center shrink-0 overflow-hidden">
-                        {app.candidate?.avatar_url ? (
-                          <img src={app.candidate.avatar_url} alt="Foto" className="w-full h-full object-cover" />
-                        ) : (
-                          (app.candidate?.full_name || 'C').charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-[#0F4C9C]">{job?.title || 'Vaga'}</span>
-                        <h4 className="text-sm font-bold text-slate-900 mt-0.5">{app.candidate?.full_name || 'Candidato'}</h4>
-                        <p className="text-xs text-slate-500">
-                          {app.candidate?.profession || 'Profissional'} • {app.candidate?.email} • {app.candidate?.municipality || 'Cunene'}
-                        </p>
-                        <span className="text-[10px] text-slate-400">
-                          Enviada a {new Date(app.created_at).toLocaleDateString('pt-AO')}
-                        </span>
-                      </div>
-                    </div>
+          return matchesSearch && matchesStatus;
+        });
 
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={app.status}
-                        onChange={e => handleUpdateAppStatus(app.id, e.target.value as any)}
-                        className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none"
-                      >
-                        <option value="Enviada">Recebida</option>
-                        <option value="Em análise">Em análise</option>
-                        <option value="Selecionada para exame">Selecionada para exame</option>
-                        <option value="Exame realizado">Exame realizado</option>
-                        <option value="Aprovada">Aprovada</option>
-                        <option value="Rejeitada">Rejeitada</option>
-                        <option value="Contratada">Contratada</option>
-                      </select>
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-extrabold text-[#172033]">Candidaturas Recebidas</h3>
+                <p className="text-xs text-slate-500">Avalie os profissionais que se candidataram às vagas da sua empresa</p>
+              </div>
 
-                      <button
-                        onClick={() => setSelectedCandidateApp(app)}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-800 px-3 py-1.5 rounded-xl text-xs font-bold"
-                      >
-                        Consultar
-                      </button>
-
-                      {app.candidate?.whatsapp && (
-                        <a
-                          href={`https://wa.me/${app.candidate.whatsapp.replace(/[^0-9]/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-emerald-600 text-white p-2 rounded-xl text-xs hover:bg-emerald-700 transition"
-                          title="Falar no WhatsApp"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Technical Exam Summary Banner */}
-                  {hasExam ? (
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-2 font-medium text-slate-700">
-                        <Award className="w-4 h-4 text-[#0F4C9C]" />
-                        <span>Exame Técnico:</span>
-                        {attempt || app.exam_score !== undefined ? (
-                          <span className="font-bold text-slate-900">
-                            Exame concluído ({attempt?.percentage ?? app.exam_score}%)
-                          </span>
-                        ) : (
-                          <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                            Exame não realizado
-                          </span>
-                        )}
-                      </div>
-
-                      {(attempt || app.exam_score !== undefined) && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-600">
-                            Nota: {attempt?.score ?? Math.round((app.exam_score || 0) / 10)}/{attempt?.total_points ?? 10}
-                          </span>
-                          <span className={`px-2.5 py-0.5 rounded-full font-black text-[11px] ${
-                            (attempt?.passed ?? app.exam_passed)
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-rose-100 text-rose-800'
-                          }`}>
-                            {(attempt?.passed ?? app.exam_passed) ? 'Aprovado ✓' : 'Reprovado ✗'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-slate-400 italic">
-                      Esta vaga não requer exame técnico.
-                    </div>
-                  )}
-
-                  {app.cover_letter && (
-                    <div className="bg-slate-50 p-3 rounded-2xl text-xs text-slate-700 border border-slate-100">
-                      <span className="font-bold block mb-0.5 text-slate-500">Mensagem do Candidato:</span>
-                      {app.cover_letter}
-                    </div>
-                  )}
-
-                  {app.cv_url && (
-                    <a
-                      href={app.cv_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#0F4C9C] hover:underline"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Abrir Currículo Anexo</span>
-                    </a>
-                  )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Pesquisar candidato..."
+                    value={candidateSearchQuery}
+                    onChange={e => setCandidateSearchQuery(e.target.value)}
+                    className="pl-9 pr-3 py-2 bg-white rounded-xl border border-[#E6EAF0] text-xs focus:outline-none focus:ring-2 focus:ring-[#244F9A]"
+                  />
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
 
-      {/* Tab: Profile & Services */}
+                <select
+                  value={candidateStatusFilter}
+                  onChange={e => setCandidateStatusFilter(e.target.value)}
+                  className="bg-white px-3 py-2 rounded-xl border border-[#E6EAF0] text-xs font-semibold"
+                >
+                  <option value="all">Todos os Estados</option>
+                  <option value="Em análise">Em Análise</option>
+                  <option value="Aprovada">Aprovados</option>
+                  <option value="Rejeitada">Rejeitados</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingApplications ? (
+              <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
+                <div className="w-8 h-8 border-4 border-[#244F9A] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-slate-500">A carregar candidaturas...</p>
+              </div>
+            ) : applicationsError ? (
+              <div className="bg-rose-50 text-rose-700 p-6 rounded-3xl border border-rose-200 text-center space-y-2">
+                <AlertCircle className="w-8 h-8 mx-auto" />
+                <p className="text-xs font-bold">{applicationsError}</p>
+                <button 
+                  onClick={() => {
+                    setLoadingApplications(true);
+                    StoreService.fetchApplications().then(setApplications).finally(() => setLoadingApplications(false));
+                  }}
+                  className="bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs mt-2 cursor-pointer"
+                >
+                  Tentar Novamente
+                </button>
+              </div>
+            ) : filteredCandidates.length === 0 ? (
+              <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
+                <Users className="w-12 h-12 text-slate-300 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800">Nenhuma candidatura encontrada</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Assim que profissionais se candidatarem às suas vagas publicadas, eles aparecerão aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredCandidates.map(app => {
+                  const job = jobs.find(j => j.id === app.job_id);
+                  const candidateName = app.candidate?.full_name || 'Candidato';
+                  const candidateProfession = app.candidate?.profession || 'Profissional';
+                  const candidateMunicipality = app.candidate?.municipality || 'Cunene';
+
+                  return (
+                    <div key={app.id} className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-[#244F9A] text-white flex items-center justify-center font-bold text-lg shrink-0">
+                          {candidateName.charAt(0)}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-[#172033]">{candidateName}</h4>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                              app.status === 'Aprovada' || app.status === 'Contratada' ? 'bg-emerald-100 text-emerald-800' :
+                              app.status === 'Rejeitada' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {app.status || 'Em análise'}
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold text-[#244F9A]">{candidateProfession} • Vaga: {job?.title || 'Vaga'}</p>
+                          <p className="text-[11px] text-slate-500">📍 {candidateMunicipality} • Candidatura em {new Date(app.created_at).toLocaleDateString('pt-AO')}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <button
+                          onClick={() => setSelectedCandidateApp(app)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3.5 py-2 rounded-xl text-xs transition cursor-pointer"
+                        >
+                          Ver Perfil / CV
+                        </button>
+                        <button
+                          onClick={() => handleUpdateAppStatus(app.id, 'Aprovada')}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition cursor-pointer"
+                        >
+                          Aprovar
+                        </button>
+                        <button
+                          onClick={() => handleUpdateAppStatus(app.id, 'Rejeitada')}
+                          className="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs transition cursor-pointer"
+                        >
+                          Rejeitar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Tab: Profile & Company Settings */}
       {activeTab === 'profile' && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900 mb-1">Sobre a Empresa</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-              {company?.description || 'Adicione uma descrição detalhada da empresa para os candidatos e clientes.'}
-            </p>
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-6">
+          <div className="flex justify-between items-center border-b border-[#E6EAF0] pb-4">
+            <div>
+              <h3 className="text-base font-extrabold text-[#172033]">Perfil Público e Informações da Empresa</h3>
+              <p className="text-xs text-slate-500">Estes dados são estritamente empresariais e visíveis no diretório de empresas</p>
+            </div>
+            <button
+              onClick={() => setIsEditingProfile(true)}
+              className="bg-[#244F9A] text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-[#193B70] cursor-pointer"
+            >
+              Editar Dados
+            </button>
           </div>
 
-          {company?.services && company.services.length > 0 && (
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Serviços Oferecidos</h3>
-              <div className="flex flex-wrap gap-2">
-                {company.services.map((svc, i) => (
-                  <span key={i} className="bg-slate-100 text-slate-800 text-xs px-3 py-1.5 rounded-xl font-medium">
-                    ✓ {svc}
-                  </span>
-                ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+            <div className="space-y-4">
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Nome da Empresa</span>
+                <span className="text-slate-900 text-sm font-extrabold">{company?.name || companyName}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Setor de Atividade</span>
+                <span className="text-slate-800 font-semibold">{company?.industry || industry}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Município</span>
+                <span className="text-slate-800">{company?.municipality || municipality}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Endereço / Localização</span>
+                <span className="text-slate-800">{company?.address || address || 'Não informado'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">NIF (Número de Identificação Fiscal)</span>
+                <span className="text-slate-800 font-mono">{company?.nif || nif || 'Não informado'}</span>
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#0F4C9C]" />
-              <span>{company?.address || `${company?.municipality || 'Ondjiva'}, Cunene`}</span>
+            <div className="space-y-4">
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Telefone Comercial</span>
+                <span className="text-slate-800">{company?.phone || phone || 'Não informado'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">WhatsApp para Contato</span>
+                <span className="text-slate-800">{company?.whatsapp || whatsapp || 'Não informado'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Email Comercial</span>
+                <span className="text-slate-800">{company?.email || email || 'Não informado'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Website</span>
+                <span className="text-slate-800">{company?.website || website || 'Não informado'}</span>
+              </div>
+              <div>
+                <span className="font-bold text-slate-400 block mb-0.5">Descrição / Slogan</span>
+                <p className="text-slate-700 bg-slate-50 p-3 rounded-xl leading-relaxed">
+                  {company?.description || bio || 'Nenhuma descrição fornecida.'}
+                </p>
+              </div>
             </div>
-            {company?.nif && (
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[#0F4C9C]" />
-                <span>NIF: {company.nif}</span>
-              </div>
-            )}
-            {company?.phone && (
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#0F4C9C]" />
-                <span>{company.phone}</span>
-              </div>
-            )}
-            {company?.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#0F4C9C]" />
-                <span>{company.email}</span>
-              </div>
-            )}
-            {company?.website && (
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-[#0F4C9C]" />
-                <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-[#0F4C9C] hover:underline">
-                  {company.website}
-                </a>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      {/* Tab: Payments History */}
+      {/* Tab: Payments / Configurações de Pagamento */}
       {activeTab === 'payments' && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-          <div className="flex justify-between items-start">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-6">
+          <div className="flex justify-between items-center border-b border-[#E6EAF0] pb-4">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 mb-1">Histórico de Transações</h3>
-              <p className="text-xs text-slate-500">
-                Acompanhe as suas transações reais e ativações de recursos do Marketplace.
-              </p>
+              <h3 className="text-base font-extrabold text-[#172033]">Transações e Pagamentos via PayPal</h3>
+              <p className="text-xs text-slate-500">Histórico de subscrições e pagamentos efetuados pela empresa</p>
             </div>
+            <button
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="bg-[#F5B91B] text-slate-900 font-extrabold px-4 py-2 rounded-xl text-xs hover:bg-[#e5ae0a] cursor-pointer"
+            >
+              Ativar Plano Ilimitado PayPal
+            </button>
           </div>
 
           {loadingPayments ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="w-8 h-8 border-3 border-[#0F4C9C] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-slate-500">A carregar pagamentos...</span>
-            </div>
+            <p className="text-xs text-slate-400 text-center py-8">A carregar transações...</p>
           ) : payments.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-slate-200 rounded-2xl">
-              <CreditCard className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-slate-800">Sem pagamentos registados</h4>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Qualquer ativação de recurso premium do Marketplace aparecerá nesta secção.
-              </p>
+            <div className="text-center py-12 space-y-2">
+              <CreditCard className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800">Nenhum pagamento registado</h4>
+              <p className="text-xs text-slate-500">As faturas e pagamentos efetuados via PayPal aparecerão aqui.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider">
-                    <th className="p-4">Recurso Premium</th>
-                    <th className="p-4">Valor</th>
-                    <th className="p-4">Estado</th>
-                    <th className="p-4">Data</th>
-                    <th className="p-4">Referência da Transação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {payments.map(tx => {
-                    const statusColors: any = {
-                      pending: 'bg-amber-50 text-amber-700 border-amber-200',
-                      completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                      failed: 'bg-rose-50 text-rose-700 border-rose-200',
-                      cancelled: 'bg-slate-50 text-slate-600 border-slate-200'
-                    };
-
-                    return (
-                      <tr key={tx.id} className="hover:bg-slate-50/50 transition">
-                        <td className="p-4 font-bold text-slate-900">
-                          {tx.resource_type === 'marketplace_unlocked' ? 'Licença de Marketplace' : tx.resource_type}
-                        </td>
-                        <td className="p-4 font-extrabold text-[#0F4C9C]">
-                          {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {tx.currency || 'USD'}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusColors[tx.status] || 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-slate-500">
-                          {new Date(tx.created_at).toLocaleDateString(undefined, {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="p-4 font-mono text-slate-400 select-all truncate max-w-[150px]">
-                          {tx.paypal_order_id}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {payments.map(p => (
+                <div key={p.id} className="p-4 rounded-2xl bg-slate-50 border border-[#E6EAF0] flex justify-between items-center text-xs">
+                  <div>
+                    <span className="font-bold text-slate-900 block">{p.description || 'Subscrição Marketplace'}</span>
+                    <span className="text-[10px] text-slate-400">ID: {p.id} • {new Date(p.created_at).toLocaleString('pt-AO')}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-[#244F9A] block">{p.amount} {p.currency || 'USD'}</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">Concluído</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1060,212 +1242,61 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
       {/* Edit Company Profile Modal */}
       {isEditingProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#0F4C9C] p-5 text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-bold">Editar Perfil da Empresa</h3>
-                <p className="text-xs text-slate-200">As alterações aqui afetam exclusivamente o contexto da sua empresa</p>
-              </div>
-              <button onClick={() => setIsEditingProfile(false)} className="text-white/80 hover:text-white p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-              {/* Logo and Cover upload via ImageUploader (Context: company-logo & company-cover) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ImageUploader
-                  context="company-logo"
-                  currentImageUrl={logoUrl}
-                  onUploadSuccess={url => setLogoUrl(url)}
-                  onRemove={() => setLogoUrl('')}
-                  label="Logótipo da Empresa"
-                />
-                <ImageUploader
-                  context="company-cover"
-                  currentImageUrl={coverUrl}
-                  onUploadSuccess={url => setCoverUrl(url)}
-                  onRemove={() => setCoverUrl('')}
-                  label="Imagem de Capa Empresarial"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nome Comercial da Empresa *</label>
-                <input
-                  type="text"
-                  required
-                  value={companyName}
-                  onChange={e => setCompanyName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Setor / Ramo de Atividade</label>
-                  <input
-                    type="text"
-                    value={industry}
-                    onChange={e => setIndustry(e.target.value)}
-                    placeholder="Ex: Agricultura e Pecuária"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Município da Empresa</label>
-                  <select
-                    value={municipality}
-                    onChange={e => setMunicipality(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs bg-white"
-                  >
-                    {CUNENE_MUNICIPALITIES.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">NIF (Número de Identificação Fiscal)</label>
-                  <input
-                    type="text"
-                    value={nif}
-                    onChange={e => setNif(e.target.value)}
-                    placeholder="Ex: 5001234567"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Endereço da Empresa</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    placeholder="Ex: Av. 11 de Novembro, Ondjiva"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefone Comercial</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">WhatsApp Comercial</label>
-                  <input
-                    type="text"
-                    value={whatsapp}
-                    onChange={e => setWhatsapp(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Website Oficial</label>
-                <input
-                  type="text"
-                  value={website}
-                  onChange={e => setWebsite(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Descrição da Empresa</label>
-                <textarea
-                  rows={3}
-                  value={bio}
-                  onChange={e => setBio(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Serviços Oferecidos (separados por vírgula)</label>
-                <input
-                  type="text"
-                  value={servicesText}
-                  onChange={e => setServicesText(e.target.value)}
-                  placeholder="Ex: Fornecimento de Grãos, Consultoria, Maquinaria"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsEditingProfile(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingProfile}
-                  className="bg-[#0F4C9C] text-white px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-[#0c3c7d] shadow-sm disabled:opacity-50"
-                >
-                  {savingProfile ? 'A guardar...' : 'Guardar Alterações da Empresa'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditarPerfilEmpresa
+          currentUser={currentUser}
+          isOpen={isEditingProfile}
+          onClose={() => setIsEditingProfile(false)}
+          onProfileUpdated={(updatedUser: UserProfile) => {
+            onProfileUpdated(updatedUser);
+            setIsEditingProfile(false);
+            setSuccessMessage('Perfil empresarial atualizado com sucesso!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+          }}
+        />
       )}
 
       {/* Edit Job Modal */}
       {editingJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#0F4C9C] p-4 text-white flex justify-between items-center">
-              <h3 className="text-base font-bold">Editar Vaga</h3>
-              <button onClick={() => setEditingJob(null)} className="text-white/80 hover:text-white">
+            <div className="bg-[#244F9A] p-4 text-white flex justify-between items-center">
+              <h3 className="text-base font-bold">Editar Vaga de Emprego</h3>
+              <button onClick={() => setEditingJob(null)} className="text-white/80 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditJob} className="p-5 space-y-3">
+            <form onSubmit={handleSaveEditJob} className="p-5 space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Título da Vaga</label>
+                <label className="block font-bold text-slate-700 mb-1">Título da Vaga</label>
                 <input
                   type="text"
                   required
                   value={editJobTitle}
                   onChange={e => setEditJobTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoria</label>
+                  <label className="block font-bold text-slate-700 mb-1">Categoria</label>
                   <select
                     value={editJobCategory}
                     onChange={e => setEditJobCategory(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
-                    {JOB_CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                    {JOB_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Município</label>
+                  <label className="block font-bold text-slate-700 mb-1">Município</label>
                   <select
                     value={editJobMunicipality}
                     onChange={e => setEditJobMunicipality(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
                     {CUNENE_MUNICIPALITIES.map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -1276,41 +1307,39 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Contrato</label>
+                  <label className="block font-bold text-slate-700 mb-1">Tipo de Contrato</label>
                   <select
                     value={editJobContractType}
                     onChange={e => setEditJobContractType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
                     <option value="Tempo Inteiro">Tempo Inteiro</option>
                     <option value="Meio Tempo">Meio Tempo</option>
-                    <option value="Contrato">Contrato</option>
                     <option value="Estágio">Estágio</option>
-                    <option value="Freelance">Freelance</option>
+                    <option value="Contrato">Contrato</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Estado da Vaga</label>
+                  <label className="block font-bold text-slate-700 mb-1">Estado</label>
                   <select
                     value={editJobStatus}
                     onChange={e => setEditJobStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
-                    <option value="active">Ativa / Publicada</option>
+                    <option value="active">Ativa</option>
                     <option value="closed">Encerrada</option>
-                    <option value="paused">Pausada</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Descrição da Vaga</label>
+                <label className="block font-bold text-slate-700 mb-1">Descrição da Vaga</label>
                 <textarea
                   rows={4}
                   required
                   value={editJobDescription}
                   onChange={e => setEditJobDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
                 />
               </div>
 
@@ -1318,13 +1347,13 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingJob(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#0F4C9C] text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-[#0c3c7d]"
+                  className="bg-[#244F9A] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#193B70] cursor-pointer"
                 >
                   Guardar Vaga
                 </button>
@@ -1338,42 +1367,42 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#0F4C9C] p-4 text-white flex justify-between items-center">
+            <div className="bg-[#244F9A] p-4 text-white flex justify-between items-center">
               <h3 className="text-base font-bold">Editar Produto</h3>
-              <button onClick={() => setEditingProduct(null)} className="text-white/80 hover:text-white">
+              <button onClick={() => setEditingProduct(null)} className="text-white/80 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditProduct} className="p-5 space-y-3">
+            <form onSubmit={handleSaveEditProduct} className="p-5 space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nome do Produto</label>
+                <label className="block font-bold text-slate-700 mb-1">Nome do Produto</label>
                 <input
                   type="text"
                   required
                   value={editProductTitle}
                   onChange={e => setEditProductTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Preço (AOA / Kz)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Preço (AOA)</label>
                   <input
                     type="number"
                     required
                     value={editProductPrice}
                     onChange={e => setEditProductPrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Categoria</label>
+                  <label className="block font-bold text-slate-700 mb-1">Categoria</label>
                   <select
                     value={editProductCategory}
                     onChange={e => setEditProductCategory(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
                     <option value="Agricultura">Agricultura</option>
                     <option value="Serviços">Serviços</option>
@@ -1387,11 +1416,11 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Município</label>
+                  <label className="block font-bold text-slate-700 mb-1">Município</label>
                   <select
                     value={editProductMunicipality}
                     onChange={e => setEditProductMunicipality(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white"
                   >
                     {CUNENE_MUNICIPALITIES.map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -1399,25 +1428,25 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefone WhatsApp</label>
+                  <label className="block font-bold text-slate-700 mb-1">Telefone WhatsApp</label>
                   <input
                     type="text"
                     required
                     value={editProductPhone}
                     onChange={e => setEditProductPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Descrição</label>
+                <label className="block font-bold text-slate-700 mb-1">Descrição</label>
                 <textarea
                   rows={3}
                   required
                   value={editProductDescription}
                   onChange={e => setEditProductDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
                 />
               </div>
 
@@ -1433,13 +1462,13 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#0F4C9C] text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-[#0c3c7d]"
+                  className="bg-[#244F9A] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#193B70] cursor-pointer"
                 >
                   Guardar Alterações
                 </button>
@@ -1453,19 +1482,19 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {selectedCandidateApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#0F4C9C] p-5 text-white flex justify-between items-center">
+            <div className="bg-[#244F9A] p-5 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-base font-bold">Perfil do Candidato</h3>
                 <p className="text-xs text-slate-200">Detalhes da candidatura recebida</p>
               </div>
-              <button onClick={() => setSelectedCandidateApp(null)} className="text-white/80 hover:text-white">
+              <button onClick={() => setSelectedCandidateApp(null)} className="text-white/80 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
               <div className="flex items-center gap-3 border-b pb-4 border-slate-100">
-                <div className="w-12 h-12 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-base">
+                <div className="w-12 h-12 rounded-full bg-[#244F9A] text-white flex items-center justify-center font-bold text-base">
                   {selectedCandidateApp.candidate?.full_name.charAt(0) || 'C'}
                 </div>
                 <div>
@@ -1504,84 +1533,80 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 </div>
               </div>
 
-              {/* Technical Exam Result Section */}
-              {(() => {
-                const targetJob = jobs.find(j => j.id === selectedCandidateApp.job_id);
-                const attempts = StoreService.getExamAttempts();
-                const attempt = attempts.find(a => (a.application_id === selectedCandidateApp.id || a.job_id === selectedCandidateApp.job_id) && a.candidate_id === selectedCandidateApp.candidate_id);
-                const hasExam = targetJob?.has_exam && targetJob?.exam;
-
-                if (!hasExam) return null;
-
-                const score = attempt?.score ?? (selectedCandidateApp.exam_score !== undefined ? Math.round(selectedCandidateApp.exam_score / 10) : null);
-                const percentage = attempt?.percentage ?? selectedCandidateApp.exam_score;
-                const passed = attempt?.passed ?? selectedCandidateApp.exam_passed;
-                const minRequired = targetJob?.exam?.passing_score || 70;
-
-                return (
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <Award className="w-4 h-4 text-[#0F4C9C]" />
-                        <span>Avaliação Técnica da Vaga</span>
-                      </span>
-                      {passed !== undefined ? (
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                          passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                        }`}>
-                          {passed ? 'Aprovado ✓' : 'Reprovado ✗'}
-                        </span>
-                      ) : (
-                        <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
-                          Exame não realizado
-                        </span>
-                      )}
-                    </div>
-
-                    {percentage !== undefined ? (
-                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-center">
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Pontuação</span>
-                          <span className="text-sm font-black text-slate-900">{score !== null ? `${score}/10` : '-'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Percentagem</span>
-                          <span className="text-sm font-black text-[#0F4C9C]">{percentage}%</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-bold block uppercase">Mín. Exigido</span>
-                          <span className="text-sm font-black text-slate-600">{minRequired}%</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-slate-500 text-xs italic">
-                        O candidato ainda não realizou o exame técnico desta vaga.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
               {selectedCandidateApp.cv_url && (
-                <a
-                  href={selectedCandidateApp.cv_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full bg-[#0F4C9C] text-white font-bold py-2.5 rounded-xl text-center flex items-center justify-center gap-1.5 hover:bg-[#0c3c7d]"
+                <button
+                  onClick={() => setViewingMedia([{ url: selectedCandidateApp.cv_url!, type: 'image', alt: 'Currículo Vitae' }])}
+                  className="w-full bg-[#244F9A] text-white font-bold py-2.5 rounded-xl text-center flex items-center justify-center gap-1.5 hover:bg-[#193B70] cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Descarregar / Abrir Currículo Anexo</span>
-                </a>
+                  <span>Ver Currículo em Tela Cheia</span>
+                </button>
               )}
 
               <div className="pt-2 flex justify-end">
                 <button
                   onClick={() => setSelectedCandidateApp(null)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2 rounded-xl"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2 rounded-xl cursor-pointer"
                 >
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingMedia && (
+        <MediaViewer
+          media={viewingMedia}
+          onClose={() => setViewingMedia(null)}
+        />
+      )}
+
+      <FollowersModal
+        isOpen={isFollowersModalOpen}
+        onClose={() => setIsFollowersModalOpen(false)}
+        title={`Seguidores de ${company?.name || currentUser.company_name || 'Empresa'}`}
+        followers={followers}
+      />
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn select-none">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-slate-200 text-center">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200">
+              <Trash2 className="w-7 h-7 text-rose-600" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-base sm:text-lg font-black text-slate-950">
+                {confirmModal.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed px-1">
+                {confirmModal.message}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(null)}
+                className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const cb = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  if (cb) cb();
+                }}
+                className="w-full py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs sm:text-sm rounded-xl transition shadow-md cursor-pointer"
+              >
+                {confirmModal.confirmText || 'Confirmar'}
+              </button>
             </div>
           </div>
         </div>

@@ -17,76 +17,83 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const isEmployer = currentUser?.role === 'employer';
 
+  const triggerHaptic = (tab: string) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(10);
+      } catch {}
+    }
+    setCurrentTab(tab);
+  };
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1 shadow-lg safe-bottom">
-      <div className="flex items-center justify-around h-14">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-2xl border-t border-[#e4e9ef] shadow-[0_-4px_24px_rgba(0,0,0,0.04)] pb-safe select-none transition-all">
+      <div className="flex items-center justify-around h-15 px-2 max-w-lg mx-auto">
         {/* Início */}
         <button
-          onClick={() => setCurrentTab('home')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-            currentTab === 'home' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
+          onClick={() => triggerHaptic('home')}
+          className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+            currentTab === 'home' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
           }`}
         >
-          <Home className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Início</span>
+          <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === 'home' ? 'bg-[#edf4fc] text-[#1759ad] scale-105 shadow-2xs' : ''}`}>
+            <Home className="w-5 h-5" strokeWidth={currentTab === 'home' ? 2.6 : 1.8} />
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5">Início</span>
         </button>
 
         {/* Vagas */}
         <button
-          onClick={() => setCurrentTab('jobs')}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-            currentTab === 'jobs' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
+          onClick={() => triggerHaptic('jobs')}
+          className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+            currentTab === 'jobs' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
           }`}
         >
-          <Briefcase className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Vagas</span>
+          <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === 'jobs' ? 'bg-[#edf4fc] text-[#1759ad] scale-105 shadow-2xs' : ''}`}>
+            <Briefcase className="w-5 h-5" strokeWidth={currentTab === 'jobs' ? 2.6 : 1.8} />
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5">Vagas</span>
         </button>
 
-        {/* If Employer -> Loja, else -> Comunidade */}
+        {/* Loja (para Empresa) ou Marketplace (para Candidato) */}
         {isEmployer ? (
           <button
-            onClick={() => setCurrentTab('store')}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-              currentTab === 'store' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
+            onClick={() => triggerHaptic('store')}
+            className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+              currentTab === 'store' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
             }`}
           >
-            <Store className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Loja</span>
+            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === 'store' ? 'bg-[#edf4fc] text-[#1759ad] scale-105 shadow-2xs' : ''}`}>
+              <Store className="w-5 h-5" strokeWidth={currentTab === 'store' ? 2.6 : 1.8} />
+            </div>
+            <span className="text-[10px] tracking-tight mt-0.5">Loja</span>
           </button>
         ) : (
           <button
-            onClick={() => setCurrentTab('community')}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-              currentTab === 'community' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
+            onClick={() => triggerHaptic('marketplace')}
+            className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+              currentTab === 'marketplace' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
             }`}
           >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Comunidade</span>
+            <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === 'marketplace' ? 'bg-[#edf4fc] text-[#1759ad] scale-105 shadow-2xs' : ''}`}>
+              <ShoppingBag className="w-5 h-5" strokeWidth={currentTab === 'marketplace' ? 2.6 : 1.8} />
+            </div>
+            <span className="text-[10px] tracking-tight mt-0.5">Mercado</span>
           </button>
         )}
 
-        {/* If Employer -> Comunidade, else -> Marketplace */}
-        {isEmployer ? (
-          <button
-            onClick={() => setCurrentTab('community')}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-              currentTab === 'community' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Comunidade</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => setCurrentTab('marketplace')}
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-              currentTab === 'marketplace' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <ShoppingBag className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5">Marketplace</span>
-          </button>
-        )}
+        {/* Comunidade */}
+        <button
+          onClick={() => triggerHaptic('community')}
+          className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+            currentTab === 'community' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
+          }`}
+        >
+          <div className={`p-1.5 rounded-xl transition-all duration-200 ${currentTab === 'community' ? 'bg-[#edf4fc] text-[#1759ad] scale-105 shadow-2xs' : ''}`}>
+            <Users className="w-5 h-5" strokeWidth={currentTab === 'community' ? 2.6 : 1.8} />
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5">Feed</span>
+        </button>
 
         {/* Perfil */}
         <button
@@ -94,35 +101,37 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             if (!currentUser) {
               onOpenAuth();
             } else {
-              setCurrentTab('profile');
+              triggerHaptic(isEmployer ? 'store' : 'profile');
             }
           }}
-          className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-            currentTab === 'profile' ? 'text-[#0F4C9C] font-bold scale-105' : 'text-slate-500 hover:text-slate-900'
+          className={`flex flex-col items-center justify-center min-h-[44px] flex-1 py-1 transition-all duration-150 active:scale-90 cursor-pointer ${
+            currentTab === 'profile' || currentTab === 'store' ? 'text-[#1759ad] font-black' : 'text-[#617087] hover:text-[#1759ad] font-medium'
           }`}
         >
-          {isEmployer ? (
-            currentUser?.company?.logo_url ? (
-              <img
-                src={currentUser.company.logo_url}
-                alt="Logo da Empresa"
-                className="w-5 h-5 rounded-full object-cover border border-slate-300"
-              />
+          <div className={`p-1.5 rounded-2xl transition-all duration-200 ${(currentTab === 'profile' || currentTab === 'store') ? 'bg-[#0F4C9C]/10 text-[#0F4C9C] scale-110 shadow-2xs' : ''}`}>
+            {isEmployer ? (
+              currentUser?.company?.logo_url ? (
+                <img
+                  src={currentUser.company.logo_url}
+                  alt="Logo"
+                  className="w-5 h-5 rounded-full object-cover border border-[#0F4C9C]/40"
+                />
+              ) : (
+                <Store className="w-5 h-5" strokeWidth={(currentTab === 'profile' || currentTab === 'store') ? 2.6 : 1.8} />
+              )
             ) : (
-              <Store className="w-5 h-5" />
-            )
-          ) : (
-            currentUser?.avatar_url ? (
-              <img
-                src={currentUser.avatar_url}
-                alt={currentUser.full_name}
-                className="w-5 h-5 rounded-full object-cover border border-slate-300"
-              />
-            ) : (
-              <User className="w-5 h-5" />
-            )
-          )}
-          <span className="text-[10px] mt-0.5">{isEmployer ? 'Empresa' : 'Perfil'}</span>
+              currentUser?.avatar_url ? (
+                <img
+                  src={currentUser.avatar_url}
+                  alt={currentUser.full_name}
+                  className="w-5 h-5 rounded-full object-cover border border-[#0F4C9C]/40"
+                />
+              ) : (
+                <User className="w-5 h-5" strokeWidth={(currentTab === 'profile' || currentTab === 'store') ? 2.6 : 1.8} />
+              )
+            )}
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5">{isEmployer ? 'Empresa' : 'Perfil'}</span>
         </button>
       </div>
     </nav>
