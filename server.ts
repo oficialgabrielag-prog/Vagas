@@ -104,6 +104,58 @@ async function startServer() {
     });
   });
 
+  // Rota de verificação do Google reCAPTCHA v3 para ambiente local
+  app.post('/api/verify-recaptcha', async (req, res) => {
+    try {
+      const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+      const { token, action: expectedAction } = req.body || {};
+
+      if (!secretKey) {
+        console.warn('[reCAPTCHA Dev] RECAPTCHA_SECRET_KEY não definida no ambiente local.');
+        // Em desenvolvimento local sem chave configurada, retorna bypass seguro para não travar testes
+        return res.json({
+          success: true,
+          score: 1.0,
+          isDevBypass: true,
+          message: 'Bypass de desenvolvimento ativo (chave secreta não definida localmente).'
+        });
+      }
+
+      if (!token) {
+        return res.status(400).json({ success: false, error: 'Token do reCAPTCHA ausente.' });
+      }
+
+      const params = new URLSearchParams();
+      params.append('secret', secretKey);
+      params.append('response', token);
+
+      const googleRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+
+      const data: any = await googleRes.json();
+      if (!data.success) {
+        return res.status(400).json({ success: false, error: 'Token rejeitado pelo Google.' });
+      }
+
+      if (expectedAction && data.action && data.action !== expectedAction) {
+        return res.status(400).json({ success: false, error: 'Ação do reCAPTCHA incompatível.' });
+      }
+
+      const score = typeof data.score === 'number' ? data.score : 1.0;
+      if (score < 0.5) {
+        return res.status(403).json({ success: false, score, error: 'Pontuação de proteção contra bots insuficiente.' });
+      }
+
+      return res.json({ success: true, score, action: data.action });
+    } catch (err: any) {
+      console.error('[reCAPTCHA Express Error]:', err);
+      return res.status(500).json({ success: false, error: 'Erro interno ao validar reCAPTCHA.' });
+    }
+  });
+
   function extractResumeDataLocally(rawText: string) {
     const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const phoneMatch = rawText.match(/(?:\+?244\s*)?(?:9\d{8}|2\d{8}|\b9\d{2}[-.\s]?\d{3}[-.\s]?\d{3}\b)/);
@@ -726,7 +778,7 @@ Seja uma conselheira profissional e comunitária prestativa para o Cunene.`;
       });
 
       try {
-        const responseStream = await ai.models.generateContentStream({
+        const response = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
           contents,
           config: {
@@ -736,20 +788,20 @@ Seja uma conselheira profissional e comunitária prestativa para o Cunene.`;
           }
         });
 
-        for await (const chunk of responseStream) {
-          if (chunk.text) {
-            res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
-          }
+        const replyText = response.text || getLocalSmartResponse(prompt, userContext);
+        for (const char of replyText) {
+          res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
+          await new Promise(r => setTimeout(r, 4));
         }
 
         res.write('data: [DONE]\n\n');
         res.end();
       } catch (streamErr) {
-        console.warn('Fallback para resposta local por falha de cota:', streamErr);
+        console.warn('Fallback para resposta local por falha de API:', streamErr);
         const localText = getLocalSmartResponse(prompt, userContext);
         for (const char of localText) {
           res.write(`data: ${JSON.stringify({ text: char })}\n\n`);
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 6));
         }
         res.write('data: [DONE]\n\n');
         res.end();
@@ -852,7 +904,10 @@ Diretrizes:
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'custom'
     });
     app.use(vite.middlewares);

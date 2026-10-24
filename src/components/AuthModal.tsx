@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, UserCheck, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,6 +21,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Pré-carrega o reCAPTCHA quando o modal é aberto
+  useEffect(() => {
+    if (isOpen) {
+      const siteKey = getRecaptchaSiteKey();
+      if (siteKey) {
+        loadRecaptchaScript(siteKey).catch(() => {});
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +45,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
       }
       setLoading(true);
       try {
+        const captchaResult = await verifyRecaptchaAction('forgot_password');
+        if (!captchaResult.success) {
+          setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
         await StoreService.resetPassword(email);
         setSuccessMessage('Instruções de recuperação enviadas para o seu email!');
       } catch (err: any) {
@@ -60,8 +78,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
           setLoading(false);
           return;
         }
+
+        const captchaResult = await verifyRecaptchaAction('register');
+        if (!captchaResult.success) {
+          setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
         user = await StoreService.registerWithSupabase(cleanEmail, password, fullName || cleanEmail.split('@')[0], role, companyName);
       } else {
+        const captchaResult = await verifyRecaptchaAction('login');
+        if (!captchaResult.success) {
+          setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
         user = await StoreService.loginWithSupabase(email, password);
       }
       onLoginSuccess(user);

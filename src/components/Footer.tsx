@@ -4,8 +4,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Monitor, 
-  Sun, 
-  Moon, 
   Heart,
   Building2,
   Clock
@@ -20,8 +18,6 @@ interface FooterProps {
   onOpenNewProduct?: () => void;
   isPCMode?: boolean;
   onTogglePCMode?: () => void;
-  themeMode?: 'system' | 'light' | 'dark';
-  onToggleTheme?: () => void;
   setCurrentTab?: (tab: string) => void;
 }
 
@@ -30,8 +26,6 @@ export const Footer: React.FC<FooterProps> = ({
   onSelectCompany,
   isPCMode = false,
   onTogglePCMode,
-  themeMode = 'system',
-  onToggleTheme,
   setCurrentTab
 }) => {
   const [activeCompanyIndex, setActiveCompanyIndex] = useState(0);
@@ -306,23 +300,6 @@ export const Footer: React.FC<FooterProps> = ({
                 >
                   <Monitor className="w-3.5 h-3.5 text-[#F5B91B]" />
                   <span>Modo PC: {isPCMode ? 'Ativado' : 'Desativado'}</span>
-                </button>
-              )}
-
-              {onToggleTheme && (
-                <button
-                  onClick={onToggleTheme}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition cursor-pointer"
-                  title="Alternar Tema"
-                >
-                  {themeMode === 'dark' ? (
-                    <Moon className="w-3.5 h-3.5 text-indigo-300" />
-                  ) : themeMode === 'light' ? (
-                    <Sun className="w-3.5 h-3.5 text-[#F5B91B]" />
-                  ) : (
-                    <Monitor className="w-3.5 h-3.5 text-slate-300" />
-                  )}
-                  <span className="capitalize">{themeMode === 'system' ? 'Tema: Auto' : themeMode === 'dark' ? 'Tema: Escuro' : 'Tema: Claro'}</span>
                 </button>
               )}
             </div>

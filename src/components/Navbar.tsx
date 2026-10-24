@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Briefcase, ShoppingBag, Users, Building2, User, UserPlus, LogOut, Menu, X, PlusCircle, ArrowLeftRight, Bell, Bookmark, FileText, Settings, Store, Download, ShieldCheck, Smartphone, Search, Monitor, Sun, Moon } from 'lucide-react';
+import { Briefcase, ShoppingBag, Users, Building2, User, UserPlus, LogOut, Menu, X, PlusCircle, ArrowLeftRight, Bell, Bookmark, FileText, Settings, Store, Download, ShieldCheck, Smartphone, Search } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { AnimatedBrandLogo } from './AnimatedBrandLogo';
@@ -18,8 +18,6 @@ interface NavbarProps {
   onOpenNotifications?: () => void;
   isPCMode?: boolean;
   onTogglePCMode?: () => void;
-  themeMode?: 'system' | 'light' | 'dark';
-  onToggleTheme?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,9 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadNotificationsCount = 0,
   onOpenNotifications,
   isPCMode = false,
-  onTogglePCMode,
-  themeMode = 'system',
-  onToggleTheme
+  onTogglePCMode
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isEmployer = currentUser?.role === 'employer';
@@ -126,43 +122,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Right Action Buttons */}
             <div className="flex items-center space-x-1.5 sm:space-x-2">
-              {/* Botão de Modo PC */}
-              {onTogglePCMode && (
-                <button
-                  onClick={onTogglePCMode}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                    isPCMode
-                      ? 'bg-blue-50 border-blue-200 text-[#0F4C9C] shadow-2xs'
-                      : 'bg-white border-[#e4e9ef] text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={isPCMode ? 'Modo PC Ativo (Clique para Vista Padrão)' : 'Ativar Modo PC (Tela Larga para Computador)'}
-                >
-                  <Monitor className="w-3.5 h-3.5 text-[#0F4C9C]" />
-                  <span className="hidden sm:inline">{isPCMode ? 'Modo PC' : 'Modo PC'}</span>
-                  <span className={`w-2 h-2 rounded-full ${isPCMode ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                </button>
-              )}
-
-              {/* Botão de Tema (Dark / Light / Sistema) */}
-              {onToggleTheme && (
-                <button
-                  onClick={onToggleTheme}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition border border-[#e4e9ef] bg-white text-slate-600 hover:bg-slate-50 cursor-pointer shadow-2xs"
-                  title={`Tema atual: ${themeMode === 'system' ? 'Automático (Sistema)' : themeMode === 'dark' ? 'Escuro (Dark)' : 'Claro (Light)'}. Clique para alternar.`}
-                >
-                  {themeMode === 'dark' ? (
-                    <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                  ) : themeMode === 'light' ? (
-                    <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  ) : (
-                    <Monitor className="w-3.5 h-3.5 text-[#0F4C9C]" />
-                  )}
-                  <span className="hidden lg:inline capitalize">
-                    {themeMode === 'system' ? 'Auto' : themeMode === 'dark' ? 'Escuro' : 'Claro'}
-                  </span>
-                </button>
-              )}
-
               {/* Pesquisa (Lupa) */}
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('open-explore-search'))}

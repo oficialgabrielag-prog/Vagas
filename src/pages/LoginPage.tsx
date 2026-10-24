@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, Mail, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { AnimatedBrandLogo } from '../components/AnimatedBrandLogo';
+import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -24,6 +25,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Pré-carrega o script do reCAPTCHA v3 de forma assíncrona para que a validação seja instantânea
+  useEffect(() => {
+    const siteKey = getRecaptchaSiteKey();
+    if (siteKey) {
+      loadRecaptchaScript(siteKey).catch(() => {});
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -36,6 +45,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       }
       setLoading(true);
       try {
+        // Verificação segura do reCAPTCHA v3 para ação forgot_password
+        const captchaResult = await verifyRecaptchaAction('forgot_password');
+        if (!captchaResult.success) {
+          setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
         await StoreService.resetPassword(email.trim());
         setSuccessMessage('Instruções de recuperação enviadas para o seu email!');
       } catch (err: any) {
@@ -53,6 +70,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     setLoading(true);
     try {
+      // Verificação segura do reCAPTCHA v3 para ação login
+      const captchaResult = await verifyRecaptchaAction('login');
+      if (!captchaResult.success) {
+        setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+        setLoading(false);
+        return;
+      }
+
       const user = await StoreService.loginWithSupabase(email.trim(), password);
       onLoginSuccess(user);
     } catch (err: any) {

@@ -257,3 +257,37 @@ on public.payment_transactions for insert with check (auth.uid() = user_id);
 create policy "Users can update their own transactions"
 on public.payment_transactions for update using (auth.uid() = user_id);
 
+-- ==========================================
+-- 7. EMAIL CAMPAIGNS & LOGS
+-- ==========================================
+create table if not exists public.email_campaigns (
+  id uuid default gen_random_uuid() primary key,
+  subject text not null,
+  content text not null,
+  status text check (status in ('draft', 'sending', 'sent', 'failed')) default 'draft',
+  target_audience text check (target_audience in ('all', 'candidates', 'employers', 'specific')) not null,
+  target_user_id uuid references auth.users(id),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  sent_at timestamp with time zone,
+  created_by uuid references auth.users(id) not null
+);
+
+create table if not exists public.email_campaign_logs (
+  id uuid default gen_random_uuid() primary key,
+  campaign_id uuid references public.email_campaigns(id) on delete cascade not null,
+  user_id uuid references auth.users(id) not null,
+  status text check (status in ('pending', 'sent', 'failed')) default 'pending',
+  error_message text,
+  sent_at timestamp with time zone
+);
+
+alter table public.email_campaigns enable row level security;
+alter table public.email_campaign_logs enable row level security;
+
+-- Policies (only admin can access)
+create policy "Admins can view campaigns" on public.email_campaigns for select using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin'));
+create policy "Admins can insert campaigns" on public.email_campaigns for insert with check (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin'));
+create policy "Admins can update campaigns" on public.email_campaigns for update using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin'));
+
+create policy "Admins can view campaign logs" on public.email_campaign_logs for select using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin'));
+create policy "Admins can insert campaign logs" on public.email_campaign_logs for insert with check (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin'));

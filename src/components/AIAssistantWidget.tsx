@@ -40,7 +40,7 @@ export const AIAssistantWidget: React.FC<AIAssistantWidgetProps> = ({
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
-      const saved = localStorage.getItem('vdn_ai_chat_history');
+      const saved = localStorage.getItem('cunene_ai_chat_history') || localStorage.getItem('vdn_ai_chat_history');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -54,7 +54,7 @@ export const AIAssistantWidget: React.FC<AIAssistantWidgetProps> = ({
   useEffect(() => {
     if (messages.length > 0) {
       try {
-        localStorage.setItem('vdn_ai_chat_history', JSON.stringify(messages));
+        localStorage.setItem('cunene_ai_chat_history', JSON.stringify(messages));
       } catch {}
     }
   }, [messages]);
@@ -66,11 +66,11 @@ export const AIAssistantWidget: React.FC<AIAssistantWidgetProps> = ({
       const userRole = currentUser?.role === 'employer' ? 'Empresa / Recrutador' : 'Candidato';
       const welcomeText = `Olá, **${userName}**! 👋
 
-Sou a **VDN AI**, a sua assistente inteligente no **CuneneVagas & Marketplace** (desenvolvida pelo projeto **Vai Dar Namoro**).
+Sou a **Assistente CuneneVagas**, a sua consultora inteligente no **CuneneVagas & Marketplace**.
 
 Conheço o seu perfil como **${userRole}** em **${currentUser?.municipality || 'Ondjiva'}**. Temos atualmente **${jobs.length} vagas de emprego** ativas e **${products.length} produtos** no marketplace!
 
-Como posso ajudar a sua carreira ou negócio hoje?`;
+Como posso ajudar a sua carreira ou o seu negócio hoje?`;
 
       setMessages([
         {
@@ -194,75 +194,125 @@ Como posso ajudar a sua carreira ou negócio hoje?`;
 
     setMessages(prev => [...prev, initialBotMsg]);
 
-    try {
-      const userContext = {
-        name: currentUser?.full_name || currentUser?.company_name || 'Anónimo',
-        email: currentUser?.email || 'N/A',
-        role: currentUser?.role || 'candidato',
-        municipality: currentUser?.municipality || 'Ondjiva',
-        profession: currentUser?.profession || currentUser?.industry || 'N/A',
-        isMarketplaceUnlocked: currentUser?.marketplace_unlocked || currentUser?.company?.marketplace_unlocked || false,
-        totalJobsCount: jobs.length,
-        totalProductsCount: products.length
-      };
+    const userContext = {
+      name: currentUser?.full_name || currentUser?.company_name || 'Anónimo',
+      email: currentUser?.email || 'N/A',
+      role: currentUser?.role || 'candidato',
+      municipality: currentUser?.municipality || 'Ondjiva',
+      profession: currentUser?.profession || currentUser?.industry || 'N/A',
+      isMarketplaceUnlocked: currentUser?.marketplace_unlocked || currentUser?.company?.marketplace_unlocked || false,
+      totalJobsCount: jobs.length,
+      totalProductsCount: products.length
+    };
 
-      const historyPayload = messages.map(m => ({
-        role: m.role,
-        text: m.text
-      }));
+    const getLocalSmartResponse = (prompt: string, context: any) => {
+      const p = prompt.toLowerCase();
+      const userName = context.name || 'Visitante';
+      const mun = context.municipality || 'Ondjiva';
+      const jobsCount = context.totalJobsCount || 0;
+      const productsCount = context.totalProductsCount || 0;
 
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: text,
-          userContext,
-          history: historyPayload
-        })
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error('Falha ao obter conexão de streaming da VDN AI.');
+      if (p.includes('medo') || p.includes('nervos') || p.includes('ansios') || p.includes('insegur') || p.includes('entrevista') || p.includes('teste técnico') || p.includes('não sei se passo')) {
+        return `É completamente natural sentir nervosismo ou insegurança, **${userName}**! Isso apenas demonstra o quanto esta oportunidade é importante para si.\n\nPara ter sucesso na sua entrevista ou exame técnico no Cunene:\n* **Foco no que sabe:** Fale das suas competências com honestidade e mostre vontade de aprender.\n* **Pontualidade e Confiança:** Em ${mun}, as empresas valorizam muito o compromisso e a boa comunicação.\n* **Preparação:** Explore as empresas ativas em [Ver Empresas do Cunene](#companies) e prepare o seu currículo em [Meu Perfil](#profile).\n\nAcredite no seu potencial! Se quiser treinar perguntas ou falar sobre a sua área, diga-me qual é a sua profissão e preparamo-nos juntos.`;
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let accumulatedText = '';
-      let buffer = '';
+      if (p.includes('obrigad') || p.includes('agradeç') || p.includes('agradeco') || p.includes('feliz') || p.includes('consegui') || p.includes('muito bom') || p.includes('gostei') || p.includes('parabéns') || p.includes('parabens') || p.includes('excelente') || p.includes('maravilha') || p.includes('valeu')) {
+        return `Fico de coração cheio por si, **${userName}**! É uma honra poder caminhar consigo nesta jornada.\n\nA plataforma **CuneneVagas & Marketplace** existe exatamente para transformar vidas e impulsionar a nossa comunidade no Cunene. Partilhe também as suas conquistas em [Abrir Feed da Comunidade](#community)! Conte sempre comigo!`;
+      }
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      if (p.includes('quem é você') || p.includes('quem e voce') || p.includes('o que você sente') || p.includes('o que voce sente') || p.includes('você é humana') || p.includes('voce e humana') || p.includes('como você funciona') || p.includes('cunenevagas') || p.includes('vai dar namoro') || p.includes('vdn')) {
+        return `Sou a **Assistente CuneneVagas**, a sua consultora virtual dedicada ao emprego, recrutamento, formação técnica e marketplace na província do Cunene (${mun}).\n\nO meu propósito é ouvi-lo(a) com verdadeira atenção, esclarecer dúvidas e ajudar a transformar a sua carreira e os seus negócios locais. Pode explorar as [Vagas de Emprego](#jobs), o [Marketplace](#marketplace) ou a nossa [Comunidade](#community)!`;
+      }
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
+      if (p.includes('comunidade') || p.includes('comunidades') || p.includes('feed') || p.includes('post') || p.includes('publicar em comunidade') || p.includes('publicar post') || p.includes('publicação') || p.includes('publicacao') || p.includes('notícia') || p.includes('noticia')) {
+        return `Com certeza, **${userName}**! O feed da nossa comunidade é o espaço ideal para networking. Agora temos funcionalidades avançadas:\n1. **Sondagens Profissionais:** Pode criar perguntas com opções de voto para ouvir a comunidade.\n2. **Partilha Facilitada:** Partilhe posts diretamente para o WhatsApp ou redes sociais.\n3. **Segurança:** Implementámos um sistema de denúncia para manter o ambiente profissional.\n\n👉 Clique em [Abrir Feed da Comunidade](#community) para ver as novidades, participar em sondagens ou publicar a sua dica!`;
+      }
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const dataStr = trimmed.slice(6);
-            if (dataStr === '[DONE]') break;
+      if (p.includes('pagamento') || p.includes('pagar') || p.includes('paypal') || p.includes('premium') || p.includes('licença') || p.includes('licenca')) {
+        return `Com certeza, **${userName}**! Para ativar a sua **Licença Premium** com anúncios ilimitados no Marketplace e contacto direto via WhatsApp, clique no botão abaixo para abrir o checkout seguro do PayPal:\n\n👉 [Ativar Licença Premium (PayPal)](#paypal)\n\nOu explore os produtos disponíveis em [Ver Marketplace](#marketplace)!`;
+      }
 
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.text) {
-                accumulatedText += parsed.text;
-                // Update bot message progressively chunk by chunk
-                setMessages(prev =>
-                  prev.map(m =>
-                    m.id === botMsgId ? { ...m, text: accumulatedText } : m
-                  )
-                );
+      if (p.includes('vaga') || p.includes('vagas') || p.includes('emprego') || p.includes('trabalho') || p.includes('procurar emprego') || p.includes('candidat') || p.includes('exame') || p.includes('teste') || p.includes('certificado')) {
+        return `Olá, **${userName}**! Temos atualmente **${jobsCount} vagas abertas** no Cunene.\n\nNovidades importantes no nosso sistema de recrutamento:\n1. **Exames de Mérito:** Muitas vagas agora incluem testes técnicos automáticos. Ao ser aprovado, recebe um **Certificado Digital de Proficiência** que pode imprimir ou anexar ao CV!\n2. **Simulados:** No seu painel, pode fazer "Simulados de Treino" gratuitos para praticar antes das provas reais.\n3. **Ranking de Talentos:** Os melhores nos exames aparecem no Top da plataforma, e agora as empresas podem filtrar o **Ranking por Município**!\n\n👉 Clique em [Ver Todas as Vagas](#jobs) ou aceda ao seu [Painel de Controlo](#dashboard) para ver os seus exames e certificados.`;
+      }
+
+      if (p.includes('marketplace') || p.includes('produto') || p.includes('produtos') || p.includes('vender') || p.includes('loja') || p.includes('comprar') || p.includes('anúncio') || p.includes('anuncio') || p.includes('slogan')) {
+        return `Excelente iniciativa, **${userName}**! O marketplace está mais profissional do que nunca:\n1. **Vitrine Completa:** Agora cada empresa pode ter o seu próprio **Slogan** e uma página de loja dedicada.\n2. **Navegação Inteligente:** Ao ver um produto, pode clicar em "Ver Loja da Empresa" para descobrir todos os outros itens desse vendedor.\n3. **Contacto Direto:** O botão de WhatsApp permite fechar negócios instantaneamente em ${mun}.\n\n👉 Clique em [Aceder ao Marketplace](#marketplace) para explorar os produtos locais!`;
+      }
+
+      if (p.includes('empresa') || p.includes('empresas') || p.includes('recrutador') || p.includes('patrão') || p.includes('patrao')) {
+        return `Conheça todas as empresas e organizações ativas na província do Cunene!\n\n👉 Clique em [Ver Diretório de Empresas](#companies) para ver perfis oficiais, vagas publicadas e contactos diretos.`;
+      }
+
+      if (p.includes('perfil') || p.includes('conta') || p.includes('curriculo') || p.includes('currículo') || p.includes('foto') || p.includes('dados')) {
+        return `O seu perfil é o seu cartão de visita para as empresas em ${mun}!\n\n👉 Clique em [Meu Perfil](#profile) para atualizar a sua foto, experiência profissional e número de WhatsApp.`;
+      }
+
+      if (p.includes('oi') || p.includes('olá') || p.includes('ola') || p.includes('bom dia') || p.includes('boa tarde') || p.includes('boa noite') || p.includes('tudo bem') || p.includes('como vai')) {
+        return `Olá, **${userName}**! É muito bom falar consigo. Estou aqui para o(a) escutar. Como se sente hoje e como posso ajudar na sua vida profissional ou nos seus negócios em **${mun}**?\n\nPode navegar diretamente para [Vagas](#jobs), [Marketplace](#marketplace), [Comunidade](#community) ou [Meu Perfil](#profile)!`;
+      }
+
+      return `Olá, **${userName}**! Ouvi atentamente o que me disse. Como sua conselheira no **CuneneVagas & Marketplace**, estou aqui para ajudá-lo(a) em tudo o que precisar:\n* 💼 [Explorar Vagas Ativas](#jobs)\n* 🛒 [Ver Marketplace](#marketplace)\n* 👥 [Abrir Comunidade](#community)\n* 🏢 [Ver Empresas](#companies)\n* 👤 [Meu Perfil](#profile)\n\nDiga-me o que gostaria de alcançar hoje!`;
+    };
+
+    try {
+      let replyText = '';
+      try {
+        const historyPayload = messages.map(m => ({
+          role: m.role,
+          text: m.text
+        }));
+
+        const res = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: text,
+            userContext,
+            history: historyPayload
+          })
+        });
+
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const data = await res.json();
+            replyText = data.reply || '';
+          } else {
+            const textResult = await res.text();
+            const lines = textResult.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonStr = line.replace('data: ', '').trim();
+                if (jsonStr === '[DONE]') break;
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (parsed.text) replyText += parsed.text;
+                } catch {}
               }
-            } catch {
-              // ignore parse errors
             }
           }
         }
+      } catch (fetchErr) {
+        // Fallback silenciando erro de fetch (Netlify / offline)
       }
 
-      // Mark streaming as complete and play notification tone
+      if (!replyText) {
+        replyText = getLocalSmartResponse(text, userContext);
+      }
+
+      // Typewriter effect for natural feel
+      let accumulatedText = '';
+      for (const char of replyText) {
+        accumulatedText += char;
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === botMsgId ? { ...m, text: accumulatedText } : m
+          )
+        );
+        await new Promise(r => setTimeout(r, 4));
+      }
+
       soundEffects.playAiReceiveSound();
       setMessages(prev =>
         prev.map(m =>
@@ -270,17 +320,22 @@ Como posso ajudar a sua carreira ou negócio hoje?`;
         )
       );
     } catch (err: any) {
-      console.error('Erro no streaming da IA VDN:', err);
+      console.error('Erro na IA CuneneVagas:', err);
+      const fallbackText = getLocalSmartResponse(text, userContext);
+      let accumulatedText = '';
+      for (const char of fallbackText) {
+        accumulatedText += char;
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === botMsgId ? { ...m, text: accumulatedText } : m
+          )
+        );
+        await new Promise(r => setTimeout(r, 4));
+      }
       soundEffects.playAiReceiveSound();
       setMessages(prev =>
         prev.map(m =>
-          m.id === botMsgId
-            ? {
-                ...m,
-                text: 'Desculpe, ocorreu um erro temporário de comunicação. Por favor, tente novamente.',
-                isStreaming: false
-              }
-            : m
+          m.id === botMsgId ? { ...m, isStreaming: false } : m
         )
       );
     } finally {
@@ -296,7 +351,7 @@ Como posso ajudar a sua carreira ou negócio hoje?`;
           type="button"
           onClick={() => setIsOpen(true)}
           className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white p-3.5 sm:p-4 rounded-full shadow-2xl transition-all duration-300 flex items-center gap-2.5 group hover:scale-105 active:scale-95 cursor-pointer border-2 border-white/20"
-          title="Falar com a VDN"
+          title="Falar com a Assistente CuneneVagas"
         >
           <div className="relative">
             <MessageCircleHeart className="w-6 h-6 text-[#FFC20E] group-hover:scale-110 transition-transform" />
@@ -305,10 +360,10 @@ Como posso ajudar a sua carreira ou negócio hoje?`;
           </div>
           <div className="flex flex-col items-start pr-1 hidden sm:flex text-left">
             <span className="text-xs font-black text-white leading-none flex items-center gap-1">
-              VDN
+              CuneneVagas
               <Sparkles className="w-3 h-3 text-[#FFC20E]" />
             </span>
-            <span className="text-[9px] text-blue-200 font-medium leading-tight mt-0.5">Consultora Profissional</span>
+            <span className="text-[9px] text-blue-200 font-medium leading-tight mt-0.5">Assistente Profissional</span>
           </div>
         </button>
       )}
@@ -324,20 +379,11 @@ Como posso ajudar a sua carreira ou negócio hoje?`;
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-sm font-black text-white">VDN</h3>
+                  <h3 className="text-sm font-black text-white">CuneneVagas AI</h3>
                   <span className="text-[10px] text-blue-200 font-medium">• Consultora</span>
                 </div>
                 <p className="text-[10px] text-blue-200 flex items-center gap-1 mt-0.5">
-                  <span>Desenvolvido por</span>
-                  <a
-                    href="https://freevdn.netlify.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#FFC20E] font-bold hover:underline flex items-center gap-0.5"
-                  >
-                    <span>Vai Dar Namoro</span>
-                    <Heart className="w-2.5 h-2.5 text-rose-400 fill-rose-400" />
-                  </a>
+                  <span>Assistente Oficial CuneneVagas</span>
                 </p>
               </div>
             </div>

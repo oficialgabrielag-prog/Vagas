@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, User, Bookmark, CheckCircle2, Trash2, Plus, Edit3, Clock, XCircle, Building2, FileText, Award, Bell, ShieldCheck, Users, Search, RefreshCw, BarChart3, MessageSquare, ExternalLink, ShoppingBag, Sparkles, BookOpen, AlertTriangle, Megaphone, Send, Star, AtSign } from 'lucide-react';
+import { Briefcase, User, Bookmark, CheckCircle2, Trash2, Plus, Edit3, Clock, XCircle, Building2, FileText, Award, Bell, ShieldCheck, Users, Search, RefreshCw, BarChart3, MessageSquare, MessageCircle, ExternalLink, ShoppingBag, Sparkles, BookOpen, AlertTriangle, Megaphone, Send, Star, AtSign, CreditCard, Mail } from 'lucide-react';
 import { UserProfile, Job, JobApplication, ExamAttempt, Exam, CommunityPost, PlatformStats, CUNENE_MUNICIPALITIES, PlatformPartner, PlatformUserInfo } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { supabase } from '../lib/supabase';
 import { cleanDocumentUrl } from '../lib/cloudinary';
 import { FREE_PRACTICE_EXAMS } from '../lib/examTemplates';
+import { EmailCampaignAdmin } from '../components/EmailCampaignAdmin';
 
 interface DashboardPageProps {
   currentUser: UserProfile;
@@ -47,6 +49,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [attempts, setAttempts] = useState<ExamAttempt[]>(StoreService.getExamAttempts());
   const [notifications, setNotifications] = useState(StoreService.getNotifications(currentUser.id));
 
+  // Realtime subscription for applications
+  useEffect(() => {
+    if (currentUser.role !== 'employer') return;
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'applications' },
+        async (payload) => {
+          console.log('Realtime change in applications:', payload);
+          const apps = await StoreService.fetchApplications();
+          setApplications(apps);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser.id, currentUser.role]);
+
   // Admin platform state
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [adminPosts, setAdminPosts] = useState<CommunityPost[]>(() => (posts.length > 0 ? posts : StoreService.getPosts()));
@@ -77,6 +101,75 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [sysNotifMessage, setSysNotifMessage] = useState('');
   const [sysNotifFeedback, setSysNotifFeedback] = useState('');
   const [selectedTargetUser, setSelectedTargetUser] = useState<PlatformUserInfo | null>(null);
+
+  // Gestão de Destaques (Campanhas)
+  const [featuredCampaigns, setFeaturedCampaigns] = useState<import('../lib/types').FeaturedCampaign[]>(() => StoreService.getFeaturedCampaigns());
+  const [campaignType, setCampaignType] = useState<'company' | 'product'>('company');
+  const [campaignTargetId, setCampaignTargetId] = useState('');
+  const [campaignTitle, setCampaignTitle] = useState('');
+  const [campaignEndDate, setCampaignEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [campaignFeedback, setCampaignFeedback] = useState('');
+
+  const handleCreateCampaign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campaignTargetId.trim() || !campaignTitle.trim()) {
+      setCampaignFeedback('Por favor, preencha o título e selecione o alvo da campanha.');
+      return;
+    }
+
+    const newCampaign = {
+      id: 'camp-' + Date.now(),
+      type: campaignType,
+      target_id: campaignTargetId,
+      title: campaignTitle.trim(),
+      start_date: new Date().toISOString(),
+      end_date: new Date(campaignEndDate).toISOString(),
+      status: 'active' as const,
+      is_sponsored: true,
+      created_by: currentUser.email || currentUser.full_name || 'Admin',
+      created_at: new Date().toISOString()
+    };
+
+    const updated = StoreService.saveFeaturedCampaign(newCampaign);
+    setFeaturedCampaigns(updated);
+    setCampaignTitle('');
+    setCampaignTargetId('');
+    setCampaignFeedback('✨ Campanha de destaque criada com sucesso!');
+    setTimeout(() => setCampaignFeedback(''), 4000);
+  };
+
+  const handleToggleCampaignStatus = (id: string) => {
+    const updated = StoreService.toggleCampaignStatus(id);
+    setFeaturedCampaigns(updated);
+  };
+
+  const handleDeleteCampaign = (id: string) => {
+    if (!window.confirm('Tem a certeza que deseja eliminar esta campanha de destaque?')) return;
+    const updated = StoreService.deleteFeaturedCampaign(id);
+    setFeaturedCampaigns(updated);
+  };
+
+  // Gestão de Pagamentos Manuais pelo Admin
+  const [manualPayments, setManualPayments] = useState<any[]>(() => StoreService.getManualPayments());
+  const [manualPaymentFeedback, setManualPaymentFeedback] = useState('');
+
+  const handleApproveManualPayment = (id: string, userName: string) => {
+    const updated = StoreService.approveManualPayment(id);
+    setManualPayments(updated);
+    setManualPaymentFeedback(`✅ Pagamento manual de "${userName}" aprovado com sucesso! Licença de 30 dias atribuída.`);
+    setTimeout(() => setManualPaymentFeedback(''), 5000);
+  };
+
+  const handleRejectManualPayment = (id: string, userName: string) => {
+    const updated = StoreService.rejectManualPayment(id);
+    setManualPayments(updated);
+    setManualPaymentFeedback(`❌ Pagamento manual de "${userName}" rejeitado.`);
+    setTimeout(() => setManualPaymentFeedback(''), 4000);
+  };
 
   const handleAddPartner = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1054,6 +1147,246 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
           </div>
 
+          {/* Section: Gestão de Destaques (Campanhas de Empresas e Negócios) */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <span>Gestão de Destaques & Campanhas (Empresas & Negócios)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Selecione empresas ou produtos reais para promoção, defina prazos e gerencie o destaque patrocinado.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/80">
+                {featuredCampaigns.length} {featuredCampaigns.length === 1 ? 'Campanha' : 'Campanhas'}
+              </span>
+            </div>
+
+            {campaignFeedback && (
+              <div className="p-3.5 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-bold border border-emerald-200 flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{campaignFeedback}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateCampaign} className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 space-y-4">
+              <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-[#0F4C9C]" />
+                Criar Nova Campanha de Destaque Patrocinado
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Tipo de Destaque *</label>
+                  <select
+                    value={campaignType}
+                    onChange={e => {
+                      setCampaignType(e.target.value as any);
+                      setCampaignTargetId('');
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  >
+                    <option value="company">Empresa em Destaque</option>
+                    <option value="product">Negócio / Produto em Destaque</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Selecionar Entidade Real *</label>
+                  <select
+                    required
+                    value={campaignTargetId}
+                    onChange={e => setCampaignTargetId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  >
+                    <option value="">-- Escolher {campaignType === 'company' ? 'Empresa' : 'Produto'} --</option>
+                    {campaignType === 'company' ? (
+                      platformStats?.users.filter(u => u.role === 'Empresa' || u.role === 'employer').map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.municipality || 'Cunene'})</option>
+                      ))
+                    ) : (
+                      StoreService.getProducts().map(p => (
+                        <option key={p.id} value={p.id}>{p.title} ({p.price} {p.currency || 'Kz'})</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">Data de Término (Expiração) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={campaignEndDate}
+                    onChange={e => setCampaignEndDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 block">Título / Slogan da Campanha *</label>
+                <input
+                  type="text"
+                  required
+                  value={campaignTitle}
+                  onChange={e => setCampaignTitle(e.target.value)}
+                  placeholder="Ex: Campanha Especial Verão 2026 - Patrocinado"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-[#FFC20E]" />
+                  <span>Publicar Destaque Patrocinado</span>
+                </button>
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                Campanhas Registadas ({featuredCampaigns.length})
+              </h4>
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+                {featuredCampaigns.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400">Nenhuma campanha de destaque criada ainda.</div>
+                ) : (
+                  featuredCampaigns.map(c => (
+                    <div key={c.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white hover:bg-slate-50 transition">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            c.status === 'active' ? 'bg-emerald-100 text-emerald-800' :
+                            c.status === 'suspended' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {c.status === 'active' ? 'Ativa' : c.status === 'suspended' ? 'Suspensa' : 'Expirada'}
+                          </span>
+                          <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full uppercase">
+                            {c.type === 'company' ? 'Empresa' : 'Produto'}
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                            Patrocinado
+                          </span>
+                        </div>
+                        <h5 className="text-sm font-bold text-slate-900">{c.title}</h5>
+                        <p className="text-[11px] text-slate-500">
+                          Expira a: {new Date(c.end_date).toLocaleDateString('pt-AO')} • Criado por: {c.created_by}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleCampaignStatus(c.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                            c.status === 'active' ? 'bg-amber-100 text-amber-900 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200'
+                          }`}
+                        >
+                          {c.status === 'active' ? 'Suspender' : 'Ativar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCampaign(c.id)}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                          title="Eliminar campanha"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                ))
+              )}
+            </div>
+            <EmailCampaignAdmin />
+          </div>
+          </div>
+
+          {/* Section: Gestão de Pagamentos Manuais (Aprovação de Licenças) */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-emerald-600" />
+                  <span>Gestão de Pagamentos Manuais (Aprovação de Licenças)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Reveja os comprovativos de transferência Multicaixa/IBAN enviados por utilizadores sem Visa e aprove o acesso.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/80">
+                {manualPayments.filter(p => p.status === 'pending').length} Pendentes
+              </span>
+            </div>
+
+            {manualPaymentFeedback && (
+              <div className="p-3.5 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-bold border border-emerald-200 flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{manualPaymentFeedback}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">
+                Pedidos de Pagamento Submetidos ({manualPayments.length})
+              </h4>
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+                {manualPayments.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400">Nenhum pagamento manual submetido ainda.</div>
+                ) : (
+                  manualPayments.map(mp => (
+                    <div key={mp.id} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white hover:bg-slate-50 transition">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            mp.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                            mp.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {mp.status === 'approved' ? 'Aprovado' : mp.status === 'rejected' ? 'Rejeitado' : 'Pendente de Aprovação'}
+                          </span>
+                          <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
+                            Valor: {mp.amount}
+                          </span>
+                        </div>
+                        <h5 className="text-sm font-bold text-slate-900">{mp.user_name} ({mp.user_email})</h5>
+                        <p className="text-[11px] text-slate-600">
+                          <strong>Referência:</strong> {mp.reference} • <strong>Nota:</strong> {mp.proof_note}
+                        </p>
+                        <span className="text-[10px] text-slate-400 block">
+                          Submetido a: {new Date(mp.created_at).toLocaleString('pt-AO')}
+                        </span>
+                      </div>
+
+                      {mp.status === 'pending' && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleApproveManualPayment(mp.id, mp.user_name)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow-xs"
+                          >
+                            Aprovar Conta
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectManualPayment(mp.id, mp.user_name)}
+                            className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded-xl text-xs transition cursor-pointer"
+                          >
+                            Rejeitar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Section: Enviar Mensagem com Nome "Notificação do Sistema" */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -1315,9 +1648,55 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                             <span className="flex items-center gap-1 font-semibold"><Clock className="w-3.5 h-3.5 text-[#0F4C9C]" /> {job!.exam?.time_limit_minutes || 15} min</span>
                             <span className="flex items-center gap-1 font-semibold"><Award className="w-3.5 h-3.5 text-amber-500" /> Mínimo: {job!.exam?.passing_score || 70}%</span>
                           </div>
-                          <button onClick={() => onOpenExam?.(job!.exam!, app.id, job!)} className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2">
-                            <FileText className="w-4 h-4" /> <span>Realizar Exame Técnico Agora</span>
-                          </button>
+                          <div className="pt-1">
+                            {(() => {
+                              const companyPhone = job?.whatsapp || (job as any)?.contact_phone || job?.employer?.whatsapp || job?.employer?.phone;
+                              let cleanPhone = (companyPhone || '').replace(/\D/g, '');
+                              if (!cleanPhone.startsWith('244') && cleanPhone.length === 9) {
+                                cleanPhone = '244' + cleanPhone;
+                              }
+                              const examTitle = job!.exam?.title || job!.title;
+                              const companyName = job!.company_name || 'Empresa';
+                              const candName = currentUser.full_name || 'Candidato';
+                              const waMsg = `Olá ${companyName}, sou o candidato ${candName} e pretendo realizar o teste / exame de competências para a vaga de "${job!.title}" (${examTitle}) diretamente aqui pelo WhatsApp. Aguardo o envio das questões / instruções.`;
+                              const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}` : null;
+
+                              return (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  {waUrl ? (
+                                    <a
+                                      href={waUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold py-2.5 px-3 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                                      title="Fazer exame diretamente no WhatsApp da empresa"
+                                    >
+                                      <MessageCircle className="w-4 h-4 fill-white" />
+                                      <span>Realizar Exame no WhatsApp</span>
+                                    </a>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => alert(`A empresa ${companyName} ainda não registou número de WhatsApp comercial. Por favor realize a prova online no portal.`)}
+                                      className="flex-1 bg-[#25D366] opacity-80 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                      <MessageCircle className="w-4 h-4 fill-white" />
+                                      <span>Realizar Exame no WhatsApp</span>
+                                    </button>
+                                  )}
+                                  <button 
+                                    type="button"
+                                    onClick={() => onOpenExam?.(job!.exam!, app.id, job!)} 
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                    title="Fazer exame online na plataforma"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-[#0F4C9C]" />
+                                    <span>Fazer no Portal</span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1582,29 +1961,110 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
       )}
 
-      {/* Employer Candidates Applications */}
       {activeTab === 'candidates' && currentUser.role === 'employer' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
-            <div><h3 className="text-sm font-bold text-slate-900">Gestão de Candidatos</h3><p className="text-xs text-slate-500">Acompanhe as candidaturas.</p></div>
-            <button onClick={handleExportCandidates} className="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition border border-emerald-200"><FileText className="w-4 h-4" />Exportar CSV</button>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Gestão de Candidatos</h3>
+              <p className="text-xs text-slate-500">Acompanhe as candidaturas e envie resultados aos candidatos.</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button 
+                onClick={async () => {
+                  try {
+                    const apps = await StoreService.fetchApplications(currentUser);
+                    setApplications(apps || []);
+                  } catch (e) {
+                    console.warn(e);
+                  }
+                }} 
+                className="flex items-center gap-2 bg-[#244F9A] text-white hover:bg-[#193B70] px-4 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+              >
+                <RefreshCw className="w-4 h-4" /> Consultar candidaturas
+              </button>
+              <button onClick={handleExportCandidates} className="flex items-center gap-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-4 py-2 rounded-xl text-xs font-bold transition border border-emerald-200 cursor-pointer"><FileText className="w-4 h-4" />Exportar CSV</button>
+            </div>
           </div>
           <div className="space-y-4">
             {(() => {
-              const employerApps = applications.filter(app => { const job = allJobs.find(j => j.id === app.job_id); return job && (job.employer_id === currentUser.id || job.company_name === currentUser.company_name); });
-              if (employerApps.length === 0) return <div className="bg-white rounded-3xl p-12 text-center border border-slate-200"><User className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-sm text-slate-500">Nenhuma candidatura.</p></div>;
+              const cleanCompId = (currentUser.company?.id || currentUser.id).replace(/^comp-/, '');
+              const employerApps = applications.filter(app => { 
+                const job = allJobs.find(j => j.id === app.job_id) || app.job; 
+                return job && (
+                  job.employer_id === currentUser.id || 
+                  job.company_id === cleanCompId ||
+                  job.company_id === currentUser.id ||
+                  job.company_name?.toLowerCase() === (currentUser.company_name || currentUser.company?.name || '').toLowerCase()
+                ); 
+              });
+              if (employerApps.length === 0) return <div className="bg-white rounded-3xl p-12 text-center border border-slate-200"><User className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-sm text-slate-500">Nenhuma candidatura registada no momento.</p></div>;
               return employerApps.map(app => {
-                const job = allJobs.find(j => j.id === app.job_id);
-                const attempt = job?.has_exam && job.exam ? attempts.find(a => a.candidate_id === app.candidate_id && a.exam_id === job.exam?.id) : null;
+                const job = allJobs.find(j => j.id === app.job_id) || app.job;
+                const attempt = app.exam_result || (job?.has_exam && job.exam ? attempts.find(a => a.candidate_id === app.candidate_id && (a.exam_id === job.exam?.id || a.job_id === job.id)) : null);
+                const candidateName = app.candidate?.full_name || 'Candidato';
                 return (
-                  <div key={app.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div><span className="text-xs font-bold text-[#0F4C9C] uppercase">{job?.title || 'Vaga'}</span><h3 className="text-lg font-bold text-slate-900">{app.candidate?.full_name || 'Candidato'}</h3><p className="text-xs text-slate-500">{app.candidate?.email} • {app.candidate?.phone}</p></div>
-                      <div className="flex flex-col items-end gap-2">
+                  <div key={app.id} className="bg-white p-5 rounded-2xl shadow-2xs border border-slate-200 space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-[#0F4C9C] uppercase">{job?.title || 'Vaga'}</span>
+                        <h3 className="text-base font-bold text-slate-900">{candidateName}</h3>
+                        <p className="text-xs text-slate-500">{app.candidate?.email || 'Email não disponível'} • {app.candidate?.phone || 'Telefone não disponível'}</p>
+                        {attempt ? (
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              attempt.passed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                            }`}>
+                              Exame: {attempt.passed ? 'Apto' : 'Não Apto'} ({attempt.percentage}%)
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Realizado a {new Date(attempt.created_at).toLocaleDateString('pt-AO')}
+                            </span>
+                          </div>
+                        ) : app.exam_score !== undefined ? (
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              app.exam_passed ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'
+                            }`}>
+                              Exame: {app.exam_passed ? 'Apto' : 'Não Apto'} ({app.exam_score}%)
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic block mt-1">Exame: Pendente / Não realizado</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <select value={app.status} onChange={e => handleUpdateStatus(app.id, e.target.value as any)} className="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-bold bg-slate-50">
                           <option value="Enviada">Recebida</option><option value="Em análise">Em análise</option><option value="Selecionada para exame">Selecionada para exame</option><option value="Exame realizado">Exame realizado</option><option value="Aprovada">Aprovada</option><option value="Rejeitada">Rejeitada</option><option value="Contratada">Contratada</option>
                         </select>
-                        {attempt && <span className={"px-2.5 py-1 rounded-lg text-[10px] font-black uppercase " + (attempt.passed ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800")}>Exame: {attempt.percentage}%</span>}
+                        <button
+                          onClick={() => {
+                            const rawPhone = app.candidate?.whatsapp || app.candidate?.phone;
+                            if (!rawPhone || !rawPhone.trim()) {
+                              alert('O candidato não possui número de contacto/WhatsApp registado.');
+                              return;
+                            }
+                            let cleaned = rawPhone.replace(/\D/g, '');
+                            if (!cleaned) {
+                              alert('O número de telefone registado é inválido.');
+                              return;
+                            }
+                            if (!cleaned.startsWith('244') && cleaned.length === 9) {
+                              cleaned = '244' + cleaned;
+                            }
+                            const jobTitle = job?.title || 'Vaga';
+                            const examStatusText = attempt 
+                              ? (attempt.passed ? `APTO (Aprovado com ${attempt.percentage}%)` : `NÃO APTO (${attempt.percentage}%)`)
+                              : (app.exam_score !== undefined ? (app.exam_passed ? `APTO (${app.exam_score}%)` : `NÃO APTO (${app.exam_score}%)`) : 'Pendente / Não realizado');
+
+                            const message = `Olá ${candidateName}, informamos que o resultado da sua candidatura para a vaga de "${jobTitle}" no CuneneVagas foi processado.\n\n• Estado da Candidatura: ${app.status}\n• Resultado do Exame Técnico: ${examStatusText}\n\nPor favor confirme o recebimento desta mensagem no WhatsApp. Obrigado por utilizar a CuneneVagas.`;
+                            window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`, '_blank');
+                          }}
+                          className="bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                          title="Enviar resultado por WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                          <span>WhatsApp</span>
+                        </button>
                       </div>
                     </div>
                     {app.cover_letter && <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><p className="text-xs text-slate-600 italic">"{app.cover_letter}"</p></div>}

@@ -647,6 +647,25 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
         </div>
       )}
 
+      {/* Exibição da Foto de Perfil na Parte Inferior da Aba Perfil */}
+      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 text-center space-y-4 shadow-2xs">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Identidade Visual & Foto de Perfil</h3>
+        <div className="w-28 h-28 sm:w-36 sm:h-36 mx-auto rounded-3xl ring-4 ring-[#244F9A]/20 overflow-hidden bg-slate-100 shadow-md">
+          {currentUser.avatar_url ? (
+            <img src={currentUser.avatar_url} alt={currentUser.full_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-full h-full bg-[#193B70] text-white flex items-center justify-center font-black text-4xl">
+              {currentUser.full_name?.charAt(0).toUpperCase() || 'C'}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-base sm:text-lg font-black text-[#172033]">{currentUser.full_name}</p>
+          <p className="text-xs sm:text-sm font-semibold text-[#244F9A]">{currentUser.profession || 'Candidato Profissional'}</p>
+          <p className="text-xs text-slate-500">{currentUser.municipality || 'Ondjiva'}, Cunene · {currentUser.email || 'Conta Verificada'}</p>
+        </div>
+      </div>
+
       {/* Tela Única de Edição do Perfil de Candidato */}
       <EditarPerfilCandidato
         isOpen={isEditing}

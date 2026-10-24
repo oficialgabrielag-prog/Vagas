@@ -77,22 +77,22 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
     // Try fetching fresh data from Supabase
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        supabase.from('users').select('*').eq('id', user.id).single().then(({ data: profile }) => {
-          if (profile) {
-            if (profile.company_name) setCompanyName(profile.company_name);
-            if (profile.industry) setIndustry(profile.industry);
-            if (profile.municipality) setMunicipality(profile.municipality);
-            if (profile.phone) setPhone(profile.phone);
-            if (profile.whatsapp) setWhatsapp(profile.whatsapp);
-            if (profile.email) setEmail(profile.email);
-            if (profile.website) setWebsite(profile.website);
-            if (profile.nif) setNif(profile.nif);
-            if (profile.bio) setDescription(profile.bio);
-            if (profile.logo_url) setLogoUrl(profile.logo_url);
-            if (profile.cover_url) setCoverUrl(profile.cover_url);
-            if (Array.isArray(profile.services)) setServicesInput(profile.services.join(', '));
+        supabase.from('companies').select('*').eq('id', user.id).maybeSingle().then(({ data: comp }) => {
+          if (comp) {
+            if (comp.name) setCompanyName(comp.name);
+            if (comp.industry) setIndustry(comp.industry);
+            if (comp.municipality) setMunicipality(comp.municipality);
+            if (comp.phone) setPhone(comp.phone);
+            if (comp.whatsapp) setWhatsapp(comp.whatsapp);
+            if (comp.email) setEmail(comp.email);
+            if (comp.website) setWebsite(comp.website);
+            if (comp.nif) setNif(comp.nif);
+            if (comp.description) setDescription(comp.description);
+            if (comp.logo_url) setLogoUrl(comp.logo_url);
+            if (comp.cover_url) setCoverUrl(comp.cover_url);
+            if (Array.isArray(comp.services)) setServicesInput(comp.services.join(', '));
           }
-        });
+        }).catch(() => {});
       }
     }).catch(() => {});
   }, [isOpen, initialUser]);
@@ -216,8 +216,17 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
     setStatusMessage({ type: '', text: '' });
 
     try {
-      const activeUser = currentUser || StoreService.getCurrentUser();
-      const userId = activeUser?.id;
+      let activeUser = currentUser || StoreService.getCurrentUser();
+      let userId = activeUser?.id;
+      if (!userId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          userId = session.user.id;
+          if (!activeUser) {
+            activeUser = await StoreService.restoreUserFromSession(session.user);
+          }
+        }
+      }
       if (!userId) throw new Error('Utilizador não autenticado.');
 
       const cleanLogoUrl = clean(logoUrl) || logoUrl;
@@ -265,25 +274,40 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
       StoreService.setCurrentUser(updatedUser);
       setCurrentUser(updatedUser);
 
-      // 2. Sincronizar com Supabase sem bloquear em caso de RLS
+      // 2. Sincronizar com Supabase de forma segura e não bloqueante
       try {
         await supabase
-          .from('users')
+          .from('profiles')
           .update({
-            company_name: companyName,
+            full_name: companyName,
+            municipality,
+            phone,
+            whatsapp,
+            bio: description,
+            avatar_url: cleanLogoUrl,
+            cover_url: cleanCoverUrl
+          })
+          .eq('id', userId);
+
+        await supabase
+          .from('companies')
+          .upsert([{
+            id: userId,
+            user_id: userId,
+            name: companyName,
             industry,
             municipality,
             phone,
             whatsapp,
             website,
-            bio: description,
             nif,
+            description,
             logo_url: cleanLogoUrl,
-            cover_url: cleanCoverUrl
-          })
-          .eq('id', userId);
+            cover_url: cleanCoverUrl,
+            services: parsedServices
+          }]);
       } catch (supaErr) {
-        console.warn('Sync Supabase users error (continua salvo localmente):', supaErr);
+        console.warn('Sync Supabase note (continua salvo localmente):', supaErr);
       }
 
       setStatusMessage({ type: 'success', text: '✅ Perfil da empresa guardado com sucesso!' });

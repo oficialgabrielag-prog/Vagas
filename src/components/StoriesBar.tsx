@@ -20,8 +20,8 @@ const DEFAULT_STORIES: StoryItem[] = [
     actionTab: 'jobs'
   },
   {
-    id: 's-vdn',
-    authorName: 'Confeitaria VDN',
+    id: 's-cunene-padaria',
+    authorName: 'Padaria & Confeitaria Ondjiva',
     authorAvatar: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=150',
     authorRole: 'Empresa',
     title: 'Pães e Bolos Artesanais do Cunene',

@@ -71,11 +71,11 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        supabase.from('users').select('*').eq('id', user.id).single().then(({ data: profile }) => {
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle().then(({ data: profile }) => {
           if (profile) {
             if (profile.full_name) setFullName(profile.full_name);
             if (profile.profession) setProfession(profile.profession);
-            if (profile.municipality) setMunicipality(profile.municipality);
+            if (profile.municipality || profile.municipio) setMunicipality(profile.municipality || profile.municipio);
             if (profile.phone) setPhone(profile.phone);
             if (profile.whatsapp) setWhatsapp(profile.whatsapp);
             if (profile.email) setEmail(profile.email);
@@ -84,7 +84,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
             if (profile.cover_url) setCoverUrl(profile.cover_url);
             if (Array.isArray(profile.skills)) setSkillsInput(profile.skills.join(', '));
           }
-        });
+        }).catch(() => {});
       }
     }).catch(() => {});
   }, [isOpen, initialUser]);
@@ -208,8 +208,17 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
     setStatusMessage({ type: '', text: '' });
 
     try {
-      const activeUser = currentUser || StoreService.getCurrentUser();
-      const userId = activeUser?.id;
+      let activeUser = currentUser || StoreService.getCurrentUser();
+      let userId = activeUser?.id;
+      if (!userId) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          userId = session.user.id;
+          if (!activeUser) {
+            activeUser = await StoreService.restoreUserFromSession(session.user);
+          }
+        }
+      }
       if (!userId) throw new Error('Utilizador não autenticado.');
 
       const cleanAvatarUrl = clean(avatarUrl) || avatarUrl;
@@ -240,7 +249,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
       // 2. Sincronizar com Supabase sem travar caso haja RLS
       try {
         await supabase
-          .from('users')
+          .from('profiles')
           .update({
             full_name: fullName,
             profession,
@@ -253,7 +262,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           })
           .eq('id', userId);
       } catch (supaErr) {
-        console.warn('Sync Supabase users error (continua salvo localmente):', supaErr);
+        console.warn('Sync Supabase profiles note (salvo localmente):', supaErr);
       }
 
       setStatusMessage({ type: 'success', text: '✅ Perfil de candidato guardado com sucesso!' });

@@ -2,6 +2,24 @@
 <html lang="pt" class="h-full w-full bg-white text-slate-900" style="margin: 0; padding: 0; height: 100%; width: 100%; background-color: #FFFFFF;">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Ignora erros de conexão WebSocket do HMR no ambiente de desenvolvimento AI Studio
+      window.addEventListener('error', function(e) {
+        var msg = (e && e.message) ? String(e.message) : '';
+        if (msg.includes('WebSocket') || msg.includes('@vite/client') || msg.includes('createWebSocketModuleRunnerTransport')) {
+          e.preventDefault && e.preventDefault();
+          e.stopImmediatePropagation && e.stopImmediatePropagation();
+          return true;
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e && (e.reason ? (e.reason.message || String(e.reason)) : '');
+        if (reason && (reason.includes('WebSocket') || reason.includes('@vite/client') || reason.includes('createWebSocketModuleRunnerTransport'))) {
+          e.preventDefault && e.preventDefault();
+          e.stopImmediatePropagation && e.stopImmediatePropagation();
+        }
+      }, true);
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>CuneneVagas | Empregos, Vagas, Negócios e Marketplace no Cunene, Angola</title>
     <meta name="description" content="A principal plataforma de recrutamento, ofertas de emprego, exames técnicos e marketplace profissional na província do Cunene, Angola. Conectando talentos e empresas em Ondjiva e arredores." />
@@ -11,6 +29,8 @@
     <!-- PWA & Mobile Web App Meta Tags -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0F4C9C" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -22,7 +42,7 @@
     <!-- Google Fonts: DM Sans & Ubuntu -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..800;1,9..40,400..800&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bevan:ital@0;1&family=Red+Hat+Text:ital,wght@0,300..700;1,300..700&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
 
     <!-- Open Graph & Social Sharing -->
     <meta property="og:type" content="website" />
@@ -37,6 +57,8 @@
     <meta name="twitter:url" content="https://cunenevagas.online" />
     <meta name="twitter:title" content="CuneneVagas | Empregos & Marketplace no Cunene" />
     <meta name="twitter:description" content="A principal plataforma profissional e de recrutamento para a província do Cunene, Angola." />
+    <!-- Google AdSense Auto Ads -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6416409704289308" crossorigin="anonymous"></script>
     <meta name="monetag" content="ed5d40fab3df025502de6ec9c6932db5">
 
     <!-- Schema.org Structured Data (JSON-LD) -->
@@ -56,13 +78,6 @@
         "addressLocality": "Ondjiva",
         "addressRegion": "Cunene",
         "addressCountry": "AO"
-      },
-      "offers": {
-        "@type": "AggregateOffer",
-        "priceCurrency": "AOA",
-        "lowPrice": "0",
-        "highPrice": "0",
-        "offerCount": "500"
       }
     }
     </script>

@@ -380,3 +380,32 @@ export interface TelecomNewsItem {
   published_at: string;
   created_at: string;
 }
+
+export interface FeaturedCampaign {
+  id: string;
+  type: 'company' | 'product';
+  target_id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  status: 'active' | 'suspended' | 'expired';
+  is_sponsored: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+export interface ManualPaymentRequest {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  amount: string;
+  reference: string;
+  proof_note: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  approved_at?: string;
+  expires_at?: string;
+}
+
+

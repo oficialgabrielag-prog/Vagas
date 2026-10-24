@@ -38,7 +38,14 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
     return StoreService.isFollowing(currentUser.id, company.id);
   });
 
-  const [ratings, setRatings] = useState<CompanyRating[]>(() => company ? StoreService.getCompanyRatings(company.id) : []);
+  const [ratings, setRatings] = useState<CompanyRating[]>([]);
+  
+  React.useEffect(() => {
+    if (company) {
+      const companyId = company.company?.id || company.id;
+      StoreService.getCompanyRatingsAsync(companyId).then(setRatings);
+    }
+  }, [company]);
   const [selectedStars, setSelectedStars] = useState(5);
   const [hoverStars, setHoverStars] = useState<number | null>(null);
   const [ratingComment, setRatingComment] = useState('');
@@ -46,7 +53,8 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
 
   if (!isOpen || !company) return null;
 
-  const ratingStats = StoreService.getCompanyRatingStats(company.id);
+  const companyId = company.company?.id || company.id;
+  const ratingStats = StoreService.getCompanyRatingStats(companyId);
   const partnerInfo = StoreService.isUserPartner(company.id);
 
   const handleRatingSubmit = (e: React.FormEvent) => {
@@ -56,14 +64,14 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
       return;
     }
     StoreService.addCompanyRating({
-      company_id: company.id,
+      company_id: companyId,
       user_id: currentUser.id,
       user_name: currentUser.full_name || 'Utilizador do Cunene',
       user_avatar: currentUser.avatar_url,
       rating: selectedStars,
       comment: ratingComment.trim() || undefined
     });
-    setRatings(StoreService.getCompanyRatings(company.id));
+    setRatings(StoreService.getCompanyRatings(companyId));
     setRatingSubmitted(true);
     setRatingComment('');
     setTimeout(() => setRatingSubmitted(false), 5000);

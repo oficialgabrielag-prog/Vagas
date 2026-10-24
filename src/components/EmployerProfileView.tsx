@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Phone, Mail, Globe, MessageCircle, Briefcase, ShoppingBag, Plus, Edit3, Trash2, Camera, Users, FileText, CheckCircle2, AlertCircle, X, Power, Award, CreditCard, Bell, Search, Filter, Star, ChevronRight } from 'lucide-react';
-import { UserProfile, Job, MarketplaceProduct, CommunityPost, JobApplication, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, FollowerItem, CompanyRating } from '../lib/types';
+import { Building2, MapPin, Phone, Mail, Globe, MessageCircle, Briefcase, ShoppingBag, Plus, Edit3, Trash2, Camera, Users, FileText, CheckCircle2, AlertCircle, X, Power, Award, CreditCard, Bell, Search, Filter, Star, ChevronRight, RefreshCw } from 'lucide-react';
+import { UserProfile, Job, MarketplaceProduct, CommunityPost, JobApplication, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, FollowerItem, CompanyRating, ExamAttempt } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { supabase } from '../lib/supabase';
 import { uploadToCloudinary, cleanDocumentUrl } from '../lib/cloudinary';
 import { ImageUploader } from './ImageUploader';
 import { PayPalPaymentModal } from './PayPalPaymentModal';
@@ -77,6 +78,20 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
   // Candidate detail modal state
   const [selectedCandidateApp, setSelectedCandidateApp] = useState<JobApplication | null>(null);
+  const [candidateExamAttempt, setCandidateExamAttempt] = useState<ExamAttempt | null>(null);
+
+  React.useEffect(() => {
+    if (selectedCandidateApp) {
+      const attempts = StoreService.getExamAttempts();
+      const found = attempts.find(a => 
+        a.candidate_id === selectedCandidateApp.candidate_id && 
+        (a.job_id === selectedCandidateApp.job_id || a.application_id === selectedCandidateApp.id)
+      );
+      setCandidateExamAttempt(found || null);
+    } else {
+      setCandidateExamAttempt(null);
+    }
+  }, [selectedCandidateApp]);
 
   // Isolated Company Profile States
   const company = currentUser.company;
@@ -136,26 +151,71 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const [applicationsError, setApplicationsError] = useState<string | null>(null);
 
   React.useEffect(() => {
+    let isMounted = true;
+    const loadApps = async () => {
+      setLoadingApplications(true);
+      setApplicationsError(null);
+      try {
+        const fetched = await StoreService.fetchApplications(currentUser);
+        if (isMounted) {
+          setApplications(fetched || []);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setApplicationsError('Não foi possível carregar candidaturas do servidor.');
+          console.warn('Erro ao carregar candidaturas:', err);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingApplications(false);
+        }
+      }
+    };
+
     if (propApplications && propApplications.length > 0) {
       setApplications(propApplications);
     } else {
-      setLoadingApplications(true);
-      setApplicationsError(null);
-      StoreService.fetchApplications()
-        .then(fetched => {
-          if (fetched && fetched.length > 0) {
-            setApplications(fetched);
-          }
-        })
-        .catch(err => {
-          setApplicationsError('Erro ao carregar candidaturas do servidor.');
-          console.warn('Erro ao carregar candidaturas:', err);
-        })
-        .finally(() => {
-          setLoadingApplications(false);
-        });
+      loadApps();
     }
-  }, [propApplications]);
+
+    // Realtime subscription with verified channel and automatic refetch
+    const channel = supabase
+      .channel(`emp-apps-sync-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'applications' },
+        async () => {
+          try {
+            const apps = await StoreService.fetchApplications(currentUser);
+            if (isMounted) setApplications(apps || []);
+          } catch {}
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.info('[Realtime] Canal de candidaturas conectado.');
+        } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+          console.warn('[Realtime] Canal interrompido, sincronização periódica ativa:', status, err?.message);
+        }
+      });
+
+    // Safety polling every 30 seconds
+    const safetyPoll = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        StoreService.fetchApplications(currentUser)
+          .then(apps => {
+            if (isMounted) setApplications(apps || []);
+          })
+          .catch(() => {});
+      }
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(safetyPoll);
+      supabase.removeChannel(channel);
+    };
+  }, [propApplications, currentUser.id, currentUser.company?.id]);
   
   // Payments State
   const [payments, setPayments] = useState<any[]>([]);
@@ -176,17 +236,21 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   }, [activeTab, currentUser.id]);
 
   // Robustly filter real data belonging to this company/employer
+  const cleanCompId = (company?.id || currentUser.id).replace(/^comp-/, '');
   const myJobs = jobs.filter(j => 
     j.employer_id === currentUser.id || 
     (company?.id && j.company_id === company.id) ||
+    (cleanCompId && j.company_id === cleanCompId) ||
+    (currentUser.id && j.company_id === currentUser.id) ||
     (company?.name && j.company_name?.toLowerCase() === company.name.toLowerCase()) ||
     (currentUser.company_name && j.company_name?.toLowerCase() === currentUser.company_name.toLowerCase())
   );
 
-  const myProducts = products.filter(p => p.seller_id === currentUser.id || p.company_id === company?.id);
+  const myProducts = products.filter(p => p.seller_id === currentUser.id || p.company_id === company?.id || p.company_id === cleanCompId);
   const myPosts = posts.filter(p =>
     (p.author_id === currentUser.id ||
      (company?.id && p.company_id === company.id) ||
+     (cleanCompId && p.company_id === cleanCompId) ||
      (currentUser.company_name && p.author_name?.toLowerCase() === currentUser.company_name.toLowerCase()) ||
      p.author_name?.toLowerCase() === (company?.name || '').toLowerCase()) &&
     (p.author_type === 'employer' || (p as any).post_type === 'employer')
@@ -195,7 +259,10 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const myJobIds = myJobs.map(j => j.id);
   const myApplications = applications.filter(a => 
     myJobIds.includes(a.job_id) ||
-    (company?.id && (a as any).company_id === company.id)
+    (cleanCompId && (a as any).company_id === cleanCompId) ||
+    (company?.id && (a as any).company_id === company.id) ||
+    (currentUser.id && (a as any).company_id === currentUser.id) ||
+    (a.job && (a.job.employer_id === currentUser.id || a.job.company_id === cleanCompId))
   );
 
   // Calculated strictly from real data
@@ -207,8 +274,20 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const myPostsCount = myPosts.length;
 
   // Real ratings data
-  const companyRatings = StoreService.getCompanyRatings(currentUser.id);
-  const ratingStats = StoreService.getCompanyRatingStats(currentUser.id);
+  const [companyRatings, setCompanyRatings] = useState<CompanyRating[]>([]);
+  const [ratingStats, setRatingStats] = useState({ average: 5.0, count: 0 });
+
+  React.useEffect(() => {
+    StoreService.getCompanyRatingsAsync(currentUser.id).then(ratings => {
+      setCompanyRatings(ratings);
+      const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+      setRatingStats({
+        average: ratings.length > 0 ? Number((sum / ratings.length).toFixed(1)) : 5.0,
+        count: ratings.length
+      });
+    });
+  }, [currentUser.id]);
+  
   const totalReviews = companyRatings.length;
   const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
   companyRatings.forEach(r => {
@@ -249,6 +328,8 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
   const handleToggleJobStatus = (job: Job) => {
     const nextStatus = job.status === 'active' ? 'closed' : 'active';
     StoreService.updateJob(job.id, { status: nextStatus });
+    setSuccessMessage(nextStatus === 'closed' ? '✅ Vaga encerrada com sucesso!' : '✅ Vaga reativada com sucesso!');
+    setTimeout(() => setSuccessMessage(''), 3000);
     onProfileUpdated(currentUser);
   };
 
@@ -259,6 +340,8 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       confirmText: 'Eliminar Vaga',
       onConfirm: () => {
         StoreService.deleteJob(jobId);
+        setSuccessMessage('✅ Vaga eliminada com sucesso!');
+        setTimeout(() => setSuccessMessage(''), 3000);
         onProfileUpdated(currentUser);
       }
     });
@@ -350,6 +433,49 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     setApplications(StoreService.getApplications());
     setSuccessMessage(`Estado da candidatura atualizado para "${status}".`);
     setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  const handleSendWhatsAppResult = (app: JobApplication) => {
+    const rawPhone = app.candidate?.whatsapp || app.candidate?.phone;
+    if (!rawPhone || !rawPhone.trim()) {
+      setErrorMessage('O candidato não possui número de contacto/WhatsApp registado.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+    let cleaned = rawPhone.replace(/\D/g, '');
+    if (!cleaned) {
+      setErrorMessage('O número de telefone registado é inválido.');
+      setTimeout(() => setErrorMessage(''), 4000);
+      return;
+    }
+    if (!cleaned.startsWith('244') && cleaned.length === 9) {
+      cleaned = '244' + cleaned;
+    }
+    const job = jobs.find(j => j.id === app.job_id) || app.job;
+    const jobTitle = job?.title || 'Vaga';
+    const candidateName = app.candidate?.full_name || 'Candidato';
+    
+    // Look up real exam attempt
+    const allAttempts = StoreService.getExamAttempts();
+    const attempt = app.exam_result || allAttempts.find(a => 
+      a.candidate_id === app.candidate_id && 
+      (a.job_id === app.job_id || a.application_id === app.id)
+    );
+
+    let examStatusText = 'Pendente / Não realizado';
+    if (attempt) {
+      examStatusText = attempt.passed 
+        ? `APTO (Aprovado com ${attempt.percentage}%)` 
+        : `NÃO APTO (${attempt.percentage}%)`;
+    } else if (app.exam_score !== undefined) {
+      examStatusText = app.exam_passed 
+        ? `APTO (Aprovado com ${app.exam_score}%)` 
+        : `NÃO APTO (${app.exam_score}%)`;
+    }
+
+    const message = `Olá ${candidateName}, informamos que o resultado da sua candidatura para a vaga de "${jobTitle}" no CuneneVagas foi processado.\n\n• Estado da Candidatura: ${app.status}\n• Resultado do Exame Técnico: ${examStatusText}\n\nPor favor confirme o recebimento desta mensagem no WhatsApp. Obrigado por utilizar a CuneneVagas.`;
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/${cleaned}?text=${encoded}`, '_blank');
   };
 
   return (
@@ -1018,6 +1144,28 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 <h3 className="text-base font-extrabold text-[#172033]">Candidaturas Recebidas</h3>
                 <p className="text-xs text-slate-500">Avalie os profissionais que se candidataram às vagas da sua empresa</p>
               </div>
+              <button
+                onClick={async () => {
+                  setLoadingApplications(true);
+                  setApplicationsError(null);
+                  try {
+                    const apps = await StoreService.fetchApplications(currentUser);
+                    setApplications(apps || []);
+                    setSuccessMessage('Candidaturas consultadas e atualizadas com sucesso.');
+                    setTimeout(() => setSuccessMessage(''), 3000);
+                  } catch (err) {
+                    setApplicationsError('Não foi possível atualizar as candidaturas. Tente novamente.');
+                    setTimeout(() => setApplicationsError(null), 4000);
+                  } finally {
+                    setLoadingApplications(false);
+                  }
+                }}
+                disabled={loadingApplications}
+                className="flex items-center gap-1.5 bg-[#244F9A] text-white hover:bg-[#193B70] px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-95"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingApplications ? 'animate-spin' : ''}`} />
+                <span>{loadingApplications ? 'A consultar...' : 'Consultar candidaturas'}</span>
+              </button>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
@@ -1047,7 +1195,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
             {loadingApplications ? (
               <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
                 <div className="w-8 h-8 border-4 border-[#244F9A] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs text-slate-500">A carregar candidaturas...</p>
+                <p className="text-xs text-slate-500">A carregar candidaturas do servidor...</p>
               </div>
             ) : applicationsError ? (
               <div className="bg-rose-50 text-rose-700 p-6 rounded-3xl border border-rose-200 text-center space-y-2">
@@ -1056,7 +1204,8 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 <button 
                   onClick={() => {
                     setLoadingApplications(true);
-                    StoreService.fetchApplications().then(setApplications).finally(() => setLoadingApplications(false));
+                    setApplicationsError(null);
+                    StoreService.fetchApplications(currentUser).then(apps => setApplications(apps || [])).catch(() => setApplicationsError('Falha ao consultar.')).finally(() => setLoadingApplications(false));
                   }}
                   className="bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs mt-2 cursor-pointer"
                 >
@@ -1074,10 +1223,16 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
             ) : (
               <div className="space-y-3">
                 {filteredCandidates.map(app => {
-                  const job = jobs.find(j => j.id === app.job_id);
+                  const job = jobs.find(j => j.id === app.job_id) || app.job;
                   const candidateName = app.candidate?.full_name || 'Candidato';
                   const candidateProfession = app.candidate?.profession || 'Profissional';
                   const candidateMunicipality = app.candidate?.municipality || 'Cunene';
+
+                  const allAttempts = StoreService.getExamAttempts();
+                  const attempt = app.exam_result || allAttempts.find(a => 
+                    a.candidate_id === app.candidate_id && 
+                    (a.job_id === app.job_id || a.application_id === app.id)
+                  );
 
                   return (
                     <div key={app.id} className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1094,9 +1249,32 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                             }`}>
                               {app.status || 'Em análise'}
                             </span>
+                            {attempt ? (
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                attempt.passed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                              }`}>
+                                Exame: {attempt.passed ? 'Apto' : 'Não Apto'} ({attempt.percentage}%)
+                              </span>
+                            ) : app.exam_score !== undefined ? (
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                app.exam_passed ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                              }`}>
+                                Exame: {app.exam_passed ? 'Apto' : 'Não Apto'} ({app.exam_score}%)
+                              </span>
+                            ) : null}
                           </div>
                           <p className="text-xs font-semibold text-[#244F9A]">{candidateProfession} • Vaga: {job?.title || 'Vaga'}</p>
-                          <p className="text-[11px] text-slate-500">📍 {candidateMunicipality} • Candidatura em {new Date(app.created_at).toLocaleDateString('pt-AO')}</p>
+                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500">
+                            <span>📍 {candidateMunicipality}</span>
+                            <span>•</span>
+                            <span>Candidatura em {new Date(app.created_at).toLocaleDateString('pt-AO')}</span>
+                            {attempt && (
+                              <>
+                                <span>•</span>
+                                <span className="text-slate-600 font-semibold">Exame a {new Date(attempt.created_at).toLocaleDateString('pt-AO')}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1106,6 +1284,14 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                           className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3.5 py-2 rounded-xl text-xs transition cursor-pointer"
                         >
                           Ver Perfil / CV
+                        </button>
+                        <button
+                          onClick={() => handleSendWhatsAppResult(app)}
+                          className="bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                          title="Enviar resultado por WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                          <span>WhatsApp</span>
                         </button>
                         <button
                           onClick={() => handleUpdateAppStatus(app.id, 'Aprovada')}
@@ -1192,6 +1378,30 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   {company?.description || bio || 'Nenhuma descrição fornecida.'}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Exibição da Foto do Perfil da Empresa na Parte Inferior da Aba Perfil */}
+          <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-6 text-center space-y-4 mt-6">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logotipo / Foto Oficial da Empresa</h4>
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-2xl ring-4 ring-[#244F9A]/20 overflow-hidden bg-white shadow-md">
+              {company?.logo_url || logoUrl || currentUser.company_logo || currentUser.avatar_url ? (
+                <img 
+                  src={company?.logo_url || logoUrl || currentUser.company_logo || currentUser.avatar_url} 
+                  alt={company?.name || companyName} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer" 
+                />
+              ) : (
+                <div className="w-full h-full bg-[#193B70] text-white flex items-center justify-center font-black text-3xl">
+                  {(company?.name || companyName)?.charAt(0).toUpperCase() || 'E'}
+                </div>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-black text-[#172033]">{company?.name || companyName}</p>
+              <p className="text-xs font-semibold text-[#244F9A]">{company?.industry || industry}</p>
+              <p className="text-xs text-slate-500">{company?.municipality || municipality}, Cunene · NIF: {company?.nif || nif || '000000000'}</p>
             </div>
           </div>
         </div>
@@ -1542,6 +1752,54 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   <span>Ver Currículo em Tela Cheia</span>
                 </button>
               )}
+
+              {/* Exam Result Details */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span className="font-extrabold text-slate-800 block">Resultado do Exame Técnico:</span>
+                {candidateExamAttempt ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-slate-600 font-semibold">Nota: {candidateExamAttempt.percentage}% ({candidateExamAttempt.score}/{candidateExamAttempt.total_points} pts)</p>
+                      <p className="text-[10px] text-slate-400">Realizado a {new Date(candidateExamAttempt.created_at).toLocaleDateString('pt-AO')}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase ${
+                      candidateExamAttempt.passed ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {candidateExamAttempt.passed ? 'Apto' : 'Não Apto'}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 italic text-[11px]">Nenhum exame técnico registado para esta candidatura.</p>
+                )}
+              </div>
+
+              {/* WhatsApp Action Button */}
+              <button
+                onClick={() => {
+                  const rawPhone = selectedCandidateApp.candidate?.whatsapp || selectedCandidateApp.candidate?.phone;
+                  if (!rawPhone) {
+                    alert('O candidato não possui número de contacto/WhatsApp registado.');
+                    return;
+                  }
+                  let cleaned = rawPhone.replace(/\D/g, '');
+                  if (!cleaned.startsWith('244') && cleaned.length === 9) {
+                    cleaned = '244' + cleaned;
+                  }
+                  const job = jobs.find(j => j.id === selectedCandidateApp.job_id);
+                  const jobTitle = job?.title || 'Vaga';
+                  const examStatusText = candidateExamAttempt 
+                    ? (candidateExamAttempt.passed ? `APTO (Aprovado com ${candidateExamAttempt.percentage}%)` : `NÃO APTO (${candidateExamAttempt.percentage}%)`)
+                    : 'Pendente / Não realizado';
+
+                  const message = `Olá ${selectedCandidateApp.candidate?.full_name || 'Candidato'}, informamos que o resultado da sua candidatura para a vaga de "${jobTitle}" na CuneneVagas foi processado.\n\nEstado da Candidatura: ${selectedCandidateApp.status}\nResultado do Exame: ${examStatusText}\n\nObrigado por usar a CuneneVagas.`;
+                  const encoded = encodeURIComponent(message);
+                  window.open(`https://wa.me/${cleaned}?text=${encoded}`, '_blank');
+                }}
+                className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold py-2.5 rounded-xl text-center flex items-center justify-center gap-2 cursor-pointer shadow-sm transition"
+              >
+                <MessageCircle className="w-4 h-4 fill-white" />
+                <span>Enviar Resultado por WhatsApp</span>
+              </button>
 
               <div className="pt-2 flex justify-end">
                 <button

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, MapPin, Briefcase, Filter, Calendar, Clock, DollarSign, ArrowRight, Bookmark, ChevronRight } from 'lucide-react';
 import { Job, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { GiantCinematicCarousel } from '../components/GiantCinematicCarousel';
 
 interface JobsPageProps {
   jobs: Job[];
@@ -50,6 +51,17 @@ export const JobsPage: React.FC<JobsPageProps> = ({ jobs, companies = [], curren
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 font-sans">
       
+      {/* Carrossel Cinemático */}
+      <GiantCinematicCarousel 
+        jobs={jobs}
+        products={[]}
+        companies={companies}
+        onSelectJob={onSelectJob}
+        onSelectProduct={() => {}}
+        onSelectCompany={comp => onSelectCompany && onSelectCompany(comp)}
+        onNavigateTab={() => {}}
+      />
+
       {/* 1. Cabeçalho Corporativo e Limpo */}
       <div className="pb-6 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

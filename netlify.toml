@@ -1,0 +1,28 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Redirecionamento da API de verificação do reCAPTCHA para a Netlify Function
+[[redirects]]
+  from = "/api/verify-recaptcha"
+  to = "/.netlify/functions/verify-recaptcha"
+  status = 200
+# Redirecionamento da API de envio de emails para a Netlify Function
+[[redirects]]
+  from = "/api/send-email-campaign"
+  to = "/.netlify/functions/send-email-campaign"
+  status = 200
+
+# Redirecionamento padrão para SPA (Single Page Application)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, RotateCw, Check, ArrowDown } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { BottomNav } from './components/BottomNav';
@@ -37,8 +38,163 @@ import { StoreService } from './lib/store';
 import { Job, UserProfile, Exam, MarketplaceProduct, CommunityPost, ExamAttempt, JobApplication } from './lib/types';
 import { onAuthStateChange, getSession, supabase } from './lib/supabase';
 
+interface PageMeta {
+  title: string;
+  description: string;
+  path: string;
+  ogTitle: string;
+  ogDesc: string;
+}
+
+const PAGE_METADATA: Record<string, PageMeta> = {
+  home: {
+    title: 'CuneneVagas | Empregos, Vagas, Negócios e Marketplace no Cunene, Angola',
+    description: 'A principal plataforma de recrutamento, ofertas de emprego, exames técnicos e marketplace profissional na província do Cunene, Angola. Conectando talentos e empresas em Ondjiva e arredores.',
+    path: '/',
+    ogTitle: 'CuneneVagas | Empregos, Vagas e Marketplace no Cunene',
+    ogDesc: 'Encontre oportunidades de trabalho, exames técnicos, produtos locais e conexões profissionais em Ondjiva e em toda a província do Cunene.',
+  },
+  jobs: {
+    title: 'Vagas de Emprego no Cunene e Angola | CuneneVagas',
+    description: 'Consulte as mais recentes ofertas de emprego, estágios e vagas de trabalho no Cunene (Ondjiva) e em Angola. Candidate-se diretamente.',
+    path: '/jobs',
+    ogTitle: 'Vagas de Emprego no Cunene e Angola | CuneneVagas',
+    ogDesc: 'Encontre vagas abertas, estágios e testes técnicos de seleção no Cunene. Candidate-se online.',
+  },
+  marketplace: {
+    title: 'Marketplace Local do Cunene | Comércio e Serviços | CuneneVagas',
+    description: 'Explore produtos, serviços e comércio local na província do Cunene. Negocie diretamente com vendedores em Ondjiva e arredores.',
+    path: '/marketplace',
+    ogTitle: 'Marketplace Local do Cunene | Comércio e Serviços | CuneneVagas',
+    ogDesc: 'Compre, venda e descubra lojas e produtos locais em Ondjiva e em toda a província do Cunene.',
+  },
+  community: {
+    title: 'Comunidade Profissional do Cunene | Feed & Networking | CuneneVagas',
+    description: 'Conecte-se com profissionais, empresas e talentos no Cunene. Partilhe experiências, publicações e oportunidades de negócio.',
+    path: '/community',
+    ogTitle: 'Comunidade Profissional do Cunene | CuneneVagas',
+    ogDesc: 'Espaço de networking, publicações, sondagens e conexões para profissionais e empresas no Cunene.',
+  },
+  companies: {
+    title: 'Empresas e Recrutadores no Cunene | CuneneVagas',
+    description: 'Diretório de empresas parceiras, organizações e recrutadores no Cunene e em Angola. Conheça as instituições que contratam talentos.',
+    path: '/companies',
+    ogTitle: 'Diretório de Empresas e Recrutadores no Cunene | CuneneVagas',
+    ogDesc: 'Conheça as principais organizações que operam e recrutam talentos na província do Cunene.',
+  },
+  dashboard: {
+    title: 'Painel de Controlo | CuneneVagas',
+    description: 'Gestão da sua conta, candidaturas, vagas, exames técnicos e métricas profissionais no CuneneVagas.',
+    path: '/dashboard',
+    ogTitle: 'Painel de Controlo | CuneneVagas',
+    ogDesc: 'Gestão profissional e empresarial no CuneneVagas.',
+  },
+  login: {
+    title: 'Entrar na Conta | CuneneVagas',
+    description: 'Aceda à sua conta de candidato ou empresa no CuneneVagas e acompanhe oportunidades de emprego e negócios.',
+    path: '/login',
+    ogTitle: 'Entrar na Conta | CuneneVagas',
+    ogDesc: 'Aceda à sua conta no CuneneVagas.',
+  },
+  register: {
+    title: 'Criar Conta | CuneneVagas',
+    description: 'Registe-se gratuitamente como candidato ou empresa no CuneneVagas. Publique vagas ou candidate-se a empregos no Cunene.',
+    path: '/register',
+    ogTitle: 'Criar Conta | CuneneVagas',
+    ogDesc: 'Registe-se no CuneneVagas.',
+  },
+};
+
+const getInitialTabFromLocation = (): string => {
+  if (typeof window === 'undefined') return 'home';
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  const hash = window.location.hash.toLowerCase().replace(/^#/, '');
+
+  if (path === '/jobs' || path === '/vagas' || hash === 'jobs') return 'jobs';
+  if (path === '/marketplace' || hash === 'marketplace') return 'marketplace';
+  if (path === '/community' || path === '/comunidade' || hash === 'community') return 'community';
+  if (path === '/companies' || path === '/empresas' || hash === 'companies') return 'companies';
+  if (path === '/dashboard') return 'dashboard';
+  if (path === '/login') return 'login';
+  if (path === '/register') return 'register';
+  return 'home';
+};
+
+const updateDocMeta = (meta: PageMeta) => {
+  if (typeof document === 'undefined') return;
+
+  // Title
+  document.title = meta.title;
+
+  // Helper for meta tags
+  const setMeta = (attrName: 'name' | 'property', attrVal: string, content: string) => {
+    let el = document.querySelector(`meta[${attrName}="${attrVal}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(attrName, attrVal);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  };
+
+  // Helper for canonical
+  let canonicalEl = document.querySelector('link[rel="canonical"]');
+  if (!canonicalEl) {
+    canonicalEl = document.createElement('link');
+    canonicalEl.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonicalEl);
+  }
+  const canonicalUrl = `https://cunenevagas.online${meta.path === '/' ? '' : meta.path}`;
+  canonicalEl.setAttribute('href', canonicalUrl);
+
+  // Meta description & Open Graph & Twitter
+  setMeta('name', 'description', meta.description);
+  setMeta('property', 'og:title', meta.ogTitle);
+  setMeta('property', 'og:description', meta.ogDesc);
+  setMeta('property', 'og:url', canonicalUrl);
+  setMeta('name', 'twitter:title', meta.title);
+  setMeta('name', 'twitter:description', meta.description);
+  setMeta('name', 'twitter:url', canonicalUrl);
+};
+
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  const [currentTab, setCurrentTabState] = useState<string>(() => getInitialTabFromLocation());
+
+  const setCurrentTab = (newTab: string) => {
+    setCurrentTabState(newTab);
+    if (typeof window !== 'undefined') {
+      const targetPath = PAGE_METADATA[newTab]?.path || (newTab === 'home' ? '/' : `/${newTab}`);
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ tab: newTab }, '', targetPath);
+      }
+      const meta = PAGE_METADATA[newTab];
+      if (meta) updateDocMeta(meta);
+    }
+  };
+
+  useEffect(() => {
+    // Sync metadata for initial tab
+    const meta = PAGE_METADATA[currentTab];
+    if (meta) updateDocMeta(meta);
+
+    // Listen to browser navigation (back/forward)
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.tab) {
+        setCurrentTabState(e.state.tab);
+        const m = PAGE_METADATA[e.state.tab];
+        if (m) updateDocMeta(m);
+      } else {
+        const tab = getInitialTabFromLocation();
+        setCurrentTabState(tab);
+        const m = PAGE_METADATA[tab];
+        if (m) updateDocMeta(m);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(StoreService.getCurrentUser());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isPCMode, setIsPCMode] = useState<boolean>(() => {
@@ -50,42 +206,13 @@ export default function App() {
     return true;
   });
 
-  const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('cunene_theme_mode');
-      if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-    }
-    return 'system';
-  });
-
   useEffect(() => {
-    const applyTheme = () => {
-      const root = document.documentElement;
-      let isDark = false;
-      if (themeMode === 'dark') {
-        isDark = true;
-      } else if (themeMode === 'light') {
-        isDark = false;
-      } else {
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      }
-
-      if (isDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    };
-
-    applyTheme();
-
-    if (themeMode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
+    const root = document.documentElement;
+    root.classList.remove('dark');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('cunene_theme_mode');
     }
-  }, [themeMode]);
+  }, []);
 
   const handleTogglePCMode = () => {
     setIsPCMode((prev) => {
@@ -97,46 +224,7 @@ export default function App() {
     });
   };
 
-  const handleToggleTheme = () => {
-    setThemeMode((prev) => {
-      const next = prev === 'system' ? 'light' : prev === 'light' ? 'dark' : 'system';
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('cunene_theme_mode', next);
-      }
-      return next;
-    });
-  };
-
-  // Sync posts in real-time
-  useEffect(() => {
-    const channel = supabase
-      .channel('community-posts')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'community_posts',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const post = payload.new as CommunityPost;
-            setPosts((atuais) => [post, ...atuais.filter((item) => item.id !== post.id)]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedPost = payload.new as CommunityPost;
-            setPosts((atuais) =>
-              atuais.map((item) => (item.id === updatedPost.id ? updatedPost : item))
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  // Realtime subscriptions moved to startup hook
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -225,13 +313,52 @@ export default function App() {
         const prod = products.find(p => p.id === link.replace('prod-', ''));
         if (prod) setSelectedProduct(prod);
       }
-      // Adicionar mais tratamentos conforme necessário
     };
     window.addEventListener('navigate-to-item', handleNavigateToItem);
+
+    // Detetar links diretos partilhados na URL (ex: #community/post/:id ou #marketplace/produto/:id)
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash;
+      if (hash.startsWith('#community/post/')) {
+        const postId = hash.replace('#community/post/', '');
+        const found = posts.find(p => p.id === postId);
+        if (found) setSelectedPost(found);
+      } else if (hash.startsWith('#marketplace/produto/')) {
+        const prodId = hash.replace('#marketplace/produto/', '');
+        const found = products.find(p => p.id === prodId);
+        if (found) setSelectedProduct(found);
+      }
+    }
+    
+    const handleJobDeleted = (e: any) => {
+      const jobId = e.detail?.jobId;
+      if (jobId) {
+        setJobs(prev => prev.filter(j => j.id !== jobId));
+      }
+    };
+    const handleProductDeleted = (e: any) => {
+      const prodId = e.detail?.productId;
+      if (prodId) {
+        setProducts(prev => prev.filter(p => p.id !== prodId));
+      }
+    };
+    const handlePostDeleted = (e: any) => {
+      const postId = e.detail?.postId;
+      if (postId) {
+        setPosts(prev => prev.filter(p => p.id !== postId));
+      }
+    };
+
+    window.addEventListener('cunene_job_deleted', handleJobDeleted);
+    window.addEventListener('cunene_product_deleted', handleProductDeleted);
+    window.addEventListener('cunene_post_deleted', handlePostDeleted);
     
     return () => {
       window.removeEventListener('open-explore-search', handleOpenExplore);
       window.removeEventListener('navigate-to-item', handleNavigateToItem);
+      window.removeEventListener('cunene_job_deleted', handleJobDeleted);
+      window.removeEventListener('cunene_product_deleted', handleProductDeleted);
+      window.removeEventListener('cunene_post_deleted', handlePostDeleted);
     };
   }, [jobs, products]);
 
@@ -387,12 +514,11 @@ export default function App() {
       if (freshPosts) setPosts(freshPosts);
       if (freshApps) setApplications(freshApps);
 
-      const compTimeout = new Promise<UserProfile[]>((resolve) => setTimeout(() => resolve(StoreService.getCompanies()), 5000));
-      const freshCompanies = await Promise.race([
-        StoreService.fetchCompanies(),
-        compTimeout
-      ]);
-      if (freshCompanies) setCompanies(freshCompanies);
+      // Synchronize companies without a short-circuit timeout to prevent "disappearing" items
+      const freshCompanies = await StoreService.fetchCompanies();
+      if (freshCompanies && freshCompanies.length > 0) {
+        setCompanies(freshCompanies);
+      }
     } catch (e) {
       console.warn('Sincronização em segundo plano:', e);
     }
@@ -449,13 +575,90 @@ export default function App() {
 
     // Initial background sync sem travar o render inicial
     refreshData();
+    
+    // Supabase Realtime: Atualiza os dados instantaneamente em todos os clientes
+    const uid = Math.random().toString(36).substring(7);
+    const channels = {
+      jobs: supabase.channel(`public:jobs-${uid}`),
+      posts: supabase.channel(`public:community_posts-${uid}`),
+      marketplace: supabase.channel(`public:marketplace-${uid}`),
+      apps: supabase.channel(`public:applications-${uid}`),
+      companies: supabase.channel(`public:companies-${uid}`),
+      users: supabase.channel(`public:users_profiles-${uid}`),
+    };
+
+    channels.jobs
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
+        StoreService.fetchJobs().then(freshJobs => setJobs(freshJobs));
+      })
+      .subscribe();
+
+    channels.posts
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_posts' }, () => {
+        StoreService.fetchPosts().then(freshPosts => setPosts(freshPosts));
+      })
+      .subscribe();
+
+    channels.marketplace
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace' }, () => {
+        StoreService.fetchProducts().then(freshProds => setProducts(freshProds));
+      })
+      .subscribe();
+
+    channels.apps
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, () => {
+        StoreService.fetchApplications().then(freshApps => setApplications(freshApps));
+      })
+      .subscribe();
+
+    channels.companies
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, () => {
+        StoreService.fetchCompanies().then(freshCompanies => setCompanies(freshCompanies));
+      })
+      .subscribe();
+
+    const refreshAllUsersAndCompanies = () => {
+      // Refresh general users list
+      StoreService.getPlatformUserStats().then(stats => {
+        const mappedUsers: UserProfile[] = stats.users.map(u => ({
+          id: u.id,
+          full_name: u.name,
+          email: u.email,
+          whatsapp: u.whatsapp || '',
+          phone: u.whatsapp || '',
+          role: (u.role === 'Empresa' || u.role === 'employer' || u.role === 'empresa') ? 'employer' : 'candidate',
+          municipality: u.municipality || 'Ondjiva',
+          avatar_url: u.avatar_url,
+          profession: '',
+          created_at: u.created_at || new Date().toISOString(),
+        } as any));
+        setAllUsers(mappedUsers);
+      });
+      
+      // CRITICAL: Refresh company list as well to ensure real-time visibility across all devices
+      StoreService.fetchCompanies().then(freshCompanies => {
+        if (freshCompanies && freshCompanies.length > 0) {
+          setCompanies(freshCompanies);
+        }
+      });
+    };
+
+    channels.users
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        refreshAllUsersAndCompanies();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        refreshAllUsersAndCompanies();
+      })
+      .subscribe();
 
     return () => {
       authListener?.subscription.unsubscribe();
+      Object.values(channels).forEach(channel => supabase.removeChannel(channel));
     };
   }, []);
 
-  // Escuta exclusão de posts para atualização reativa instantânea
+  // Escuta exclusão e atualizações reativas instantâneas de posts, produtos e vagas
   useEffect(() => {
     const handlePostDeleted = (e: any) => {
       const deletedId = e.detail?.postId;
@@ -466,34 +669,49 @@ export default function App() {
         }
       }
     };
+
+    const handleJobDeleted = (e: any) => {
+      const deletedId = e.detail?.jobId;
+      if (deletedId) {
+        setJobs(prev => prev.filter(j => j.id !== deletedId));
+        if (selectedJob?.id === deletedId) {
+          setSelectedJob(null);
+        }
+      }
+    };
+
+    const handleJobUpdated = (e: any) => {
+      const updatedJob = e.detail?.job;
+      if (updatedJob) {
+        setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
+        if (selectedJob?.id === updatedJob.id) {
+          setSelectedJob(updatedJob);
+        }
+      }
+    };
+
+    const handleProductDeletedEvent = (e: any) => {
+      const deletedId = e.detail?.productId;
+      if (deletedId) {
+        setProducts(prev => prev.filter(p => p.id !== deletedId));
+        if (selectedProduct?.id === deletedId) {
+          setSelectedProduct(null);
+        }
+      }
+    };
+
     window.addEventListener('cunene_post_deleted', handlePostDeleted);
+    window.addEventListener('cunene_job_deleted', handleJobDeleted);
+    window.addEventListener('cunene_job_updated', handleJobUpdated);
+    window.addEventListener('cunene_product_deleted', handleProductDeletedEvent);
+
     return () => {
       window.removeEventListener('cunene_post_deleted', handlePostDeleted);
+      window.removeEventListener('cunene_job_deleted', handleJobDeleted);
+      window.removeEventListener('cunene_job_updated', handleJobUpdated);
+      window.removeEventListener('cunene_product_deleted', handleProductDeletedEvent);
     };
-  }, [selectedPost]);
-
-  // Supabase Realtime: Atualiza os dados instantaneamente em todos os clientes
-  useEffect(() => {
-    const channel = supabase
-      .channel('cunene-realtime-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'community_posts' }, () => {
-        StoreService.fetchPosts().then(freshPosts => setPosts(freshPosts));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'marketplace' }, () => {
-        StoreService.fetchProducts().then(freshProds => setProducts(freshProds));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
-        StoreService.fetchJobs().then(freshJobs => setJobs(freshJobs));
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vagas' }, () => {
-        StoreService.fetchJobs().then(freshJobs => setJobs(freshJobs));
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  }, [selectedPost, selectedJob, selectedProduct]);
 
   const handleLogout = async () => {
     await StoreService.logout();
@@ -550,175 +768,201 @@ export default function App() {
   }
 
   return (
-    <div 
-      onTouchStart={handleTouchStartGlobal}
-      onTouchMove={handleTouchMoveGlobal}
-      onTouchEnd={handleTouchEndGlobal}
-      onTouchCancel={handleTouchCancelGlobal}
-      className="min-h-screen flex flex-col bg-white font-sans text-[#111827] antialiased selection:bg-[#0F4C9C] selection:text-white"
-    >
-      {!isOnline && <OfflineIndicator />}
-      {/* PWA Install Banner */}
-      <PWAInstallPrompt />
+    <ErrorBoundary>
+      <div 
+        onTouchStart={handleTouchStartGlobal}
+        onTouchMove={handleTouchMoveGlobal}
+        onTouchEnd={handleTouchEndGlobal}
+        onTouchCancel={handleTouchCancelGlobal}
+        className="min-h-screen flex flex-col bg-white font-sans text-[#111827] antialiased selection:bg-[#0F4C9C] selection:text-white"
+      >
+        {!isOnline && <OfflineIndicator />}
+        {/* PWA Install Banner */}
+        <PWAInstallPrompt />
 
-      {/* Pull-to-Refresh Visual Indicator */}
-      {(pullDistance > 0 || isRefreshing) && (
-        <div 
-          className="fixed top-2 left-1/2 -translate-x-1/2 z-50 transition-all duration-150 pointer-events-none"
-          style={{
-            transform: `translate(-50%, ${Math.min(pullDistance, 55)}px)`
-          }}
-        >
-          <div className="bg-[#0F4C9C] text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2.5 text-xs font-semibold backdrop-blur-sm border border-white/20">
-            {isRefreshing ? (
-              <>
-                <RotateCw className="w-4 h-4 animate-spin text-sky-200" />
-                <span>A atualizar a plataforma...</span>
-              </>
-            ) : pullDistance >= 45 ? (
-              <>
-                <RotateCw className="w-4 h-4 text-sky-200 transition-transform duration-200 rotate-180" />
-                <span>Solte para atualizar</span>
-              </>
-            ) : (
-              <>
-                <ArrowDown className="w-4 h-4 text-sky-200 transition-transform duration-150" />
-                <span>Puxe para atualizar</span>
-              </>
-            )}
+        {/* Pull-to-Refresh Visual Indicator */}
+        {(pullDistance > 0 || isRefreshing) && (
+          <div 
+            className="fixed top-2 left-1/2 -translate-x-1/2 z-50 transition-all duration-150 pointer-events-none"
+            style={{
+              transform: `translate(-50%, ${Math.min(pullDistance, 55)}px)`
+            }}
+          >
+            <div className="bg-[#0F4C9C] text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2.5 text-xs font-semibold backdrop-blur-sm border border-white/20">
+              {isRefreshing ? (
+                <>
+                  <RotateCw className="w-4 h-4 animate-spin text-sky-200" />
+                  <span>A atualizar a plataforma...</span>
+                </>
+              ) : pullDistance >= 45 ? (
+                <>
+                  <RotateCw className="w-4 h-4 text-sky-200 transition-transform duration-200 rotate-180" />
+                  <span>Solte para atualizar</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDown className="w-4 h-4 text-sky-200 transition-transform duration-150" />
+                  <span>Puxe para atualizar</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Refresh Success Toast */}
-      {refreshToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#0F4C9C] text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 text-xs font-bold animate-fadeIn border border-white/20">
-          <Check className="w-4 h-4 text-emerald-300" />
-          <span>{refreshToast}</span>
-        </div>
-      )}
+        {/* Refresh Success Toast */}
+        {refreshToast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#0F4C9C] text-white px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2 text-xs font-bold animate-fadeIn border border-white/20">
+            <Check className="w-4 h-4 text-emerald-300" />
+            <span>{refreshToast}</span>
+          </div>
+        )}
 
-      {/* Role Switch Feedback Toast */}
-      {switchFeedback && (
-        <div className="bg-[#0F4C9C] text-white px-4 py-2 text-center text-xs font-bold shadow-md transition animate-fadeIn">
-          {switchFeedback}
-        </div>
-      )}
+        {/* Role Switch Feedback Toast */}
+        {switchFeedback && (
+          <div className="bg-[#0F4C9C] text-white px-4 py-2 text-center text-xs font-bold shadow-md transition animate-fadeIn">
+            {switchFeedback}
+          </div>
+        )}
 
-      {/* Navbar */}
-      <Navbar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        currentUser={currentUser}
-        onOpenAuth={handleOpenAuth}
-        onLogout={handleLogout}
-        onOpenNewJob={() => setNewJobModalOpen(true)}
-        onOpenNewProduct={handleOpenNewProduct}
-        onSwitchAccountRole={handleSwitchAccountRole}
-        unreadNotificationsCount={unreadNotificationsCount}
-        isPCMode={isPCMode}
-        onTogglePCMode={handleTogglePCMode}
-        themeMode={themeMode}
-        onToggleTheme={handleToggleTheme}
-        onOpenNotifications={() => {
-          if (!currentUser) {
-            setCurrentTab('login');
-            return;
-          }
-          setNotificationsModalOpen(true);
-        }}
-      />
 
-      {/* Main Content Area com Layout Otimizado para Modo PC e Dispositivos Móveis */}
-      <main className={`flex-1 pb-24 md:pb-12 mx-auto w-full transition-all duration-300 ${
-        currentTab === 'home' ? 'w-full' : (isPCMode ? 'max-w-7xl px-4 sm:px-6 lg:px-8' : 'max-w-5xl px-3 sm:px-6')
-      }`}>
-        <div key={currentTab} className="animate-fadeIn">
-          {currentTab === 'home' && (
-            <Home
-              jobs={jobs}
-              products={products}
-              posts={posts}
-              companies={companies}
-              setCurrentTab={setCurrentTab}
-              onSelectJob={job => setSelectedJob(job)}
-              onSelectCompany={company => setSelectedCompany(company)}
-              onSelectPost={post => setSelectedPost(post)}
-              onSelectProduct={(product: MarketplaceProduct) => setSelectedProduct(product)}
-              currentUser={currentUser}
-              onOpenAuth={() => handleOpenAuth('login')}
-            />
-          )}
+        {/* Navigation Bar */}
+        <Navbar
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          currentUser={currentUser}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          onOpenNewJob={() => setNewJobModalOpen(true)}
+          onOpenNewProduct={handleOpenNewProduct}
+          onSwitchAccountRole={handleSwitchAccountRole}
+          unreadNotificationsCount={notifications.filter(n => !n.read).length}
+          onOpenNotifications={() => setNotificationsModalOpen(true)}
+          isPCMode={isPCMode}
+          onTogglePCMode={handleTogglePCMode}
+        />
 
-          {currentTab === 'jobs' && (
-            <JobsPage
-              jobs={jobs}
-              companies={companies}
-              currentUser={currentUser}
-              onSelectJob={job => setSelectedJob(job)}
-              onSelectCompany={company => setSelectedCompany(company)}
-            />
-          )}
+        {/* Main Content Area com Layout Otimizado para Modo PC e Dispositivos Móveis */}
+        <main className={`flex-1 pb-24 md:pb-12 mx-auto w-full transition-all duration-300 ${
+          currentTab === 'home' ? 'w-full' : (isPCMode ? 'max-w-7xl px-4 sm:px-6 lg:px-8' : 'max-w-5xl px-3 sm:px-6')
+        }`}>
+          <div key={currentTab} className="animate-fadeIn">
+            {currentTab === 'home' && (
+              <Home
+                jobs={jobs}
+                products={products}
+                companies={companies}
+                setCurrentTab={setCurrentTab}
+                onSelectJob={job => setSelectedJob(job)}
+                onSelectCompany={company => setSelectedCompany(company)}
+                onSelectProduct={(product: MarketplaceProduct) => setSelectedProduct(product)}
+                currentUser={currentUser}
+                onOpenAuth={() => handleOpenAuth('login')}
+              />
+            )}
 
-          {currentTab === 'marketplace' && (
-            <MarketplacePage
-              products={products}
-              companies={companies}
-              currentUser={currentUser}
-              onOpenAuth={() => handleOpenAuth('login')}
-              onOpenNewProduct={handleOpenNewProduct}
-              onSelectCompany={company => setSelectedCompany(company)}
-              onSelectProduct={product => setSelectedProduct(product)}
-              selectedProduct={selectedProduct}
-              onProductDeleted={handleProductDeleted}
-            />
-          )}
+            {currentTab === 'jobs' && (
+              <JobsPage
+                jobs={jobs}
+                companies={companies}
+                currentUser={currentUser}
+                onSelectJob={job => setSelectedJob(job)}
+                onSelectCompany={company => setSelectedCompany(company)}
+              />
+            )}
 
-          {currentTab === 'community' && (
-            <CommunityPage
-              posts={posts}
-              currentUser={currentUser}
-              onPostCreated={refreshData}
-              onPostUpdated={handlePostUpdate}
-              onOpenAuth={() => handleOpenAuth('login')}
-              onSelectPost={post => setSelectedPost(post)}
-              onSelectCompany={company => setSelectedCompany(company)}
-              onSelectCandidate={candidate => setSelectedCandidate(candidate)}
-            />
-          )}
+            {currentTab === 'marketplace' && (
+              <MarketplacePage
+                products={products}
+                companies={companies}
+                currentUser={currentUser}
+                onOpenAuth={() => handleOpenAuth('login')}
+                onOpenNewProduct={handleOpenNewProduct}
+                onSelectCompany={company => setSelectedCompany(company)}
+                onSelectProduct={product => setSelectedProduct(product)}
+                selectedProduct={selectedProduct}
+                onProductDeleted={handleProductDeleted}
+              />
+            )}
 
-          {currentTab === 'companies' && (
-            <CompaniesPage
-              jobs={jobs}
-              companies={companies}
-              onSelectCompany={company => setSelectedCompany(company)}
-            />
-          )}
+            {currentTab === 'community' && (
+              <CommunityPage
+                posts={posts}
+                currentUser={currentUser}
+                onPostCreated={refreshData}
+                onPostUpdated={handlePostUpdate}
+                onOpenAuth={() => handleOpenAuth('login')}
+                onSelectPost={post => setSelectedPost(post)}
+                onSelectCompany={company => setSelectedCompany(company)}
+                onSelectCandidate={candidate => setSelectedCandidate(candidate)}
+              />
+            )}
 
-          {currentTab === 'dashboard' && currentUser && (
-            <DashboardPage
-              currentUser={currentUser}
-              jobs={jobs}
-              posts={posts}
-              onOpenNewJob={() => setNewJobModalOpen(true)}
-              onSelectJob={job => setSelectedJob(job)}
-              onSelectPost={post => setSelectedPost(post)}
-              onRefreshData={refreshData}
-              onOpenExam={(exam, appId, job) => setSelectedExam({ exam, applicationId: appId, job })}
-              onOpenReview={setSelectedAttemptForReview}
-              onOpenCertificate={setSelectedAttemptForCertificate}
-            />
-          )}
+            {currentTab === 'companies' && (
+              <CompaniesPage
+                jobs={jobs}
+                companies={companies}
+                onSelectCompany={company => setSelectedCompany(company)}
+              />
+            )}
 
-          {currentTab === 'profile' && currentUser && (
-            currentUser.role === 'employer' ? (
+            {currentTab === 'dashboard' && currentUser && (
+              <DashboardPage
+                currentUser={currentUser}
+                jobs={jobs}
+                posts={posts}
+                onOpenNewJob={() => setNewJobModalOpen(true)}
+                onSelectJob={job => setSelectedJob(job)}
+                onSelectPost={post => setSelectedPost(post)}
+                onRefreshData={refreshData}
+                onOpenExam={(exam, appId, job) => setSelectedExam({ exam, applicationId: appId, job })}
+                onOpenReview={setSelectedAttemptForReview}
+                onOpenCertificate={setSelectedAttemptForCertificate}
+              />
+            )}
+
+            {currentTab === 'profile' && currentUser && (
+              currentUser.role === 'employer' ? (
+                <div className="px-4 sm:px-6 py-6 w-full">
+                  <EmployerProfileView
+                    currentUser={currentUser}
+                    jobs={jobs}
+                    products={products}
+                    posts={posts}
+                    applications={applications}
+                    onOpenNewJob={() => setNewJobModalOpen(true)}
+                    onOpenNewProduct={handleOpenNewProduct}
+                    onProfileUpdated={updated => {
+                      setCurrentUser(updated);
+                      refreshData();
+                    }}
+                    onProductUpdated={refreshData}
+                    onPostCreated={refreshData}
+                    onSelectJob={job => setSelectedJob(job)}
+                  />
+                </div>
+              ) : (
+                <div className="px-4 sm:px-6 py-6 w-full">
+                  <CandidateProfileView
+                    currentUser={currentUser}
+                    posts={posts}
+                    onProfileUpdated={updated => {
+                      setCurrentUser(updated);
+                      refreshData();
+                    }}
+                    onPostCreated={refreshData}
+                    onSwitchToEmployer={handleSwitchAccountRole}
+                  />
+                </div>
+              )
+            )}
+
+            {currentTab === 'store' && currentUser && currentUser.role === 'employer' && (
               <div className="px-4 sm:px-6 py-6 w-full">
                 <EmployerProfileView
                   currentUser={currentUser}
                   jobs={jobs}
                   products={products}
                   posts={posts}
-                  applications={applications}
                   onOpenNewJob={() => setNewJobModalOpen(true)}
                   onOpenNewProduct={handleOpenNewProduct}
                   onProfileUpdated={updated => {
@@ -730,263 +974,228 @@ export default function App() {
                   onSelectJob={job => setSelectedJob(job)}
                 />
               </div>
-            ) : (
-              <div className="px-4 sm:px-6 py-6 w-full">
-                <CandidateProfileView
-                  currentUser={currentUser}
-                  posts={posts}
-                  onProfileUpdated={updated => {
-                    setCurrentUser(updated);
-                    refreshData();
-                  }}
-                  onPostCreated={refreshData}
-                  onSwitchToEmployer={handleSwitchAccountRole}
-                />
-              </div>
-            )
-          )}
+            )}
+          </div>
+        </main>
 
-          {currentTab === 'store' && currentUser && currentUser.role === 'employer' && (
-            <div className="px-4 sm:px-6 py-6 w-full">
-              <EmployerProfileView
-                currentUser={currentUser}
-                jobs={jobs}
-                products={products}
-                posts={posts}
-                onOpenNewJob={() => setNewJobModalOpen(true)}
-                onOpenNewProduct={handleOpenNewProduct}
-                onProfileUpdated={updated => {
-                  setCurrentUser(updated);
-                  refreshData();
-                }}
-                onProductUpdated={refreshData}
-                onPostCreated={refreshData}
-                onSelectJob={job => setSelectedJob(job)}
-              />
-            </div>
-          )}
-        </div>
-      </main>
+        {/* Rodapé Corporativo com Silhueta de Raio, Rotação de Empresas e Links Úteis */}
+        <Footer 
+          products={products}
+          companies={companies}
+          onSelectCompany={company => setSelectedCompany(company)}
+          onSelectProduct={(product: MarketplaceProduct) => setSelectedProduct(product)}
+          onOpenNewProduct={handleOpenNewProduct}
+          isPCMode={isPCMode}
+          onTogglePCMode={handleTogglePCMode}
+          setCurrentTab={setCurrentTab}
+        />
 
-      {/* Rodapé Corporativo com Silhueta de Raio, Rotação de Empresas e Links Úteis */}
-      <Footer 
-        products={products}
-        companies={companies}
-        onSelectCompany={company => setSelectedCompany(company)}
-        onSelectProduct={(product: MarketplaceProduct) => setSelectedProduct(product)}
-        onOpenNewProduct={handleOpenNewProduct}
-        isPCMode={isPCMode}
-        onTogglePCMode={handleTogglePCMode}
-        themeMode={themeMode}
-        onToggleTheme={handleToggleTheme}
-        setCurrentTab={setCurrentTab}
-      />
+        {/* Mobile-first Persistent Bottom Nav */}
+        <BottomNav
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          currentUser={currentUser}
+          onOpenAuth={() => handleOpenAuth('login')}
+        />
 
-      {/* Mobile-first Persistent Bottom Nav */}
-      <BottomNav
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-        currentUser={currentUser}
-        onOpenAuth={() => handleOpenAuth('login')}
-      />
+        {/* Modals */}
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onLoginSuccess={user => {
+            setCurrentUser(user);
+            refreshData();
+          }}
+        />
 
-      {/* Modals */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onLoginSuccess={user => {
-          setCurrentUser(user);
-          refreshData();
-        }}
-      />
+        <JobDetailModal
+          job={selectedJob}
+          isOpen={!!selectedJob}
+          onClose={() => setSelectedJob(null)}
+          currentUser={currentUser}
+          companies={companies}
+          onSelectCompany={comp => {
+            setSelectedJob(null);
+            setSelectedCompany(comp);
+          }}
+          onOpenAuth={() => {
+            setSelectedJob(null);
+            handleOpenAuth('login');
+          }}
+          onSuccessApply={refreshData}
+          onOpenExam={(exam, appId, job) => setSelectedExam({ exam, applicationId: appId, job: job || selectedJob || undefined })}
+        />
 
-      <JobDetailModal
-        job={selectedJob}
-        isOpen={!!selectedJob}
-        onClose={() => setSelectedJob(null)}
-        currentUser={currentUser}
-        companies={companies}
-        onSelectCompany={comp => {
-          setSelectedJob(null);
-          setSelectedCompany(comp);
-        }}
-        onOpenAuth={() => {
-          setSelectedJob(null);
-          handleOpenAuth('login');
-        }}
-        onSuccessApply={refreshData}
-        onOpenExam={(exam, appId, job) => setSelectedExam({ exam, applicationId: appId, job: job || selectedJob || undefined })}
-      />
+        <ExamModal
+          exam={selectedExam?.exam || null}
+          job={selectedExam?.job || null}
+          applicationId={selectedExam?.applicationId}
+          isOpen={!!selectedExam}
+          onClose={() => setSelectedExam(null)}
+          currentUser={currentUser}
+          onExamSubmitted={refreshData}
+          onOpenReview={(attempt) => {
+            setSelectedExam(null);
+            setSelectedAttemptForReview(attempt);
+          }}
+          onOpenCertificate={(attempt) => {
+            setSelectedExam(null);
+            setSelectedAttemptForCertificate(attempt);
+          }}
+        />
 
-      <ExamModal
-        exam={selectedExam?.exam || null}
-        job={selectedExam?.job || null}
-        applicationId={selectedExam?.applicationId}
-        isOpen={!!selectedExam}
-        onClose={() => setSelectedExam(null)}
-        currentUser={currentUser}
-        onExamSubmitted={refreshData}
-        onOpenReview={(attempt) => {
-          setSelectedExam(null);
-          setSelectedAttemptForReview(attempt);
-        }}
-        onOpenCertificate={(attempt) => {
-          setSelectedExam(null);
-          setSelectedAttemptForCertificate(attempt);
-        }}
-      />
+        <ExamReviewModal
+          isOpen={!!selectedAttemptForReview}
+          onClose={() => setSelectedAttemptForReview(null)}
+          attempt={selectedAttemptForReview}
+          onOpenCertificate={(attempt) => {
+            setSelectedAttemptForReview(null);
+            setSelectedAttemptForCertificate(attempt);
+          }}
+        />
 
-      <ExamReviewModal
-        isOpen={!!selectedAttemptForReview}
-        onClose={() => setSelectedAttemptForReview(null)}
-        attempt={selectedAttemptForReview}
-        onOpenCertificate={(attempt) => {
-          setSelectedAttemptForReview(null);
-          setSelectedAttemptForCertificate(attempt);
-        }}
-      />
+        <ExamCertificateModal
+          isOpen={!!selectedAttemptForCertificate}
+          onClose={() => setSelectedAttemptForCertificate(null)}
+          attempt={selectedAttemptForCertificate}
+          currentUser={currentUser}
+        />
 
-      <ExamCertificateModal
-        isOpen={!!selectedAttemptForCertificate}
-        onClose={() => setSelectedAttemptForCertificate(null)}
-        attempt={selectedAttemptForCertificate}
-        currentUser={currentUser}
-      />
+        <CompanyPublicModal
+          company={selectedCompany}
+          isOpen={!!selectedCompany}
+          onClose={() => setSelectedCompany(null)}
+          jobs={jobs}
+          products={products}
+          posts={posts}
+          currentUser={currentUser}
+          onSelectJob={job => setSelectedJob(job)}
+          onSelectPost={post => setSelectedPost(post)}
+          onSelectProduct={prod => setSelectedProduct(prod)}
+          onOpenAuth={() => {
+            setSelectedCompany(null);
+            handleOpenAuth('login');
+          }}
+        />
 
-      <CompanyPublicModal
-        company={selectedCompany}
-        isOpen={!!selectedCompany}
-        onClose={() => setSelectedCompany(null)}
-        jobs={jobs}
-        products={products}
-        posts={posts}
-        currentUser={currentUser}
-        onSelectJob={job => setSelectedJob(job)}
-        onSelectPost={post => setSelectedPost(post)}
-        onSelectProduct={prod => setSelectedProduct(prod)}
-        onOpenAuth={() => {
-          setSelectedCompany(null);
-          handleOpenAuth('login');
-        }}
-      />
+        <CandidatePublicModal
+          candidate={selectedCandidate}
+          isOpen={!!selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+          posts={posts}
+          products={products}
+          currentUser={currentUser}
+          onSelectPost={post => setSelectedPost(post)}
+          onSelectProduct={prod => setSelectedProduct(prod)}
+        />
 
-      <CandidatePublicModal
-        candidate={selectedCandidate}
-        isOpen={!!selectedCandidate}
-        onClose={() => setSelectedCandidate(null)}
-        posts={posts}
-        products={products}
-        currentUser={currentUser}
-        onSelectPost={post => setSelectedPost(post)}
-        onSelectProduct={prod => setSelectedProduct(prod)}
-      />
+        {selectedProduct && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-white animate-fadeIn">
+            <ProductDetailPage
+              product={selectedProduct}
+              onBack={() => setSelectedProduct(null)}
+              companies={companies}
+              allProducts={products}
+              currentUser={currentUser}
+              onOpenAuth={() => handleOpenAuth('login')}
+              onSelectCompany={company => {
+                setSelectedProduct(null);
+                setSelectedCompany(company);
+              }}
+              onSelectProduct={prod => setSelectedProduct(prod)}
+              onProductDeleted={handleProductDeleted}
+            />
+          </div>
+        )}
 
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-white animate-fadeIn">
-          <ProductDetailPage
-            product={selectedProduct}
-            onBack={() => setSelectedProduct(null)}
-            companies={companies}
-            allProducts={products}
-            currentUser={currentUser}
-            onOpenAuth={() => handleOpenAuth('login')}
-            onSelectCompany={company => {
-              setSelectedProduct(null);
-              setSelectedCompany(company);
-            }}
-            onSelectProduct={prod => setSelectedProduct(prod)}
-            onProductDeleted={handleProductDeleted}
-          />
-        </div>
-      )}
+        <FullscreenPostModal
+          posts={posts}
+          currentPostId={selectedPost?.id || null}
+          isOpen={!!selectedPost}
+          onClose={() => setSelectedPost(null)}
+          currentUser={currentUser}
+          onPostUpdated={handlePostUpdate}
+          onOpenAuth={() => {
+            setSelectedPost(null);
+            handleOpenAuth('login');
+          }}
+          onSelectCompany={company => setSelectedCompany(company)}
+          onSelectCandidate={candidate => setSelectedCandidate(candidate)}
+        />
 
-      <FullscreenPostModal
-        posts={posts}
-        currentPostId={selectedPost?.id || null}
-        isOpen={!!selectedPost}
-        onClose={() => setSelectedPost(null)}
-        currentUser={currentUser}
-        onPostUpdated={handlePostUpdate}
-        onOpenAuth={() => {
-          setSelectedPost(null);
-          handleOpenAuth('login');
-        }}
-        onSelectCompany={company => setSelectedCompany(company)}
-        onSelectCandidate={candidate => setSelectedCandidate(candidate)}
-      />
+        <NewJobModal
+          isOpen={newJobModalOpen}
+          onClose={() => setNewJobModalOpen(false)}
+          currentUser={currentUser}
+          onJobCreated={refreshData}
+        />
 
-      <NewJobModal
-        isOpen={newJobModalOpen}
-        onClose={() => setNewJobModalOpen(false)}
-        currentUser={currentUser}
-        onJobCreated={refreshData}
-      />
+        <NewProductModal
+          isOpen={newProductModalOpen}
+          onClose={() => setNewProductModalOpen(false)}
+          currentUser={currentUser}
+          onProductCreated={refreshData}
+        />
 
-      <NewProductModal
-        isOpen={newProductModalOpen}
-        onClose={() => setNewProductModalOpen(false)}
-        currentUser={currentUser}
-        onProductCreated={refreshData}
-      />
+        <PayPalPaymentModal
+          isOpen={paypalModalOpen}
+          onClose={() => setPaypalModalOpen(false)}
+          currentUser={currentUser}
+          onPaymentSuccess={user => {
+            setCurrentUser(user);
+            refreshData();
+          }}
+        />
 
-      <PayPalPaymentModal
-        isOpen={paypalModalOpen}
-        onClose={() => setPaypalModalOpen(false)}
-        currentUser={currentUser}
-        onPaymentSuccess={user => {
-          setCurrentUser(user);
-          refreshData();
-        }}
-      />
+        <NotificationsModal
+          isOpen={notificationsModalOpen}
+          onClose={() => setNotificationsModalOpen(false)}
+          currentUser={currentUser}
+          notifications={notifications}
+          onNotificationUpdate={() => {
+            if (currentUser) {
+              setNotifications(StoreService.getNotifications(currentUser.id));
+            }
+          }}
+          setCurrentTab={setCurrentTab}
+        />
 
-      <NotificationsModal
-        isOpen={notificationsModalOpen}
-        onClose={() => setNotificationsModalOpen(false)}
-        currentUser={currentUser}
-        notifications={notifications}
-        onNotificationUpdate={() => {
-          if (currentUser) {
-            setNotifications(StoreService.getNotifications(currentUser.id));
-          }
-        }}
-        setCurrentTab={setCurrentTab}
-      />
+        <ExploreSearchModal
+          isOpen={exploreModalOpen}
+          onClose={() => setExploreModalOpen(false)}
+          companies={companies}
+          allUsers={allUsers}
+          jobs={jobs}
+          products={products}
+          posts={posts}
+          onSelectCompany={company => setSelectedCompany(company)}
+          onSelectJob={job => setSelectedJob(job)}
+          onSelectProduct={product => setSelectedProduct(product)}
+          onSelectPost={post => setSelectedPost(post)}
+        />
 
-      <ExploreSearchModal
-        isOpen={exploreModalOpen}
-        onClose={() => setExploreModalOpen(false)}
-        companies={companies}
-        allUsers={allUsers}
-        jobs={jobs}
-        products={products}
-        posts={posts}
-        onSelectCompany={company => setSelectedCompany(company)}
-        onSelectJob={job => setSelectedJob(job)}
-        onSelectProduct={product => setSelectedProduct(product)}
-        onSelectPost={post => setSelectedPost(post)}
-      />
-
-      {/* Assistente de IA VDN */}
-      <AIAssistantWidget
-        currentUser={currentUser}
-        jobs={jobs}
-        products={products}
-        setCurrentTab={setCurrentTab}
-        onOpenPayPal={() => {
-          if (!currentUser) {
-            setCurrentTab('login');
-            return;
-          }
-          const isUnlocked = Boolean(currentUser.company?.marketplace_unlocked || currentUser.marketplace_unlocked);
-          const allProds = StoreService.getProducts();
-          const userProds = allProds.filter(p => p.seller_id === currentUser.id || (currentUser.company?.id && p.company_id === currentUser.company.id));
-          if (userProds.length >= 10 && !isUnlocked) {
-            setPaypalModalOpen(true);
-          } else {
-            handleOpenNewProduct();
-          }
-        }}
-      />
-    </div>
+        {/* Assistente de IA CuneneVagas */}
+        <AIAssistantWidget
+          currentUser={currentUser}
+          jobs={jobs}
+          products={products}
+          setCurrentTab={setCurrentTab}
+          onOpenPayPal={() => {
+            if (!currentUser) {
+              setCurrentTab('login');
+              return;
+            }
+            const isUnlocked = Boolean(currentUser.company?.marketplace_unlocked || currentUser.marketplace_unlocked);
+            const allProds = StoreService.getProducts();
+            const userProds = allProds.filter(p => p.seller_id === currentUser.id || (currentUser.company?.id && p.company_id === currentUser.company.id));
+            if (userProds.length >= 10 && !isUnlocked) {
+              setPaypalModalOpen(true);
+            } else {
+              handleOpenNewProduct();
+            }
+          }}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }

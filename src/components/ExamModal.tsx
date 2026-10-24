@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Award, FileText } from 'lucide-react';
+import { X, Clock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Award, FileText, MessageCircle } from 'lucide-react';
 import { Exam, UserProfile, ExamAttempt, Job } from '../lib/types';
 import { StoreService } from '../lib/store';
 
@@ -247,13 +247,58 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                   <span>O cronômetro iniciará assim que clicar em começar. Responda com atenção.</span>
                 </div>
 
-                <button
-                  onClick={() => setCurrentStep('taking')}
-                  className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-black py-4 px-6 rounded-2xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-98"
-                >
-                  <span>Iniciar Exame em Tela Cheia</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="space-y-3 pt-2">
+                  {(() => {
+                    const companyPhone = job?.whatsapp || (job as any)?.contact_phone || job?.employer?.whatsapp || job?.employer?.phone;
+                    let cleanPhone = (companyPhone || '').replace(/\D/g, '');
+                    if (!cleanPhone.startsWith('244') && cleanPhone.length === 9) {
+                      cleanPhone = '244' + cleanPhone;
+                    }
+                    const companyName = job?.company_name || 'Empresa';
+                    const candName = currentUser.full_name || 'Candidato';
+                    const waMsg = `Olá ${companyName}, sou o candidato ${candName} e pretendo realizar o teste / exame de competências "${exam.title}" diretamente aqui pelo WhatsApp. Aguardo o envio das questões / instruções.`;
+                    const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}` : null;
+
+                    return (
+                      <div className="space-y-3">
+                        {waUrl ? (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold py-3.5 px-6 rounded-2xl text-sm transition shadow-md flex items-center justify-center gap-2 active:scale-98 cursor-pointer text-center"
+                          >
+                            <MessageCircle className="w-5 h-5 fill-white" />
+                            <span>Realizar Exame no WhatsApp da Empresa</span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => alert(`A empresa ${companyName} ainda não registou número de WhatsApp comercial. Por favor realize o exame diretamente aqui na plataforma.`)}
+                            className="w-full bg-[#25D366] opacity-80 text-white font-bold py-3.5 px-6 rounded-2xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <MessageCircle className="w-5 h-5 fill-white" />
+                            <span>Realizar Exame no WhatsApp da Empresa</span>
+                          </button>
+                        )}
+
+                        <div className="relative flex items-center justify-center my-1">
+                          <div className="border-t border-slate-200 w-full" />
+                          <span className="bg-white px-3 text-xs font-bold text-slate-400 uppercase">ou</span>
+                        </div>
+
+                        <button
+                          onClick={() => setCurrentStep('taking')}
+                          className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 px-6 rounded-2xl text-sm transition shadow-sm flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4 text-[#FFC20E]" />
+                          <span>Fazer Exame Online no Portal</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>

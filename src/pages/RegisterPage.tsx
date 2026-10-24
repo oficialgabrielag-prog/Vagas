@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Briefcase, UserCheck, Building2, Mail, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { AnimatedBrandLogo } from '../components/AnimatedBrandLogo';
+import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
 
 interface RegisterPageProps {
   onRegisterSuccess: (user: UserProfile) => void;
@@ -24,6 +25,14 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Pré-carrega o script do reCAPTCHA v3 de forma assíncrona
+  useEffect(() => {
+    const siteKey = getRecaptchaSiteKey();
+    if (siteKey) {
+      loadRecaptchaScript(siteKey).catch(() => {});
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +65,15 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
         return;
       }
 
-      // 2. Realizar cadastro com Supabase Auth
+      // 2. Verificação de segurança Google reCAPTCHA v3 (ação: register)
+      const captchaResult = await verifyRecaptchaAction('register');
+      if (!captchaResult.success) {
+        setError(captchaResult.error || 'Verificação de segurança reCAPTCHA falhou. Tente novamente.');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Realizar cadastro com Supabase Auth
       const user = await StoreService.registerWithSupabase(
         cleanEmail,
         password,

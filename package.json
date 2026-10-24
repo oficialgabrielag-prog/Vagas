@@ -29,6 +29,7 @@
     "react-dom": "^19.0.1",
     "react-easy-swipe": "^0.0.23",
     "react-router-dom": "^7.18.4",
+    "resend": "^6.34.1",
     "vite": "^8.3.0"
   },
   "devDependencies": {

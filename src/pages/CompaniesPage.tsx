@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Building2, MapPin, Globe, Phone, Briefcase, ChevronRight, MessageCircle, Search } from 'lucide-react';
 import { UserProfile, Job, CUNENE_MUNICIPALITIES } from '../lib/types';
+import { GiantCinematicCarousel } from '../components/GiantCinematicCarousel';
 
 interface CompaniesPageProps {
   jobs: Job[];
@@ -17,6 +18,18 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
 
   return (
     <div className="max-w-5xl mx-auto py-6 space-y-6 pb-20">
+      
+      {/* Carrossel Cinemático */}
+      <GiantCinematicCarousel 
+        jobs={jobs}
+        products={[]}
+        companies={companies}
+        onSelectJob={() => {}}
+        onSelectProduct={() => {}}
+        onSelectCompany={onSelectCompany}
+        onNavigateTab={() => {}}
+      />
+
       {/* Page Header */}
       <div className="bg-[#0F4C9C] text-white p-6 rounded-3xl shadow-sm space-y-2">
         <span className="text-xs uppercase tracking-widest font-bold text-[#FFC20E]">

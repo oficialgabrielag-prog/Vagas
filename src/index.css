@@ -7,6 +7,7 @@
 
 @layer base {
   :root {
+    color-scheme: light;
     --sat: env(safe-area-inset-top, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
@@ -17,45 +18,7 @@
     --ink: #17243b;
     --muted: #617087;
     --line: #e4e9ef;
-    --wash: #f7f9fc;
-  }
-
-  html.dark {
-    --navy: #1e293b;
-    --blue: #3b82f6;
-    --yellow: #f5be29;
-    --ink: #f1f5f9;
-    --muted: #94a3b8;
-    --line: #334155;
-    --wash: #090d16;
-  }
-
-  html.dark body, html.dark #root {
-    background-color: var(--wash);
-    color: var(--ink);
-  }
-
-  html.dark .bg-white {
-    background-color: #111b33 !important;
-    color: #f1f5f9 !important;
-    border-color: #1e293b !important;
-  }
-
-  html.dark .bg-slate-50 {
-    background-color: #0d1527 !important;
-    color: #e2e8f0 !important;
-  }
-
-  html.dark .border-slate-200, html.dark .border-\[\#e4e9ef\] {
-    border-color: #1e293b !important;
-  }
-
-  html.dark .text-slate-900, html.dark .text-slate-800, html.dark .text-\[\#101b33\] {
-    color: #f8fafc !important;
-  }
-
-  html.dark .text-slate-600, html.dark .text-slate-500, html.dark .text-\[\#617087\] {
-    color: #94a3b8 !important;
+    --wash: #ffffff;
   }
 
   *, ::before, ::after {

@@ -28,6 +28,7 @@ import {
 import { MarketplaceProduct, CUNENE_MUNICIPALITIES, UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { ProductDetailPage } from './ProductDetailPage';
+import { GiantCinematicCarousel } from '../components/GiantCinematicCarousel';
 
 interface MarketplacePageProps {
   products: MarketplaceProduct[];
@@ -193,6 +194,17 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     <div className="bg-white min-h-screen text-[#263449]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-8 pb-24">
         
+        {/* Carrossel Cinemático */}
+        <GiantCinematicCarousel 
+          jobs={[]}
+          products={products}
+          companies={companies}
+          onSelectJob={() => {}}
+          onSelectProduct={prod => onSelectProduct ? onSelectProduct(prod) : setLocalSelectedProduct(prod)}
+          onSelectCompany={comp => onSelectCompany && onSelectCompany(comp)}
+          onNavigateTab={() => {}}
+        />
+
         {/* 1. Área Principal (Hero & Ação Principal) */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-100 pb-6">
           <div>
@@ -220,6 +232,79 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </button>
           </div>
         </div>
+
+        {/* 1.5 NEGÓCIOS EM DESTAQUE */}
+        {(() => {
+          const featuredCampaigns = StoreService.getFeaturedCampaigns().filter(c => c.status === 'active' && c.type === 'product');
+          const featuredProdIds = featuredCampaigns.map(c => c.target_id);
+          const sponsoredProducts = products.filter(p => featuredProdIds.includes(p.id));
+          const displayProducts = sponsoredProducts.length > 0 ? sponsoredProducts : products.slice(0, 4);
+
+          if (displayProducts.length === 0) return null;
+
+          return (
+            <div className="bg-[#F8FAFC] border border-slate-200/80 rounded-2xl p-6 sm:p-8">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 mb-6">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <h2 className="text-lg sm:text-xl font-black text-[#123D73] tracking-tight">
+                    Negócios em Destaque
+                  </h2>
+                  <span className="bg-amber-100 text-amber-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                    Patrocinado
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {displayProducts.map((prod) => {
+                  const isSponsored = featuredProdIds.includes(prod.id);
+                  return (
+                    <div
+                      key={prod.id}
+                      onClick={() => handleProductClick(prod)}
+                      className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between relative group"
+                    >
+                      {isSponsored && (
+                        <span className="absolute top-2 right-2 z-10 bg-amber-100 text-amber-900 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Patrocinado
+                        </span>
+                      )}
+
+                      <div className="h-32 w-full rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden mb-2.5">
+                        {prod.image_url ? (
+                          <img
+                            src={prod.image_url}
+                            alt={prod.title}
+                            referrerPolicy="no-referrer"
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        ) : (
+                          <ShoppingBag className="w-8 h-8 text-slate-300" />
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <h3 className="text-xs sm:text-sm font-bold text-[#263449] group-hover:text-[#123D73] transition truncate">
+                          {prod.title}
+                        </h3>
+                        <p className="text-sm sm:text-base font-black text-[#123D73]">
+                          {Number(prod.price || 0).toLocaleString()} {prod.currency || 'Kz'}
+                        </p>
+                        {prod.municipality && (
+                          <div className="flex items-center gap-1 text-[11px] text-[#66758A]">
+                            <MapPin className="w-3 h-3 text-[#66758A] shrink-0" />
+                            <span className="truncate">{prod.municipality}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 2. Barra de Pesquisa Simples e Integrada */}
         <div className="space-y-3">
