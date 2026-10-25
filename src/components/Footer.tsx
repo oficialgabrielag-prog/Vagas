@@ -272,21 +272,21 @@ export const Footer: React.FC<FooterProps> = ({
               <p>&copy; {new Date().getFullYear()} CuneneVagas. Todos os direitos reservados.</p>
               <span>·</span>
               <a className="copyrighted-badge" title="Copyrighted.com Registered & Protected" target="_blank" href="https://app.copyrighted.com/website/9ffvtARoPmOMd9sl/">
-                <img alt="Copyrighted.com Registered & Protected" border="0" width="125" height="25" srcSet="https://static.copyrighted.com/badges/125x25/04_1_2x.png 2x" src="https://static.copyrighted.com/badges/125x25/04_1.png"/>
+                <img alt="Copyrighted.com Registered & Protected" border="0" width="125" height="25" srcSet="https://static.copyrighted.com/badges/125x25/04_2_2x.png 2x" src="https://static.copyrighted.com/badges/125x25/04_2.png"/>
               </a>
               <span>·</span>
               <a 
-                href="#termos" 
-                onClick={(e) => { e.preventDefault(); alert('Termos de Uso e Política de Privacidade da CuneneVagas em conformidade com a legislação de Angola.'); }} 
-                className="hover:text-white underline"
+                href="/terms" 
+                onClick={(e) => { e.preventDefault(); handleNavClick('terms'); }} 
+                className="hover:text-white underline cursor-pointer"
               >
                 Termos de Uso
               </a>
               <span>·</span>
               <a 
-                href="#privacidade" 
-                onClick={(e) => { e.preventDefault(); alert('Política de Proteção de Dados e Privacidade da CuneneVagas.'); }} 
-                className="hover:text-white underline"
+                href="/privacy" 
+                onClick={(e) => { e.preventDefault(); handleNavClick('privacy'); }} 
+                className="hover:text-white underline cursor-pointer"
               >
                 Privacidade
               </a>
@@ -308,6 +308,28 @@ export const Footer: React.FC<FooterProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Anúncio / Sugestão: VDN - Vai Dar Namoro */}
+          <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-slate-200 flex-wrap justify-center sm:justify-start">
+              <span className="bg-[#FFC20E] text-slate-950 font-black px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider shadow-xs">
+                Sugestão
+              </span>
+              <span>Desenvolvido por:</span>
+              <a 
+                href="https://freevdn.netlify.app" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="font-bold text-[#FFC20E] hover:underline flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-lg border border-white/15 transition hover:bg-white/15"
+              >
+                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400 animate-pulse" />
+                <span>VDN — Vai Dar Namoro</span>
+              </a>
+            </div>
+            <span className="text-[11px] text-slate-300/70 font-medium">
+              Plataforma parceira recomendada
+            </span>
           </div>
 
         </div>

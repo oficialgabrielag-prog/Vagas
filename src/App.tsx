@@ -33,6 +33,7 @@ import { CompaniesPage } from './pages/CompaniesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { LegalPage } from './pages/LegalPage';
 
 import { StoreService } from './lib/store';
 import { Job, UserProfile, Exam, MarketplaceProduct, CommunityPost, ExamAttempt, JobApplication } from './lib/types';
@@ -103,6 +104,20 @@ const PAGE_METADATA: Record<string, PageMeta> = {
     ogTitle: 'Criar Conta | CuneneVagas',
     ogDesc: 'Registe-se no CuneneVagas.',
   },
+  terms: {
+    title: 'Termos de Uso | CuneneVagas',
+    description: 'Termos e condições de utilização da plataforma CuneneVagas no Cunene, Angola.',
+    path: '/terms',
+    ogTitle: 'Termos de Uso | CuneneVagas',
+    ogDesc: 'Conheça os termos e condições de uso da plataforma CuneneVagas.',
+  },
+  privacy: {
+    title: 'Política de Privacidade | CuneneVagas',
+    description: 'Política de privacidade e proteção de dados pessoais do CuneneVagas.',
+    path: '/privacy',
+    ogTitle: 'Política de Privacidade | CuneneVagas',
+    ogDesc: 'Saiba como protegemos os seus dados pessoais e privacidade no CuneneVagas.',
+  },
 };
 
 const getInitialTabFromLocation = (): string => {
@@ -117,6 +132,8 @@ const getInitialTabFromLocation = (): string => {
   if (path === '/dashboard') return 'dashboard';
   if (path === '/login') return 'login';
   if (path === '/register') return 'register';
+  if (path === '/terms' || hash === 'terms') return 'terms';
+  if (path === '/privacy' || hash === 'privacy') return 'privacy';
   return 'home';
 };
 
@@ -974,6 +991,14 @@ export default function App() {
                   onSelectJob={job => setSelectedJob(job)}
                 />
               </div>
+            )}
+
+            {currentTab === 'terms' && (
+              <LegalPage initialTab="terms" setCurrentTab={setCurrentTab} />
+            )}
+
+            {currentTab === 'privacy' && (
+              <LegalPage initialTab="privacy" setCurrentTab={setCurrentTab} />
             )}
           </div>
         </main>
