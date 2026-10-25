@@ -64,6 +64,16 @@ export const Footer: React.FC<FooterProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://static.copyrighted.com/badges/helper.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
   // Obter pequeno grupo de empresas visíveis no carrossel
   const visibleCompanies: UserProfile[] = [];
   if (totalCompanies > 0) {
@@ -269,6 +279,10 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-300/80">
             <div className="flex flex-wrap items-center gap-3">
               <p>&copy; {new Date().getFullYear()} CuneneVagas. Todos os direitos reservados.</p>
+              <span>·</span>
+              <a className="copyrighted-badge" title="Copyrighted.com Registered & Protected" target="_blank" href="https://app.copyrighted.com/website/9ffvtARoPmOMd9sl/">
+                <img alt="Copyrighted.com Registered & Protected" border="0" width="125" height="25" srcSet="https://static.copyrighted.com/badges/125x25/04_1_2x.png 2x" src="https://static.copyrighted.com/badges/125x25/04_1.png"/>
+              </a>
               <span>·</span>
               <a 
                 href="#termos" 
