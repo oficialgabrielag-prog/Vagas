@@ -270,11 +270,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-300/80">
             <div className="flex flex-wrap items-center gap-3">
               <p>&copy; {new Date().getFullYear()} CuneneVagas. Todos os direitos reservados.</p>
-              <span>·</span>
-              <a className="copyrighted-badge" title="Copyrighted.com Registered & Protected" target="_blank" href="https://app.copyrighted.com/website/9ffvtARoPmOMd9sl/">
-                <img alt="Copyrighted.com Registered & Protected" border="0" width="125" height="25" srcSet="https://static.copyrighted.com/badges/125x25/04_2_2x.png 2x" src="https://static.copyrighted.com/badges/125x25/04_2.png"/>
-              </a>
-              <span>·</span>
+
               <a 
                 href="/terms" 
                 onClick={(e) => { e.preventDefault(); handleNavClick('terms'); }} 

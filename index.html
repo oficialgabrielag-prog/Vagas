@@ -2,7 +2,7 @@
 <html lang="pt" class="h-full w-full bg-white text-slate-900" style="margin: 0; padding: 0; height: 100%; width: 100%; background-color: #FFFFFF;">
   <head>
     <meta charset="UTF-8" />
-    <meta name="copyrighted-site-verification" content="374e98411a56b33b" />
+
     <script>
       // Ignora erros de conexão WebSocket do HMR no ambiente de desenvolvimento AI Studio
       window.addEventListener('error', function(e) {
@@ -86,9 +86,7 @@
   <body class="bg-slate-50 text-slate-900 antialiased selection:bg-[#0F4C9C] selection:text-white" style="margin: 0; padding: 0; min-height: 100vh; min-height: 100dvh; overflow-x: hidden;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script src="https://static.copyrighted.com/badges/helper.js"></script>
     <script>
-      // Desativa/desregistra service workers problemáticos que travavam carregamento no Safari iOS
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           for (var i = 0; i < regs.length; i++) {
