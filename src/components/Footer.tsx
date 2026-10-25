@@ -64,15 +64,6 @@ export const Footer: React.FC<FooterProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://static.copyrighted.com/badges/helper.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
 
   // Obter pequeno grupo de empresas visíveis no carrossel
   const visibleCompanies: UserProfile[] = [];
