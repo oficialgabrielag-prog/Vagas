@@ -470,51 +470,12 @@ export const StoreService = {
     const { data, error } = await signInWithPassword(normalizedEmail, password);
     
     if (error) {
-      // Robust fallback: if auth fails or account needs provisioning, restore from cache or create seamless session
-      const cached = localStorage.getItem(`${STORAGE_KEYS.USER}_rich_${normalizedEmail}`);
-      if (cached) {
-        try {
-          const user: UserProfile = JSON.parse(cached);
-          this.setCurrentUser(user);
-          return user;
-        } catch {}
-      }
-
-      // Seamless fallback session so the user is never locked out of logging in
-      const userId = 'user-' + Date.now();
-      const isAdminEmail = normalizedEmail === 'oficialgabrielag@gmail.com' || normalizedEmail.includes('admin');
-      const fallbackUser: UserProfile = {
-        id: userId,
-        email: normalizedEmail,
-        full_name: normalizedEmail.split('@')[0].toUpperCase(),
-        role: isAdminEmail ? 'admin' : 'candidate',
-        municipality: 'Ondjiva',
-        created_at: new Date().toISOString(),
-        is_email_verified: true,
-        email_confirmed_at: new Date().toISOString(),
-        is_admin: isAdminEmail
-      };
-      this.setCurrentUser(fallbackUser);
-      safeSetItem(`${STORAGE_KEYS.USER}_rich_${userId}`, JSON.stringify(fallbackUser));
-      safeSetItem(`${STORAGE_KEYS.USER}_rich_${normalizedEmail}`, JSON.stringify(fallbackUser));
-      return fallbackUser;
+      throw new Error(error.message || 'Palavra-passe incorreta ou dados de acesso inválidos. Verifique as suas credenciais.');
     }
 
     const authUser = data.user;
     if (!authUser) {
-      const userId = 'user-' + Date.now();
-      const fallbackUser: UserProfile = {
-        id: userId,
-        email: normalizedEmail,
-        full_name: normalizedEmail.split('@')[0].toUpperCase(),
-        role: 'candidate',
-        municipality: 'Ondjiva',
-        created_at: new Date().toISOString(),
-        is_email_verified: true,
-        email_confirmed_at: new Date().toISOString()
-      };
-      this.setCurrentUser(fallbackUser);
-      return fallbackUser;
+      throw new Error('Utilizador não encontrado no sistema de autenticação.');
     }
 
     return (await this.restoreUserFromSession(authUser)) || this.getCurrentUser()!;
@@ -1062,7 +1023,17 @@ export const StoreService = {
     try {
       const allCompaniesMap = new Map<string, UserProfile>();
 
-      // 0. Load existing locally cached or default companies first so we never lose anything!
+      // 0. Always seed with default companies first so all browsers (Chrome, Firefox, Safari, Mobile) have a consistent baseline!
+      try {
+        const defaults = this.getDefaultCompanies();
+        defaults.forEach(c => {
+          if (c && c.id) {
+            allCompaniesMap.set(c.id, c);
+          }
+        });
+      } catch {}
+
+      // 1. Load existing locally cached companies
       try {
         const cached = this.getCompanies();
         if (Array.isArray(cached)) {
