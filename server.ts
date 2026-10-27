@@ -104,6 +104,47 @@ async function startServer() {
     });
   });
 
+  // Canonical user count and platform statistics endpoint (Single Source of Truth)
+  app.get(['/api/stats/users-count', '/api/stats/platform'], async (req, res) => {
+    // Desativar rigorosamente qualquer cache HTTP em navegadores e proxies
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    try {
+      const { data, count, error } = await supabaseAdmin
+        .from('profiles')
+        .select('id, role, municipio', { count: 'exact' })
+        .neq('id', '00000000-0000-0000-0000-000000000001');
+
+      if (error) {
+        console.error('[API Stats] Erro ao obter perfis do Supabase:', error);
+        return res.status(500).json({ error: 'Erro ao consultar contagem de utilizadores' });
+      }
+
+      const profiles = (data || []).filter((p: any) => p && p.id !== '00000000-0000-0000-0000-000000000001');
+      const totalCandidates = profiles.filter((p: any) => {
+        const r = (p.role || '').toLowerCase();
+        return r !== 'empresa' && r !== 'employer';
+      }).length;
+      const totalEmployers = profiles.filter((p: any) => {
+        const r = (p.role || '').toLowerCase();
+        return r === 'empresa' || r === 'employer';
+      }).length;
+
+      return res.json({
+        totalUsers: profiles.length,
+        totalCandidates,
+        totalEmployers,
+        source: 'public.profiles',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('[API Stats] Exceção inesperada:', err);
+      return res.status(500).json({ error: err.message || 'Erro interno' });
+    }
+  });
+
   // Rota de verificação do Google reCAPTCHA v3 para ambiente local
   app.post('/api/verify-recaptcha', async (req, res) => {
     try {

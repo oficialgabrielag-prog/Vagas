@@ -58,25 +58,17 @@ export const HomeOnboarding: React.FC = () => {
         </div>
       </section>
 
-      {/* App Install Banner */}
+      {/* Web Portal Banner */}
       <section className="bg-gradient-to-br from-[#0F4C9C] to-slate-900 p-8 sm:p-12 rounded-[3rem] text-white relative overflow-hidden shadow-xl shadow-blue-900/20 group">
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left space-y-4 max-w-md">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
-              <Download className="w-3 h-3" /> Instalar App Oficial
+              <ShieldCheck className="w-3 h-3 text-[#FFC20E]" /> Plataforma Web Oficial
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black leading-tight">Use o portal mesmo sem Internet!</h2>
+            <h2 className="text-2xl sm:text-3xl font-black leading-tight">Oportunidades em tempo real</h2>
             <p className="text-blue-100/80 text-xs sm:text-sm font-medium leading-relaxed">
-              Instale o Cunene Oportunidades no seu telemóvel e receba notificações de novas vagas instantaneamente.
+              Aceda ao CuneneVagas diretamente no navegador a partir de qualquer telemóvel, tablet ou computador, sem necessidade de instalação.
             </p>
-            <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
-              <button 
-                onClick={() => window.dispatchEvent(new CustomEvent('pwa-install-request'))}
-                className="bg-[#FFC20E] hover:bg-white text-slate-950 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95"
-              >
-                Instalar Agora
-              </button>
-            </div>
           </div>
 
           <div className="relative">

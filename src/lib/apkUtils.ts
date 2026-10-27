@@ -1,4 +1,4 @@
-// Utility to detect if running inside Median / GoNative Android APK app or Standalone PWA
+// Utility to detect if running inside Median / GoNative Android APK app
 export const APK_DOWNLOAD_URL = 'https://median.co/share/bnpmley#apk';
 
 export const isInsideAPKApp = (): boolean => {
@@ -25,7 +25,7 @@ export const isInsideAPKApp = (): boolean => {
     return true;
   }
 
-  // 3. Check Standalone / Installed PWA mode
+  // 3. Check Android standalone webview mode
   if (
     window.matchMedia('(display-mode: standalone)').matches || 
     window.matchMedia('(display-mode: fullscreen)').matches ||

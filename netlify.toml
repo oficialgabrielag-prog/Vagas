@@ -8,6 +8,18 @@
   from = "/api/verify-recaptcha"
   to = "/.netlify/functions/verify-recaptcha"
   status = 200
+
+# Redirecionamento da API de estatísticas canónicas para a Netlify Function
+[[redirects]]
+  from = "/api/stats/users-count"
+  to = "/.netlify/functions/stats-users-count"
+  status = 200
+
+[[redirects]]
+  from = "/api/stats/platform"
+  to = "/.netlify/functions/stats-users-count"
+  status = 200
+
 # Redirecionamento da API de envio de emails para a Netlify Function
 [[redirects]]
   from = "/api/send-email-campaign"

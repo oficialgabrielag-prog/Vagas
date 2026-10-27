@@ -47,21 +47,43 @@ export const Home: React.FC<HomeProps> = ({
     setAttempts(StoreService.getExamAttempts());
   }, []);
 
-  // Compute platform statistics
-  const platformStats: PlatformStats = useMemo(() => {
-    const activeJobs = jobs.filter(j => j.status === 'active');
-    const availableProducts = products.filter(p => p.status === 'available');
-    return {
-      totalUsers: Math.max(120, companies.length * 3 + attempts.length),
-      totalCandidates: Math.max(85, attempts.length * 2 + 15),
-      totalEmployers: Math.max(companies.length, 12),
-      totalPosts: 35,
-      totalJobs: activeJobs.length,
-      totalProducts: availableProducts.length,
-      totalExams: attempts.length,
-      users: []
+  // Real canonical platform statistics from Supabase
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStats = () => {
+      StoreService.getPlatformUserStats().then(stats => {
+        if (isMounted) setPlatformStats(stats);
+      });
     };
-  }, [jobs, products, companies, attempts]);
+    fetchStats();
+
+    const handleStatsUpdate = (e: any) => {
+      if (e.detail?.stats && isMounted) {
+        setPlatformStats(e.detail.stats);
+      } else {
+        fetchStats();
+      }
+    };
+
+    window.addEventListener('cunene_user_stats_updated', handleStatsUpdate);
+    window.addEventListener('focus', fetchStats);
+    window.addEventListener('online', fetchStats);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchStats();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('cunene_user_stats_updated', handleStatsUpdate);
+      window.removeEventListener('focus', fetchStats);
+      window.removeEventListener('online', fetchStats);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   // Featured active jobs (up to 3)
   const featuredJobs = useMemo(() => {

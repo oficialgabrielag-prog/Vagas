@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
 };
 
 const safeSetItem = (key: string, value: string) => {
+  if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(key, value);
   } catch (e: any) {
@@ -33,6 +34,7 @@ const safeSetItem = (key: string, value: string) => {
 export const StoreService = {
   // Current User Session
   getCurrentUser(): UserProfile | null {
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(STORAGE_KEYS.USER);
     if (!raw) return null;
     try {
@@ -157,32 +159,77 @@ export const StoreService = {
     );
   },
 
+  async fetchCanonicalStats(): Promise<{ totalUsers: number; totalCandidates: number; totalEmployers: number } | null> {
+    try {
+      const res = await fetch(`/api/stats/users-count?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (typeof json.totalUsers === 'number') {
+          return {
+            totalUsers: json.totalUsers,
+            totalCandidates: typeof json.totalCandidates === 'number' ? json.totalCandidates : 0,
+            totalEmployers: typeof json.totalEmployers === 'number' ? json.totalEmployers : 0
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao consultar /api/stats/users-count:', err);
+    }
+    return null;
+  },
+
   async getPlatformUserStats(): Promise<PlatformStats> {
     const usersMap = new Map<string, PlatformUserInfo>();
-    let candidatesCount = 0;
-    let employersCount = 0;
+    const cur = this.getCurrentUser();
 
-    // 1. Obter dados da tabela 'profiles' do Supabase (Fonte Principal e Oficial)
+    // 1. Tentar obter contagem agregada canónica do endpoint REST com revalidação estrita
+    const canonical = await this.fetchCanonicalStats();
+
+    // 2. Obter dados da tabela 'profiles' do Supabase (Única Fonte de Verdade Oficial)
     try {
       const { data: profiles, error: profsErr } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .neq('id', '00000000-0000-0000-0000-000000000001')
+        .order('created_at', { ascending: false });
 
       if (!profsErr && profiles && Array.isArray(profiles)) {
         profiles.forEach(p => {
+          if (!p.id || p.id === '00000000-0000-0000-0000-000000000001') return;
           const r = (p.role || '').toLowerCase();
           const isEmp = r === 'empresa' || r === 'employer';
           const name = p.full_name || p.nome || (isEmp ? 'Empresa Registada' : 'Utilizador');
           const mun = p.municipio || p.municipality || 'Ondjiva';
           const whatsapp = p.whatsapp || '';
-          const email = p.email || `${(name || 'utilizador').toLowerCase().replace(/[^a-z0-9]/g, '')}@cunenevagas.online`;
+
+          let email = p.email || '';
+          if (!email) {
+            try {
+              const raw = localStorage.getItem(`${STORAGE_KEYS.USER}_rich_${p.id}`);
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.email) email = parsed.email;
+              }
+            } catch {}
+          }
+          if (!email) {
+            email = `${(name || 'utilizador').toLowerCase().replace(/[^a-z0-9]/g, '')}@cunenevagas.online`;
+          }
+
+          const isUserAdmin = cur && cur.id === p.id && this.isAdmin(cur);
 
           usersMap.set(p.id, {
             id: p.id,
             name,
             email,
             whatsapp,
-            role: isEmp ? 'Empresa' : 'Candidato',
+            role: isUserAdmin ? 'Administrador' : (isEmp ? 'Empresa' : 'Candidato'),
             municipality: mun,
             created_at: p.created_at || new Date().toISOString(),
             avatar_url: p.avatar_url
@@ -193,93 +240,40 @@ export const StoreService = {
       console.warn('Erro ao consultar tabela profiles no Supabase:', err);
     }
 
-    // 2. Obter dados complementares da tabela 'users' (Se existir)
-    try {
-      const { data: usersData, error: usersErr } = await supabase
-        .from('users')
-        .select('*');
-
-      if (!usersErr && usersData && Array.isArray(usersData)) {
-        usersData.forEach(u => {
-          const r = (u.role || '').toLowerCase();
-          const isEmp = r === 'empresa' || r === 'employer';
-          const name = u.nome || u.full_name;
-          const mun = u.municipio || u.municipality;
-          const whatsapp = u.whatsapp;
-
-          if (usersMap.has(u.id)) {
-            const existing = usersMap.get(u.id)!;
-            if (name && (!existing.name || existing.name === 'Utilizador')) existing.name = name;
-            if (u.email && !existing.email) existing.email = u.email;
-            if (u.created_at) existing.created_at = u.created_at;
-            if (whatsapp && !existing.whatsapp) existing.whatsapp = whatsapp;
-            if (mun && !existing.municipality) existing.municipality = mun;
-            if (u.avatar_url && !existing.avatar_url) (existing as any).avatar_url = u.avatar_url;
-          } else {
-            const email = u.email || `${(name || 'utilizador').toLowerCase().replace(/[^a-z0-9]/g, '')}@cunenevagas.online`;
-            usersMap.set(u.id, {
-              id: u.id,
-              name: name || (isEmp ? 'Empresa Registada' : 'Utilizador'),
-              email,
-              whatsapp: whatsapp || '',
-              role: isEmp ? 'Empresa' : 'Candidato',
-              municipality: mun || 'Ondjiva',
-              created_at: u.created_at || new Date().toISOString(),
-              avatar_url: u.avatar_url
-            });
-          }
-        });
-      }
-    } catch (err) {
-      // Ignorar erro se a tabela users não existir
-    }
-
-    // 3. Obter empresas registadas
-    try {
-      const companies = await this.fetchCompanies();
-      companies.forEach(c => {
-        if (!usersMap.has(c.id)) {
-          usersMap.set(c.id, {
-            id: c.id,
-            name: c.company_name || c.full_name || 'Empresa Local',
-            email: c.email || 'empresa@cunenevagas.online',
-            whatsapp: c.whatsapp || '',
-            role: 'Empresa',
-            municipality: c.municipality || 'Ondjiva',
-            avatar_url: c.company_logo || c.avatar_url,
-            created_at: c.created_at || new Date().toISOString()
-          });
-        }
-      });
-    } catch {}
-
-    // 4. Incluir utilizador ativo atual da sessão
-    const cur = this.getCurrentUser();
-    if (cur) {
+    // 3. Se o utilizador atual estiver autenticado e não constar em profiles por atraso de rede,
+    // inclui-o e garante o auto-provisionamento em segundo plano no Supabase
+    if (cur && cur.id && !usersMap.has(cur.id)) {
       const isCurAdmin = this.isAdmin(cur);
       const isCurEmp = cur.role === 'employer';
-      if (!usersMap.has(cur.id)) {
-        usersMap.set(cur.id, {
-          id: cur.id,
-          name: cur.full_name,
-          email: cur.email,
-          whatsapp: cur.whatsapp || '',
-          role: isCurAdmin ? 'Administrador' : (isCurEmp ? 'Empresa' : 'Candidato'),
-          municipality: cur.municipality || 'Ondjiva',
-          avatar_url: cur.avatar_url,
-          created_at: cur.created_at || new Date().toISOString()
-        });
-      } else {
-        const existing = usersMap.get(cur.id)!;
-        if (isCurAdmin) {
-          existing.role = 'Administrador';
-        }
-        if (cur.email) existing.email = cur.email;
-        if (cur.whatsapp) existing.whatsapp = cur.whatsapp;
-      }
+      usersMap.set(cur.id, {
+        id: cur.id,
+        name: cur.full_name,
+        email: cur.email,
+        whatsapp: cur.whatsapp || '',
+        role: isCurAdmin ? 'Administrador' : (isCurEmp ? 'Empresa' : 'Candidato'),
+        municipality: cur.municipality || 'Ondjiva',
+        avatar_url: cur.avatar_url,
+        created_at: cur.created_at || new Date().toISOString()
+      });
+
+      // Background auto-sync to profiles if missing
+      (async () => {
+        try {
+          await supabase.from('profiles').upsert([{
+            id: cur.id,
+            full_name: cur.full_name,
+            role: isCurEmp ? 'empresa' : 'candidato',
+            municipio: cur.municipality || 'Ondjiva',
+            whatsapp: cur.whatsapp || ''
+          }]);
+        } catch {}
+      })();
     }
 
-    // Contagem precisa de candidatos vs empresas
+    // Contagem real e canónica (sem empresas mock/fictícias e sem mínimos artificiais)
+    let candidatesCount = 0;
+    let employersCount = 0;
+
     usersMap.forEach(u => {
       const isEmp = u.role === 'Empresa' || u.role === 'employer' || u.role === 'empresa';
       if (isEmp) {
@@ -290,17 +284,19 @@ export const StoreService = {
     });
 
     const usersList = Array.from(usersMap.values());
-    const totalUsers = Math.max(usersList.length, 1);
+    const totalUsers = canonical?.totalUsers ?? usersList.length;
+    const finalCandidates = canonical?.totalCandidates ?? candidatesCount;
+    const finalEmployers = canonical?.totalEmployers ?? employersCount;
+
     const totalPosts = this.getPosts().length;
     const totalJobs = this.getJobs().length;
     const totalProducts = this.getProducts().length;
-    // Apenas relatórios de exames oficiais/reais (excluindo testes simulados de treino)
     const totalExams = this.getRealExamAttempts().length;
 
     const stats: PlatformStats = {
       totalUsers,
-      totalCandidates: Math.max(candidatesCount, 1),
-      totalEmployers: employersCount,
+      totalCandidates: finalCandidates,
+      totalEmployers: finalEmployers,
       totalPosts,
       totalJobs,
       totalProducts,
@@ -309,6 +305,9 @@ export const StoreService = {
     };
 
     safeSetItem('cunene_platform_stats', JSON.stringify(stats));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cunene_user_stats_updated', { detail: { stats } }));
+    }
     return stats;
   },
 
@@ -333,18 +332,31 @@ export const StoreService = {
     let { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
     if (!profile) {
       try {
-        const { data: userRow } = await supabase.from('users').select('*').eq('id', authUser.id).single();
-        if (userRow) {
+        const fallbackName = metaProfile.full_name || (authUser.email || '').split('@')[0].toUpperCase();
+        const roleVal = (metaProfile.role === 'employer' || (metaProfile as any).company_name) ? 'empresa' : 'candidato';
+        const munVal = metaProfile.municipality || 'Ondjiva';
+        const phoneVal = metaProfile.whatsapp || metaProfile.phone || '';
+        const { data: newProf } = await supabase.from('profiles').upsert([{
+          id: authUser.id,
+          full_name: fallbackName,
+          role: roleVal,
+          municipio: munVal,
+          whatsapp: phoneVal
+        }]).select().single();
+        if (newProf) {
+          profile = newProf;
+        } else {
           profile = {
-            id: userRow.id,
-            full_name: userRow.nome || userRow.full_name,
-            email: userRow.email,
-            whatsapp: userRow.whatsapp,
-            municipio: userRow.municipio,
-            role: userRow.role
+            id: authUser.id,
+            full_name: fallbackName,
+            role: roleVal,
+            municipio: munVal,
+            whatsapp: phoneVal
           };
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Auto-provision profile on login note:', err);
+      }
     }
     let { data: companyData } = await supabase.from('companies').select('*').eq('id', authUser.id).single();
 
@@ -543,10 +555,10 @@ export const StoreService = {
       }
     } catch {}
 
-    // 5. Tabela profiles no Supabase
+    // 5. Tabela users no Supabase (onde email é indexado)
     try {
       const { data } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, email')
         .eq('email', normalized)
         .maybeSingle();
@@ -619,35 +631,41 @@ export const StoreService = {
       email_confirmed_at: new Date().toISOString()
     };
 
-    // Save strictly valid columns to profiles table in Supabase
+    // Save strictly valid columns to profiles table in Supabase (id, full_name, role, municipio)
     await supabase.from('profiles').upsert([{
       id: userId,
       full_name: fullName,
-      email: normalizedEmail,
       role: role === 'employer' ? 'empresa' : 'candidato',
-      municipality: 'Ondjiva'
+      municipio: 'Ondjiva'
     }]);
 
-    // 2. If Employer, create Isolated Company Profile
+    // 2. If Employer, create Isolated Company Profile with valid schema columns (id, user_id, nif, setor, descricao)
     let companyProfile: CompanyProfile | undefined;
     if (role === 'employer') {
+      const compName = companyName || fullName;
+      const compMeta = `<!--COMP_META:${JSON.stringify({
+        name: compName,
+        industry: 'Comércio e Serviços',
+        municipality: 'Ondjiva'
+      })}-->`;
+
       companyProfile = {
         id: 'comp-' + userId,
         user_id: userId,
-        name: companyName || fullName,
+        name: compName,
         industry: 'Comércio e Serviços',
         municipality: 'Ondjiva',
         description: '',
         services: [],
         created_at: new Date().toISOString()
       };
+
       await supabase.from('companies').upsert([{
         id: 'comp-' + userId,
         user_id: userId,
-        name: companyName || fullName,
-        description: '',
-        industry: 'Comércio e Serviços',
-        municipality: 'Ondjiva'
+        nif: '000000000',
+        setor: 'Comércio e Serviços',
+        descricao: compMeta
       }]);
     }
 
@@ -1058,32 +1076,36 @@ export const StoreService = {
 
       // 1. Fetch from profiles table (where role is empresa or employer)
       try {
-        const { data: profilesData } = await supabase.from('profiles').select('*');
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
         if (profilesData && Array.isArray(profilesData)) {
           profilesData.forEach(p => {
             const r = (p.role || '').toLowerCase();
             const isEmp = r === 'empresa' || r === 'employer' || r === 'admin' || p.full_name?.toLowerCase().includes('lda');
             if (isEmp) {
               const id = p.id;
-              const name = p.full_name || p.nome || 'Empresa Registada';
+              const name = p.company_name || p.full_name || p.nome || 'Empresa Registada';
               const existing = allCompaniesMap.get(id);
+              const logo = p.avatar_url || p.company_logo || existing?.company_logo || existing?.avatar_url || '';
               
-              if (!existing || (!existing.avatar_url && p.avatar_url)) {
-                allCompaniesMap.set(id, {
-                  id,
-                  email: p.email || existing?.email || '',
-                  full_name: name,
-                  role: 'employer',
-                  company_name: name,
-                  industry: p.industry || p.setor || existing?.industry || 'Comércio e Serviços',
-                  municipality: p.municipality || p.municipio || 'Ondjiva',
-                  whatsapp: p.whatsapp || existing?.whatsapp || '',
-                  phone: p.phone || existing?.phone || '',
-                  avatar_url: p.avatar_url || existing?.avatar_url || '',
-                  company_logo: p.avatar_url || existing?.company_logo || '',
-                  created_at: p.created_at || existing?.created_at || new Date().toISOString()
-                });
-              }
+              allCompaniesMap.set(id, {
+                ...existing,
+                id,
+                email: p.email || existing?.email || '',
+                full_name: name,
+                role: 'employer',
+                company_name: name,
+                industry: p.industry || p.setor || existing?.industry || 'Comércio e Serviços',
+                municipality: p.municipality || p.municipio || existing?.municipality || 'Ondjiva',
+                whatsapp: p.whatsapp || existing?.whatsapp || '',
+                phone: p.phone || existing?.phone || '',
+                avatar_url: logo,
+                company_logo: logo,
+                created_at: p.created_at || existing?.created_at || new Date().toISOString()
+              });
             }
           });
         }
@@ -1093,7 +1115,10 @@ export const StoreService = {
 
       // 2. Fetch from users table (Legacy or auxiliary data)
       try {
-        const { data: usersData } = await supabase.from('users').select('*');
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
         if (usersData && usersData.length > 0) {
           usersData.forEach(u => {
             const isEmp = u.role === 'employer' || u.role === 'empresa' || u.company_name || u.logo_url || u.company_logo;
@@ -1154,7 +1179,10 @@ export const StoreService = {
 
       // 3. Check companies table
       try {
-        const { data: companiesData } = await supabase.from('companies').select('*');
+        const { data: companiesData } = await supabase
+          .from('companies')
+          .select('*')
+          .order('created_at', { ascending: false });
         if (companiesData && companiesData.length > 0) {
           companiesData.forEach(c => {
             const id = c.user_id || c.id;
@@ -1238,7 +1266,16 @@ export const StoreService = {
         // Skip companies table errors
       }
 
-      const results = Array.from(allCompaniesMap.values());
+      const results = Array.from(allCompaniesMap.values()).sort((a, b) => {
+        const isDefaultA = a.id.startsWith('comp-cunene-') || a.id.startsWith('comp-trans-') || a.id.startsWith('comp-farmacia-') || a.id.startsWith('comp-ombandja-') || a.id.startsWith('comp-rainha-');
+        const isDefaultB = b.id.startsWith('comp-cunene-') || b.id.startsWith('comp-trans-') || b.id.startsWith('comp-farmacia-') || b.id.startsWith('comp-ombandja-') || b.id.startsWith('comp-rainha-');
+        if (!isDefaultA && isDefaultB) return -1;
+        if (isDefaultA && !isDefaultB) return 1;
+        const timeA = new Date(a.created_at || 0).getTime();
+        const timeB = new Date(b.created_at || 0).getTime();
+        return timeB - timeA;
+      });
+
       if (results.length === 0) {
         return this.getDefaultCompanies();
       }

@@ -1,2 +1,4 @@
 /api/verify-recaptcha /.netlify/functions/verify-recaptcha 200
+/api/stats/users-count /.netlify/functions/stats-users-count 200
+/api/stats/platform /.netlify/functions/stats-users-count 200
 /* /index.html 200

@@ -70,22 +70,10 @@ export const sendNativePushNotification = (
     } catch {}
   }
 
-  // 1. Try via Service Worker if available for true native system push
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
-      .then(registration => {
-        return registration.showNotification(title, notificationOptions);
-      })
-      .catch(() => {
-        // Fallback to constructor
-        try {
-          new Notification(title, notificationOptions);
-        } catch {}
-      });
-  } else {
-    // 2. Direct Window Notification
-    try {
-      new Notification(title, notificationOptions);
-    } catch {}
+  // Direct Standard Browser Notification
+  try {
+    new Notification(title, notificationOptions);
+  } catch (e) {
+    console.warn('Notification display failed:', e);
   }
 };

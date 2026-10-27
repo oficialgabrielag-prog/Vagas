@@ -27,15 +27,7 @@
     <meta name="author" content="CuneneVagas Tech Team" />
     <link rel="canonical" href="https://cunenevagas.online" />
     
-    <!-- PWA & Mobile Web App Meta Tags -->
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0F4C9C" />
-    <meta name="color-scheme" content="light only" />
-    <meta name="supported-color-schemes" content="light" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="CuneneVagas" />
+    <!-- Favicon & Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -87,10 +79,18 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Desativa e remove definitivamente quaisquer Service Workers e caches legados do PWA
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           for (var i = 0; i < regs.length; i++) {
             regs[i].unregister().catch(function() {});
+          }
+        }).catch(function() {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var i = 0; i < names.length; i++) {
+            caches.delete(names[i]).catch(function() {});
           }
         }).catch(function() {});
       }

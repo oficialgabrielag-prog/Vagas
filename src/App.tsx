@@ -4,9 +4,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { BottomNav } from './components/BottomNav';
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import { OfflineIndicator } from './components/OfflineIndicator';
 import { AuthModal } from './components/AuthModal';
+
 import { JobDetailModal } from './components/JobDetailModal';
 import { NewJobModal } from './components/NewJobModal';
 import { NewProductModal } from './components/NewProductModal';
@@ -307,7 +306,11 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      setNotifications(StoreService.getNotifications(currentUser.id));
+      const freshNotes = StoreService.getNotifications(currentUser.id);
+      setNotifications(prev => {
+        if (prev.length !== freshNotes.length) return freshNotes;
+        return prev;
+      });
     } else {
       setNotifications([]);
     }
@@ -669,8 +672,27 @@ export default function App() {
       })
       .subscribe();
 
+    // Eventos de foco, visibilidade de separador e recuperação de conexão de rede
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAllUsersAndCompanies();
+      }
+    };
+    window.addEventListener('focus', refreshAllUsersAndCompanies);
+    window.addEventListener('online', refreshAllUsersAndCompanies);
+    window.addEventListener('cunene_user_stats_updated', refreshAllUsersAndCompanies);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Polling de fallback a cada 30 segundos para sincronização contínua entre navegadores
+    const pollTimer = setInterval(refreshAllUsersAndCompanies, 30000);
+
     return () => {
       authListener?.subscription.unsubscribe();
+      window.removeEventListener('focus', refreshAllUsersAndCompanies);
+      window.removeEventListener('online', refreshAllUsersAndCompanies);
+      window.removeEventListener('cunene_user_stats_updated', refreshAllUsersAndCompanies);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(pollTimer);
       Object.values(channels).forEach(channel => supabase.removeChannel(channel));
     };
   }, []);
@@ -793,9 +815,7 @@ export default function App() {
         onTouchCancel={handleTouchCancelGlobal}
         className="min-h-screen flex flex-col bg-white font-sans text-[#111827] antialiased selection:bg-[#0F4C9C] selection:text-white"
       >
-        {!isOnline && <OfflineIndicator />}
-        {/* PWA Install Banner */}
-        <PWAInstallPrompt />
+
 
         {/* Pull-to-Refresh Visual Indicator */}
         {(pullDistance > 0 || isRefreshing) && (
