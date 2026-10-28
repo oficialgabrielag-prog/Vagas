@@ -2156,6 +2156,33 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <div><label className="block text-xs font-semibold text-slate-700 mb-1">Biografia</label><textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" /></div>
             <button type="submit" className="w-full bg-[#0F4C9C] text-white font-semibold py-3 rounded-xl text-sm transition shadow">Guardar Alterações</button>
           </form>
+
+          {/* Zona de Perigo: Eliminar Conta */}
+          <div className="mt-8 pt-6 border-t border-rose-100 space-y-3">
+            <h4 className="text-sm font-bold text-rose-600 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" /> Zona de Perigo
+            </h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              A eliminação da sua conta é permanente e irreversível. Todos os seus dados, anúncios, candidaturas e histórico serão apagados da plataforma.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmModal({
+                  title: 'Eliminar Conta Permanentemente',
+                  message: 'Tem a certeza absoluta de que pretende eliminar a sua conta? Esta ação não pode ser desfeita.',
+                  confirmText: 'Sim, Eliminar Permanentemente',
+                  onConfirm: async () => {
+                    await StoreService.deleteAccount(currentUser.id);
+                    window.location.reload();
+                  }
+                });
+              }}
+              className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-4 py-2.5 rounded-xl text-xs transition border border-rose-200 cursor-pointer flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" /> Eliminar a minha conta
+            </button>
+          </div>
         </div>
       )}
 

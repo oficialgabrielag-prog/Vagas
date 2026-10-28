@@ -84,6 +84,24 @@ export const StoreService = {
     }
   },
 
+  async deleteAccount(userId: string): Promise<void> {
+    try {
+      await supabase.from('profiles').delete().eq('id', userId);
+      await supabase.from('companies').delete().eq('user_id', userId);
+      await supabase.from('users').delete().eq('id', userId);
+    } catch (e) {
+      console.warn('Supabase delete account note:', e);
+    }
+
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USER);
+      localStorage.removeItem(`${STORAGE_KEYS.USER}_rich_${userId}`);
+      await signOut();
+    } catch {}
+
+    window.dispatchEvent(new CustomEvent('cunene_user_deleted'));
+  },
+
   // Toggle user role between 'candidate' and 'employer'
   // CRITICAL RULE: NO COPYING OR OVERWRITING DATA BETWEEN PROFILES
   switchUserRole(userId: string, targetRole: UserRole): UserProfile {
