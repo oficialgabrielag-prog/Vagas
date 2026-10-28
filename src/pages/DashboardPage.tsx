@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, User, Bookmark, CheckCircle2, Trash2, Plus, Edit3, Clock, XCircle, Building2, FileText, Award, Bell, ShieldCheck, Users, Search, RefreshCw, BarChart3, MessageSquare, MessageCircle, ExternalLink, ShoppingBag, Sparkles, BookOpen, AlertTriangle, Megaphone, Send, Star, AtSign, CreditCard, Mail, Copy, Check } from 'lucide-react';
+import { Briefcase, User, Bookmark, CheckCircle2, Trash2, Plus, Edit3, Clock, XCircle, Building2, FileText, Award, Bell, ShieldCheck, Users, Search, RefreshCw, BarChart3, MessageSquare, MessageCircle, ExternalLink, ShoppingBag, Sparkles, BookOpen, AlertTriangle, Megaphone, Send, Star, AtSign, CreditCard, Mail, Copy, Check, Lock } from 'lucide-react';
 import { UserProfile, Job, JobApplication, ExamAttempt, Exam, CommunityPost, PlatformStats, CUNENE_MUNICIPALITIES, PlatformPartner, PlatformUserInfo } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { supabase } from '../lib/supabase';
@@ -87,6 +87,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     confirmText?: string;
     onConfirm: () => void;
   } | null>(null);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordFeedback, setPasswordFeedback] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordFeedback('');
+    setPasswordError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('A nova palavra-passe deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('As palavras-passe não coincidem.');
+      return;
+    }
+
+    try {
+      const { error } = await StoreService.updatePassword(newPassword);
+      if (error) {
+        setPasswordError('Erro ao atualizar palavra-passe: ' + (error.message || error));
+      } else {
+        setPasswordFeedback('Palavra-passe alterada com sucesso!');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (err: any) {
+      setPasswordError('Erro inesperado: ' + err.message);
+    }
+  };
 
   // Gestão de Parceiros Oficiais pelo Admin
   const [partners, setPartners] = useState<PlatformPartner[]>(() => StoreService.getPartners());
@@ -2156,6 +2189,40 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <div><label className="block text-xs font-semibold text-slate-700 mb-1">Biografia</label><textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" /></div>
             <button type="submit" className="w-full bg-[#0F4C9C] text-white font-semibold py-3 rounded-xl text-sm transition shadow">Guardar Alterações</button>
           </form>
+
+          {/* Alterar Palavra-passe */}
+          <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-[#0F4C9C]" /> Alterar Palavra-passe
+            </h4>
+            {passwordError && <div className="bg-rose-50 text-rose-700 p-3 rounded-xl text-xs font-medium">{passwordError}</div>}
+            {passwordFeedback && <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-medium">{passwordFeedback}</div>}
+            <form onSubmit={handleUpdatePassword} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nova Palavra-passe</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Confirmar Nova Palavra-passe</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a nova palavra-passe"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
+                />
+              </div>
+              <button type="submit" className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                Atualizar Palavra-passe
+              </button>
+            </form>
+          </div>
 
           {/* Zona de Perigo: Eliminar Conta */}
           <div className="mt-8 pt-6 border-t border-rose-100 space-y-3">

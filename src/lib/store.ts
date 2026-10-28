@@ -1,5 +1,5 @@
 import { Job, JobApplication, MarketplaceProduct, CommunityPost, UserProfile, CandidateProfile, CompanyProfile, Exam, ExamAttempt, NotificationItem, PostComment, UserRole, PostReactionType, PlatformStats, PlatformUserInfo, FollowerItem, CompanyRating, PlatformPartner, TelecomNewsItem } from './types';
-import { supabase, signInWithPassword, signUp, signOut, resetPasswordForEmail } from './supabase';
+import { supabase, signInWithPassword, signUp, signOut, resetPasswordForEmail, updatePassword } from './supabase';
 import { sendNativePushNotification } from './pushNotifications';
 
 const STORAGE_KEYS = {
@@ -100,6 +100,16 @@ export const StoreService = {
     } catch {}
 
     window.dispatchEvent(new CustomEvent('cunene_user_deleted'));
+  },
+
+  async updatePassword(newPassword: string): Promise<{ error?: any }> {
+    try {
+      const { error } = await updatePassword(newPassword);
+      if (error) return { error };
+      return {};
+    } catch (err) {
+      return { error: err };
+    }
   },
 
   // Toggle user role between 'candidate' and 'employer'
@@ -332,6 +342,23 @@ export const StoreService = {
   // Restore full rich user session from Supabase Auth across any device
   async restoreUserFromSession(authUser: any): Promise<UserProfile | null> {
     if (!authUser) return null;
+
+    // Sincronizar metadados do Facebook / OAuth com a tabela profiles
+    try {
+      const nomeDoFacebook = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
+      const fotoDoFacebook = authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture;
+      const emailDoFacebook = authUser.user_metadata?.email || authUser.email;
+      if (nomeDoFacebook) {
+        await supabase.from('profiles').update({
+          full_name: nomeDoFacebook,
+          avatar_url: fotoDoFacebook,
+          email: emailDoFacebook
+        }).eq('id', authUser.id);
+      }
+    } catch (e) {
+      console.warn('OAuth profile sync note:', e);
+    }
+
     const metadata = (authUser.user_metadata || {}) as any;
     const metaProfile = (metadata.profile_data || {}) as Partial<UserProfile>;
     const metaCompany = (metadata.company_data || {}) as Partial<CompanyProfile>;

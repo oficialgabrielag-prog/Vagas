@@ -212,6 +212,16 @@ export default function App() {
   }, []);
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(StoreService.getCurrentUser());
+  const [verifiedNotice, setVerifiedNotice] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (hash.includes('type=signup') || hash.includes('type=email_change') || search.includes('type=signup') || hash.includes('access_token')) {
+        return 'Conta verificada com sucesso! Inicie sessão agora.';
+      }
+    }
+    return null;
+  });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isPCMode, setIsPCMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -1240,6 +1250,34 @@ export default function App() {
             }
           }}
         />
+
+        {/* Verified Notice Modal */}
+        {verifiedNotice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center space-y-5">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+                <Check className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-slate-900">Conta Verificada!</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {verifiedNotice}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setVerifiedNotice(null);
+                  setCurrentTab('login');
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+                className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 rounded-2xl text-sm transition shadow-md cursor-pointer"
+              >
+                Inicie sessão agora
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );

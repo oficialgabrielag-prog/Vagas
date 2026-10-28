@@ -175,3 +175,8 @@ export const getSession = async () => {
 export const onAuthStateChange = (callback: (event: string, session: any) => void) => {
   return supabase.auth.onAuthStateChange(callback);
 };
+
+export const updatePassword = async (newPassword: string) => {
+  return await supabase.auth.updateUser({ password: newPassword });
+};
+
