@@ -216,7 +216,8 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash || '';
       const search = window.location.search || '';
-      if (hash.includes('type=signup') || hash.includes('type=email_change') || search.includes('type=signup') || hash.includes('access_token')) {
+      // Apenas mostrar aviso se for confirmação de e-mail por palavra-passe (signup), excluindo logins OAuth (Facebook/Google)
+      if ((hash.includes('type=signup') || hash.includes('type=email_change') || search.includes('type=signup')) && !hash.includes('provider=facebook') && !hash.includes('access_token')) {
         return 'Conta verificada com sucesso! Inicie sessão agora.';
       }
     }
@@ -587,6 +588,12 @@ export default function App() {
             window.history.replaceState({}, document.title, window.location.pathname);
           }
           setCurrentUser(restored);
+          if (window.location.hash.includes('access_token')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            if (currentTab === 'login' || currentTab === 'register') {
+              setCurrentTab('home');
+            }
+          }
         }
       }
     }).catch(() => {});
