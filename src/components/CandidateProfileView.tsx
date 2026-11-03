@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, MapPin, Phone, Mail, FileText, Award, Briefcase, 
   GraduationCap, Edit3, Trash2, Send, Image as ImageIcon, 
-  CheckCircle2, Users, Building2, Sparkles, ExternalLink, 
-  Calendar, Eye, Share2, ArrowRight, Check
+  CheckCircle2, Users, Building2, ExternalLink, 
+  Eye, Share2, ArrowRight, Check, Bookmark, Clock, Plus,
+  ShieldCheck, AlertCircle, Sparkles
 } from 'lucide-react';
-import { UserProfile, CommunityPost, ExperienceItem, EducationItem, FollowerItem } from '../lib/types';
+import { UserProfile, CommunityPost, FollowerItem } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { uploadToCloudinary } from '../lib/cloudinary';
 import { MediaViewer } from './MediaViewer';
@@ -30,7 +31,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isFollowersModalOpen, setIsFollowersModalOpen] = useState(false);
   const [followers, setFollowers] = useState<FollowerItem[]>(() => StoreService.getFollowers(currentUser.id));
-  const [activeTab, setActiveTab] = useState<'profile' | 'posts'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'applications' | 'saved' | 'exams' | 'posts'>('profile');
   const [showCvViewer, setShowCvViewer] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
@@ -51,7 +52,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
     return () => window.removeEventListener('cunene_followers_updated', handleUpdate);
   }, [currentUser.id]);
 
-  // Exam stats & badges
+  // Exam stats & attempts
   const userAttempts = StoreService.getExamAttempts().filter(a => a.candidate_id === currentUser.id);
   const avgScore = userAttempts.length > 0 
     ? Math.round(userAttempts.reduce((acc, curr) => acc + curr.percentage, 0) / userAttempts.length)
@@ -60,12 +61,32 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
   const isTopTalent = avgScore >= 90 && userAttempts.length >= 2;
   const isQualified = avgScore >= 75 && userAttempts.length >= 1;
 
+  // Applications & Saved Jobs
+  const myApplications = StoreService.getApplications().filter(a => a.candidate_id === currentUser.id);
+  const mySavedJobIds = StoreService.getSavedJobs(currentUser.id);
+  const allJobs = StoreService.getJobs();
+  const mySavedJobs = allJobs.filter(j => mySavedJobIds.includes(j.id));
+
   // Filter candidate's own personal posts
   const candidatePosts = posts.filter(p => 
     (p.author_id === currentUser.id || 
      (p.author_name && p.author_name.toLowerCase() === currentUser.full_name?.toLowerCase())) &&
     (p.author_type === 'candidate' || (p as any).post_type === 'candidate')
   );
+
+  // Profile Completeness Calculation
+  const completenessItems = [
+    { label: 'Foto de Perfil', done: !!currentUser.avatar_url, weight: 15 },
+    { label: 'Resumo / Sobre mim', done: !!currentUser.bio, weight: 15 },
+    { label: 'Profissão / Título', done: !!(currentUser.profession || currentUser.headline), weight: 15 },
+    { label: 'Competências / Habilidades', done: !!(currentUser.skills && currentUser.skills.length > 0), weight: 15 },
+    { label: 'Experiência Profissional', done: !!(currentUser.experiences && currentUser.experiences.length > 0), weight: 15 },
+    { label: 'Formação Académica', done: !!(currentUser.educations && currentUser.educations.length > 0), weight: 10 },
+    { label: 'Currículo Anexado (CV)', done: !!currentUser.cv_url, weight: 15 },
+  ];
+
+  const completenessPercentage = completenessItems.reduce((acc, item) => item.done ? acc + item.weight : acc, 0);
+  const missingItems = completenessItems.filter(item => !item.done);
 
   const handlePostImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,14 +147,30 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
     setTimeout(() => setShareCopied(false), 2500);
   };
 
+  // Helper for application status steps
+  const APPLICATION_STEPS = ['Enviada', 'Em análise', 'Selecionada para exame', 'Exame realizado', 'Aprovada'];
+
+  const getStepIndex = (status?: string) => {
+    if (!status) return 0;
+    if (status === 'Rejeitada') return -1;
+    const idx = APPLICATION_STEPS.indexOf(status);
+    return idx >= 0 ? idx : 0;
+  };
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 font-sans">
+    <div className="max-w-[480px] sm:max-w-5xl mx-auto space-y-5 pb-20 font-sans text-[#16213a]">
       
-      {/* 1. Header do Perfil Corporativo Moderno */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      {/* 1. Header do Perfil: Capa Fina + Avatar Redondo Overlapping */}
+      <div className="bg-card rounded-[22px] border border-[#e0e6ee] shadow-2xs overflow-hidden">
         
-        {/* Capa de Perfil */}
-        <div className="h-40 sm:h-56 relative bg-gradient-to-r from-[#193B70] via-[#244F9A] to-[#123D73] overflow-hidden">
+        {/* Capa fina no topo (h-[116px]) */}
+        <div 
+          className="h-[116px] sm:h-[140px] relative bg-[#14305f] overflow-hidden"
+          style={{
+            backgroundImage: 'radial-gradient(rgba(255,255,255,0.09) 1.2px, transparent 1.3px)',
+            backgroundSize: '22px 22px'
+          }}
+        >
           {currentUser.cover_url ? (
             <img 
               src={currentUser.cover_url} 
@@ -141,30 +178,25 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
               className="w-full h-full object-cover" 
               referrerPolicy="no-referrer"
             />
-          ) : (
-            <div className="w-full h-full relative opacity-20">
-              <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px]" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+          ) : null}
         </div>
 
-        {/* Zona do Perfil Principal */}
-        <div className="px-5 sm:px-8 pb-6 relative">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between -mt-16 sm:-mt-20 gap-5">
+        {/* Informações Principais do Candidato */}
+        <div className="px-4 sm:px-6 pb-5 relative">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between -mt-12 sm:-mt-14 gap-4">
             
-            {/* Avatar & Informações Pessoais */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 text-center sm:text-left">
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white p-1 ring-4 ring-white shadow-md overflow-hidden shrink-0">
+            {/* Avatar Redondo Grande (92px) Sobreposto */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
+              <div className="w-[92px] h-[92px] rounded-full ring-4 ring-white shadow-xs overflow-hidden shrink-0 bg-white relative z-10">
                 {currentUser.avatar_url ? (
                   <img 
                     src={currentUser.avatar_url} 
                     alt={currentUser.full_name} 
-                    className="w-full h-full object-cover rounded-2xl"
+                    className="w-full h-full object-cover rounded-full"
                     referrerPolicy="no-referrer" 
                   />
                 ) : (
-                  <div className="w-full h-full bg-[#193B70] text-white rounded-2xl flex items-center justify-center font-black text-3xl">
+                  <div className="w-full h-full bg-[#1d5fc4] text-white rounded-full flex items-center justify-center font-display font-extrabold text-3xl">
                     {currentUser.full_name ? currentUser.full_name.charAt(0).toUpperCase() : 'C'}
                   </div>
                 )}
@@ -172,87 +204,68 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
 
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="text-2xl sm:text-3xl font-black text-[#172033] tracking-tight">
+                  <h1 className="text-xl sm:text-2xl font-display font-extrabold text-[#16213a] tracking-tight leading-tight">
                     {currentUser.full_name}
                   </h1>
 
                   {/* Selos de Reconhecimento */}
                   {isTopTalent && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-lg text-xs font-bold shadow-2xs">
-                      <Award className="w-3.5 h-3.5 text-[#F5B91B]" />
+                    <span className="inline-flex items-center gap-1 bg-[#fbeec2] text-[#5b4300] px-2.5 py-0.5 rounded-full text-[12px] font-bold">
+                      <Award className="w-3.5 h-3.5 text-[#f0b823]" />
                       Top Talent
                     </span>
                   )}
                   {isQualified && !isTopTalent && (
-                    <span className="inline-flex items-center gap-1 bg-blue-50 text-[#193B70] border border-[#244F9A]/20 px-2.5 py-0.5 rounded-lg text-xs font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#244F9A]" />
+                    <span className="inline-flex items-center gap-1 bg-[#d8efe2] text-[#14573a] px-2.5 py-0.5 rounded-full text-[12px] font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#1d8a52]" />
                       Qualificado
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm sm:text-base font-semibold text-[#244F9A]">
+                <p className="text-xs sm:text-sm font-semibold text-[#1d5fc4]">
                   {currentUser.profession || currentUser.headline || 'Profissional no Cunene'}
                 </p>
 
-                {/* Metadados não-envelopados (Anti-Slop Zero-Pill) */}
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 text-xs text-[#64748B] pt-0.5">
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-[#193B70]" />
+                {/* Etiquetas de Disponibilidade, Município e Email Verificado */}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 text-[12.5px]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#d8efe2] text-[#14573a] px-2.5 py-0.5 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-[#1d8a52] animate-pulse" />
+                    {currentUser.availability || 'Disponível para trabalhar'}
+                  </span>
+
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e9eef6] text-[#16213a] px-2.5 py-0.5 font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-[#1d5fc4]" />
                     {currentUser.municipality || 'Ondjiva'}, Cunene
                   </span>
-                  
-                  {currentUser.phone && (
-                    <>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-[#193B70]" />
-                        {currentUser.phone}
-                      </span>
-                    </>
-                  )}
 
-                  {currentUser.email && (
-                    <>
-                      <span aria-hidden="true" className="text-slate-300">·</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Mail className="w-3.5 h-3.5 text-[#193B70]" />
-                        {currentUser.email}
-                      </span>
-                    </>
+                  {currentUser.is_email_verified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-[#1d5fc4] border border-blue-200/60 px-2.5 py-0.5 font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#1d5fc4]" />
+                      Email Verificado
+                    </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Ações do Perfil */}
-            <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-end w-full sm:w-auto pt-2 sm:pt-0">
-              <button
-                type="button"
-                onClick={() => setIsFollowersModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-[#193B70] bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition cursor-pointer active:scale-95"
-                title="Ver quem me seguiu"
-              >
-                <Users className="w-4 h-4 text-[#244F9A]" />
-                <span className="tabular-nums font-extrabold">{followers.length}</span>
-                <span>{followers.length === 1 ? 'Seguidor' : 'Seguidores'}</span>
-              </button>
-
+            {/* Botões "Editar perfil" e "Partilhar" */}
+            <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end w-full sm:w-auto pt-2 sm:pt-0">
               <button
                 type="button"
                 onClick={handleShareProfile}
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition cursor-pointer active:scale-95"
+                className="bg-[#e9eef6] hover:bg-slate-200 text-[#16213a] font-bold rounded-xl px-4 py-2.5 text-xs sm:text-sm transition inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
                 title="Partilhar perfil"
               >
                 {shareCopied ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-600" />
-                    <span className="text-emerald-700 font-bold">Copiado</span>
+                    <Check className="w-4 h-4 text-[#1d8a52]" />
+                    <span className="text-[#1d8a52] font-bold">Copiado</span>
                   </>
                 ) : (
                   <>
-                    <Share2 className="w-4 h-4 text-slate-600" />
-                    <span className="hidden sm:inline">Partilhar</span>
+                    <Share2 className="w-4 h-4 text-[#5d6778]" />
+                    <span>Partilhar</span>
                   </>
                 )}
               </button>
@@ -260,7 +273,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white bg-[#244F9A] hover:bg-[#193B70] transition shadow-xs cursor-pointer active:scale-95"
+                className="bg-[#1d5fc4] hover:bg-[#14305f] text-white font-bold rounded-xl px-5 py-2.5 text-xs sm:text-sm transition shadow-2xs inline-flex items-center gap-2 cursor-pointer active:scale-95"
               >
                 <Edit3 className="w-4 h-4" />
                 <span>Editar Perfil</span>
@@ -268,250 +281,447 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
             </div>
           </div>
 
-          {/* Cartão de Transição para Modo Empresa se aplicável */}
-          <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/60">
+          {/* Cartão de Transição para Modo Empresa */}
+          <div className="mt-4 pt-3.5 border-t border-[#e0e6ee] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-[#e9eef6]/50 p-3.5 rounded-2xl">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-blue-100/60 text-[#193B70] flex items-center justify-center shrink-0">
-                <Building2 className="w-4 h-4 text-[#244F9A]" />
+              <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#14305f] flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4 text-[#1d5fc4]" />
               </div>
               <div>
-                <p className="font-bold text-[#172033]">Representa uma empresa no Cunene?</p>
-                <p className="text-[#64748B]">Alterne para o Modo Empresa para publicar vagas e gerir produtos no Marketplace.</p>
+                <p className="font-bold text-[#16213a]">Representa uma empresa no Cunene?</p>
+                <p className="text-[#5d6778]">Alterne para o Modo Empresa para publicar vagas e gerir produtos no Marketplace.</p>
               </div>
             </div>
             <button
               type="button"
               onClick={onSwitchToEmployer}
-              className="text-[#244F9A] hover:text-[#193B70] font-extrabold flex items-center gap-1 self-start sm:self-center transition"
+              className="text-[#1d5fc4] hover:text-[#14305f] font-extrabold flex items-center gap-1 self-start sm:self-center transition cursor-pointer"
             >
               <span>Ativar Modo Empresa</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-
-        {/* 2. Barra de Navegação por Abas (Design Corporativo Refinado) */}
-        <div className="flex border-t border-slate-200 px-6 sm:px-8 text-xs sm:text-sm font-bold bg-[#F8FAFC]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('profile')}
-            className={`py-3.5 mr-8 border-b-2 transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'profile'
-                ? 'border-[#244F9A] text-[#193B70]'
-                : 'border-transparent text-[#64748B] hover:text-[#172033]'
-            }`}
-          >
-            <User className="w-4 h-4" />
-            <span>Perfil & Currículo</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('posts')}
-            className={`py-3.5 border-b-2 transition flex items-center gap-2 cursor-pointer ${
-              activeTab === 'posts'
-                ? 'border-[#244F9A] text-[#193B70]'
-                : 'border-transparent text-[#64748B] hover:text-[#172033]'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Minhas Publicações</span>
-            <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-200/80 text-[#172033] tabular-nums font-bold">
-              {candidatePosts.length}
-            </span>
-          </button>
-        </div>
       </div>
 
-      {/* 3. Conteúdo da Aba: Perfil & Currículo */}
+      {/* 2. Faixa de 4 Números (candidaturas, guardadas, exame, seguidores) */}
+      <div className="bg-card border border-[#e0e6ee] rounded-[20px] p-3 sm:p-4 grid grid-cols-4 divide-x divide-[#e0e6ee] text-center shadow-2xs">
+        <button 
+          type="button"
+          onClick={() => setActiveTab('applications')}
+          className="px-2 hover:bg-slate-50/80 transition rounded-xl py-1 cursor-pointer"
+        >
+          <div className="text-lg sm:text-2xl font-display font-extrabold text-[#1d5fc4] tabular-nums">
+            {myApplications.length}
+          </div>
+          <div className="text-[11px] sm:text-xs text-[#5d6778] font-medium leading-tight mt-0.5">
+            Candidaturas
+          </div>
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setActiveTab('saved')}
+          className="px-2 hover:bg-slate-50/80 transition rounded-xl py-1 cursor-pointer"
+        >
+          <div className="text-lg sm:text-2xl font-display font-extrabold text-[#16213a] tabular-nums">
+            {mySavedJobIds.length}
+          </div>
+          <div className="text-[11px] sm:text-xs text-[#5d6778] font-medium leading-tight mt-0.5">
+            Guardadas
+          </div>
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setActiveTab('exams')}
+          className="px-2 hover:bg-slate-50/80 transition rounded-xl py-1 cursor-pointer"
+        >
+          <div className="text-lg sm:text-2xl font-display font-extrabold text-[#14573a] tabular-nums">
+            {avgScore > 0 ? `${avgScore}%` : userAttempts.length}
+          </div>
+          <div className="text-[11px] sm:text-xs text-[#5d6778] font-medium leading-tight mt-0.5">
+            {avgScore > 0 ? 'Média Exames' : 'Exames'}
+          </div>
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => setIsFollowersModalOpen(true)}
+          className="px-2 hover:bg-slate-50/80 transition rounded-xl py-1 cursor-pointer"
+        >
+          <div className="text-lg sm:text-2xl font-display font-extrabold text-[#16213a] tabular-nums">
+            {followers.length}
+          </div>
+          <div className="text-[11px] sm:text-xs text-[#5d6778] font-medium leading-tight mt-0.5">
+            Seguidores
+          </div>
+        </button>
+      </div>
+
+      {/* 3. Separadores em Chips */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 px-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+            activeTab === 'profile'
+              ? 'bg-[#14305f] text-white shadow-2xs'
+              : 'bg-card border border-[#e0e6ee] text-[#5d6778] hover:text-[#16213a] hover:bg-[#e9eef6]'
+          }`}
+        >
+          Perfil & Currículo
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('applications')}
+          className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'applications'
+              ? 'bg-[#14305f] text-white shadow-2xs'
+              : 'bg-card border border-[#e0e6ee] text-[#5d6778] hover:text-[#16213a] hover:bg-[#e9eef6]'
+          }`}
+        >
+          <span>Candidaturas</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === 'applications' ? 'bg-white/20 text-white' : 'bg-slate-200 text-[#16213a]'}`}>
+            {myApplications.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('saved')}
+          className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'saved'
+              ? 'bg-[#14305f] text-white shadow-2xs'
+              : 'bg-card border border-[#e0e6ee] text-[#5d6778] hover:text-[#16213a] hover:bg-[#e9eef6]'
+          }`}
+        >
+          <span>Guardadas</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === 'saved' ? 'bg-white/20 text-white' : 'bg-slate-200 text-[#16213a]'}`}>
+            {mySavedJobIds.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('exams')}
+          className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'exams'
+              ? 'bg-[#14305f] text-white shadow-2xs'
+              : 'bg-card border border-[#e0e6ee] text-[#5d6778] hover:text-[#16213a] hover:bg-[#e9eef6]'
+          }`}
+        >
+          <span>Exames</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === 'exams' ? 'bg-white/20 text-white' : 'bg-slate-200 text-[#16213a]'}`}>
+            {userAttempts.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('posts')}
+          className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'posts'
+              ? 'bg-[#14305f] text-white shadow-2xs'
+              : 'bg-card border border-[#e0e6ee] text-[#5d6778] hover:text-[#16213a] hover:bg-[#e9eef6]'
+          }`}
+        >
+          <span>Minhas Publicações</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${activeTab === 'posts' ? 'bg-white/20 text-white' : 'bg-slate-200 text-[#16213a]'}`}>
+            {candidatePosts.length}
+          </span>
+        </button>
+      </div>
+
+      {/* 4. CONTEÚDO: TAB PERFIL */}
       {activeTab === 'profile' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           
-          {/* Coluna Esquerda: Resumo, Habilidades, Certificados, Currículo */}
-          <div className="space-y-6">
+          {/* Coluna Esquerda: Completa o perfil, Sobre, Competências, Contactos, Currículo */}
+          <div className="space-y-5">
             
-            {/* Resumo Profissional */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-              <h3 className="text-xs uppercase tracking-wider font-extrabold text-[#64748B]">
-                Resumo Profissional
-              </h3>
-              <p className="text-sm text-[#263449] leading-relaxed whitespace-pre-line">
-                {currentUser.bio || 'Adicione um resumo sobre a sua experiência, objetivos e competências no botão Editar Perfil.'}
+            {/* Cartão "Perfil N% completo" */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs uppercase tracking-wider font-extrabold text-[#5d6778] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#1d5fc4]" />
+                  Força do Perfil
+                </h3>
+                <span className="text-xs font-extrabold text-[#1d5fc4] tabular-nums">
+                  {completenessPercentage}%
+                </span>
+              </div>
+
+              {/* Barra de Progresso */}
+              <div className="w-full h-2.5 bg-[#e9eef6] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-[#1d5fc4] transition-all duration-500 rounded-full"
+                  style={{ width: `${completenessPercentage}%` }}
+                />
+              </div>
+
+              {missingItems.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-[11px] font-semibold text-[#5d6778] mb-1.5">Para atingir 100%, adicione:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingItems.slice(0, 3).map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="text-[11px] font-bold text-[#1d5fc4] bg-[#e9eef6] hover:bg-blue-100 px-2.5 py-1 rounded-full transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cartão "Sobre" / Resumo Profissional */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                  Sobre mim
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-[#1d5fc4] hover:underline"
+                >
+                  Editar
+                </button>
+              </div>
+              <p className="text-xs sm:text-sm text-[#16213a] leading-relaxed whitespace-pre-line">
+                {currentUser.bio || 'Adicione um resumo sobre a sua experiência profissional, objetivos de carreira e diferenciais.'}
               </p>
             </div>
 
-            {/* Habilidades & Competências */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-              <h3 className="text-xs uppercase tracking-wider font-extrabold text-[#64748B]">
-                Competências & Habilidades
-              </h3>
+            {/* Cartão Competências & Idiomas (como tags) */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                  Competências & Idiomas
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-[#1d5fc4] hover:underline"
+                >
+                  Editar
+                </button>
+              </div>
+
               <div className="flex flex-wrap gap-2">
                 {currentUser.skills && currentUser.skills.length > 0 ? (
                   currentUser.skills.map((skill, i) => (
                     <span 
                       key={i} 
-                      className="bg-slate-100 hover:bg-slate-200 text-[#172033] text-xs px-3 py-1.5 rounded-xl font-semibold border border-slate-200/60 transition"
+                      className="rounded-full bg-[#e9eef6] text-[#16213a] px-3 py-1 text-[12.5px] font-medium"
                     >
                       {skill}
                     </span>
                   ))
                 ) : (
-                  <p className="text-xs text-[#64748B] italic">Nenhuma habilidade adicionada ainda.</p>
+                  <p className="text-xs text-[#5d6778] italic">Nenhuma competência adicionada.</p>
                 )}
+
+                {currentUser.languages && currentUser.languages.map((lang, i) => (
+                  <span 
+                    key={`lang-${i}`} 
+                    className="rounded-full bg-[#d8efe2] text-[#14573a] px-3 py-1 text-[12.5px] font-medium"
+                  >
+                    {lang}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Certificados */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-              <h3 className="text-xs uppercase tracking-wider font-extrabold text-[#64748B]">
-                Certificados & Formações
-              </h3>
-              {currentUser.certificates && currentUser.certificates.length > 0 ? (
-                <ul className="space-y-2.5">
-                  {currentUser.certificates.map((cert, i) => (
-                    <li key={i} className="text-xs text-[#263449] flex items-start gap-2.5">
-                      <Award className="w-4 h-4 text-[#F5B91B] shrink-0 mt-0.5" />
-                      <span className="font-medium leading-snug">{cert}</span>
-                    </li>
-                  ))}
-                </ul>
+            {/* Cartão Currículo Anexado */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                  Currículo Vitae (CV)
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-[#1d5fc4] hover:underline"
+                >
+                  {currentUser.cv_url ? 'Alterar' : 'Anexar'}
+                </button>
+              </div>
+
+              {currentUser.cv_url ? (
+                <div className="bg-[#e9eef6]/60 p-3.5 rounded-xl space-y-2 text-center">
+                  <FileText className="w-8 h-8 text-[#1d5fc4] mx-auto opacity-80" />
+                  <div>
+                    <p className="text-xs font-bold text-[#16213a]">Documento de CV Ativo</p>
+                    <p className="text-[11px] text-[#5d6778]">Acessível para recrutadores ao candidatar-se</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCvViewer(true)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 bg-[#1d5fc4] hover:bg-[#14305f] text-white text-xs font-bold py-2 px-3 rounded-lg transition cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Visualizar CV</span>
+                  </button>
+                </div>
               ) : (
-                <p className="text-xs text-[#64748B] italic">Nenhum certificado listado.</p>
+                <div className="text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
+                  <FileText className="w-6 h-6 text-slate-400 mx-auto" />
+                  <p className="text-xs text-[#5d6778]">Sem documento de CV em anexo.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs font-bold text-[#1d5fc4] hover:underline"
+                  >
+                    Anexar ficheiro PDF ou Imagem
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* Cartão de Currículo Vitae */}
-            {currentUser.cv_url && (
-              <div className="bg-[#F8FAFC] p-6 rounded-3xl border border-slate-200 text-center space-y-3">
-                <div className="w-12 h-12 bg-blue-100/70 text-[#244F9A] rounded-2xl flex items-center justify-center mx-auto">
-                  <FileText className="w-6 h-6" />
+            {/* Cartão de Contacto */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-3">
+              <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                Informações de Contacto
+              </h3>
+              <div className="space-y-2 text-xs text-[#16213a]">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-[#1d5fc4] shrink-0" />
+                  <span>{currentUser.phone || currentUser.whatsapp || 'Não especificado'}</span>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#172033]">Currículo Anexado</h4>
-                  <p className="text-xs text-[#64748B] mt-0.5">Disponível para avaliação das empresas do Cunene</p>
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-[#1d5fc4] shrink-0" />
+                  <span>{currentUser.email || 'Não especificado'}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCvViewer(true)}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-[#244F9A] hover:bg-[#193B70] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-xs cursor-pointer active:scale-95"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Visualizar Currículo em Tela Cheia</span>
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="w-4 h-4 text-[#1d5fc4] shrink-0" />
+                  <span>{currentUser.municipality || 'Ondjiva'}, Cunene, Angola</span>
+                </div>
               </div>
-            )}
+            </div>
 
-            {showCvViewer && currentUser.cv_url && (
-              <MediaViewer
-                media={[{ url: currentUser.cv_url, type: 'image', alt: 'Currículo Vitae de ' + currentUser.full_name }]}
-                onClose={() => setShowCvViewer(false)}
-              />
-            )}
           </div>
 
-          {/* Coluna Direita: Experiência Profissional & Formação Académica */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Coluna Direita: Linhas de Tempo de Experiência e Formação */}
+          <div className="lg:col-span-2 space-y-5">
             
-            {/* Experiência Profissional */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            {/* Experiência Profissional (Linha do tempo vertical) */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-5 sm:p-6 shadow-2xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[#e0e6ee]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#244F9A] flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-[#244F9A]" />
+                  <div className="w-8 h-8 rounded-xl bg-[#e9eef6] text-[#1d5fc4] flex items-center justify-center">
+                    <Briefcase className="w-4 h-4 text-[#1d5fc4]" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-[#172033]">Experiência Profissional</h3>
-                    <p className="text-xs text-[#64748B]">Histórico de cargos e projetos profissionais</p>
+                    <h3 className="font-display font-extrabold text-base text-[#16213a]">Experiência Profissional</h3>
+                    <p className="text-xs text-[#5d6778]">Histórico vertical de cargos e empregos</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="text-xs font-bold text-[#244F9A] hover:underline"
+                  className="bg-[#e9eef6] hover:bg-slate-200 text-[#16213a] font-bold text-xs px-3 py-1.5 rounded-xl transition inline-flex items-center gap-1 cursor-pointer"
                 >
-                  Adicionar
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar</span>
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 pt-1">
                 {currentUser.experiences && currentUser.experiences.length > 0 ? (
                   currentUser.experiences.map((exp, i) => (
-                    <div key={i} className="relative pl-6 pb-2 border-l-2 border-[#244F9A]/30 last:border-transparent space-y-1">
-                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-[#244F9A]" />
-                      <h4 className="text-sm font-bold text-[#172033]">{exp.title}</h4>
-                      <p className="text-xs font-semibold text-[#244F9A] flex items-center gap-1.5">
-                        <span>{exp.company}</span>
-                        <span aria-hidden="true" className="text-slate-300">·</span>
-                        <span className="text-[#64748B] font-normal">{exp.period}</span>
-                      </p>
+                    <div key={i} className="relative pl-6 pb-2 border-l-2 border-[#1d5fc4]/30 last:border-transparent space-y-1">
+                      <div className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#1d5fc4] ring-4 ring-white" />
+                      
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <h4 className="font-display font-extrabold text-sm sm:text-base text-[#16213a]">{exp.title}</h4>
+                        <span className="text-[11px] font-semibold text-[#5d6778] bg-[#e9eef6] px-2 py-0.5 rounded-md">
+                          {exp.period}
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-bold text-[#1d5fc4]">{exp.company}</p>
+
                       {exp.description && (
-                        <p className="text-xs sm:text-sm text-[#475569] leading-relaxed pt-1.5 whitespace-pre-line">
+                        <p className="text-xs sm:text-sm text-[#5d6778] leading-relaxed pt-1.5 whitespace-pre-line">
                           {exp.description}
                         </p>
                       )}
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-slate-400 space-y-2">
-                    <Briefcase className="w-8 h-8 mx-auto opacity-40 text-slate-400" />
+                  <div className="text-center py-8 text-[#5d6778] space-y-2 bg-[#F8FAFC] rounded-2xl border border-dashed border-[#e0e6ee]">
+                    <Briefcase className="w-8 h-8 mx-auto opacity-40 text-[#5d6778]" />
                     <p className="text-xs">Nenhuma experiência profissional cadastrada ainda.</p>
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="text-xs font-bold text-[#244F9A] hover:underline"
+                      className="text-xs font-bold text-[#1d5fc4] hover:underline"
                     >
-                      Cadastrar primeira experiência
+                      + Adicionar Experiência
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Formação Académica */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            {/* Formação Académica (Linha do tempo vertical) */}
+            <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-5 sm:p-6 shadow-2xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[#e0e6ee]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-[#F5B91B] flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-amber-600" />
+                  <div className="w-8 h-8 rounded-xl bg-[#fbeec2] text-[#5b4300] flex items-center justify-center">
+                    <GraduationCap className="w-4 h-4 text-[#f0b823]" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-[#172033]">Formação Académica</h3>
-                    <p className="text-xs text-[#64748B]">Cursos, graduações e qualificações de ensino</p>
+                    <h3 className="font-display font-extrabold text-base text-[#16213a]">Formação Académica</h3>
+                    <p className="text-xs text-[#5d6778]">Qualificações de ensino e graus obtidos</p>
                   </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="text-xs font-bold text-[#244F9A] hover:underline"
+                  className="bg-[#e9eef6] hover:bg-slate-200 text-[#16213a] font-bold text-xs px-3 py-1.5 rounded-xl transition inline-flex items-center gap-1 cursor-pointer"
                 >
-                  Adicionar
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar</span>
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 pt-1">
                 {currentUser.educations && currentUser.educations.length > 0 ? (
                   currentUser.educations.map((edu, i) => (
-                    <div key={i} className="relative pl-6 pb-2 border-l-2 border-[#F5B91B]/40 last:border-transparent space-y-1">
-                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-[#F5B91B]" />
-                      <h4 className="text-sm font-bold text-[#172033]">{edu.degree}</h4>
-                      <p className="text-xs font-semibold text-[#64748B] flex items-center gap-1.5">
-                        <span className="text-[#172033] font-medium">{edu.institution}</span>
-                        <span aria-hidden="true" className="text-slate-300">·</span>
-                        <span className="text-[#64748B] font-normal">{edu.year}</span>
-                      </p>
+                    <div key={i} className="relative pl-6 pb-2 border-l-2 border-[#f0b823]/50 last:border-transparent space-y-1">
+                      <div className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-[#f0b823] ring-4 ring-white" />
+                      
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <h4 className="font-display font-extrabold text-sm sm:text-base text-[#16213a]">{edu.degree}</h4>
+                        <span className="text-[11px] font-semibold text-[#5d6778] bg-[#e9eef6] px-2 py-0.5 rounded-md">
+                          {edu.year}
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-bold text-[#5d6778]">{edu.institution}</p>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-slate-400 space-y-2">
-                    <GraduationCap className="w-8 h-8 mx-auto opacity-40 text-slate-400" />
+                  <div className="text-center py-8 text-[#5d6778] space-y-2 bg-[#F8FAFC] rounded-2xl border border-dashed border-[#e0e6ee]">
+                    <GraduationCap className="w-8 h-8 mx-auto opacity-40 text-[#5d6778]" />
                     <p className="text-xs">Nenhuma formação académica cadastrada ainda.</p>
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
-                      className="text-xs font-bold text-[#244F9A] hover:underline"
+                      className="text-xs font-bold text-[#1d5fc4] hover:underline"
                     >
-                      Cadastrar formação
+                      + Adicionar Formação
                     </button>
                   </div>
                 )}
@@ -522,14 +732,212 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
         </div>
       )}
 
-      {/* 4. Conteúdo da Aba: Minhas Publicações Pessoais */}
+      {/* 5. CONTEÚDO: TAB CANDIDATURAS */}
+      {activeTab === 'applications' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="font-display font-extrabold text-lg text-[#16213a]">
+              Minhas Candidaturas ({myApplications.length})
+            </h2>
+            <span className="text-xs font-semibold text-[#5d6778]">Acompanhamento em tempo real</span>
+          </div>
+
+          {myApplications.length === 0 ? (
+            <div className="bg-card border border-[#e0e6ee] rounded-[20px] p-10 text-center text-[#5d6778] space-y-3">
+              <Briefcase className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-xs sm:text-sm font-bold text-[#16213a]">Ainda não se candidatou a nenhuma vaga.</p>
+              <p className="text-xs text-[#5d6778]">Consulte o separador Vagas para encontrar e enviar candidaturas.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {myApplications.map((app) => {
+                const currentStepIdx = getStepIndex(app.status);
+                const isRejected = app.status === 'Rejeitada';
+
+                return (
+                  <div key={app.id} className="bg-card border border-[#e0e6ee] rounded-[20px] p-4 sm:p-5 shadow-2xs space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#e0e6ee] pb-3">
+                      <div>
+                        <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                          {app.job?.title || 'Vaga de Emprego'}
+                        </h3>
+                        <p className="text-xs font-semibold text-[#1d5fc4] mt-0.5">
+                          {app.job?.company_name || 'Empresa Registada'} · {app.job?.municipality || 'Cunene'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          isRejected 
+                            ? 'bg-[#f7dcdc] text-[#8d2626]' 
+                            : app.status === 'Aprovada'
+                            ? 'bg-[#d8efe2] text-[#14573a]'
+                            : 'bg-[#e9eef6] text-[#16213a]'
+                        }`}>
+                          {app.status || 'Enviada'}
+                        </span>
+                        <span className="text-[11px] text-[#5d6778]">
+                          {new Date(app.created_at).toLocaleDateString('pt-AO')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Barra de Estado com 5 passos */}
+                    {!isRejected ? (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex justify-between items-center text-[10.5px] sm:text-xs font-bold text-[#5d6778]">
+                          {APPLICATION_STEPS.map((step, idx) => (
+                            <span 
+                              key={step} 
+                              className={`text-center ${idx <= currentStepIdx ? 'text-[#1d5fc4]' : 'text-slate-400'}`}
+                            >
+                              {step}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Progress line */}
+                        <div className="w-full h-2 bg-[#e9eef6] rounded-full overflow-hidden flex">
+                          {APPLICATION_STEPS.map((_, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`flex-1 h-full transition-colors border-r border-white/40 last:border-r-0 ${
+                                idx <= currentStepIdx ? 'bg-[#1d5fc4]' : 'bg-[#e9eef6]'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-[#f7dcdc]/50 p-3 rounded-xl border border-red-200/60 text-xs text-[#8d2626] font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>A empresa concluiu a avaliação e esta candidatura foi encerrada.</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 6. CONTEÚDO: TAB GUARDADAS */}
+      {activeTab === 'saved' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="font-display font-extrabold text-lg text-[#16213a]">
+              Vagas Guardadas ({mySavedJobs.length})
+            </h2>
+          </div>
+
+          {mySavedJobs.length === 0 ? (
+            <div className="bg-card border border-[#e0e6ee] rounded-[20px] p-10 text-center text-[#5d6778] space-y-3">
+              <Bookmark className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-xs sm:text-sm font-bold text-[#16213a]">Nenhuma vaga guardada na sua lista.</p>
+              <p className="text-xs text-[#5d6778]">Ao consultar vagas, clique no ícone do coração/marcador para guardar.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {mySavedJobs.map((job) => (
+                <div key={job.id} className="bg-card border border-[#e0e6ee] rounded-[20px] p-4 shadow-2xs space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-display font-extrabold text-base text-[#16213a] line-clamp-1">
+                        {job.title}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          StoreService.toggleSaveJob(currentUser.id, job.id);
+                          onProfileUpdated({ ...currentUser });
+                        }}
+                        className="text-red-500 hover:text-red-700 p-1 transition cursor-pointer"
+                        title="Remover das guardadas"
+                      >
+                        <Bookmark className="w-4 h-4 fill-current" />
+                      </button>
+                    </div>
+
+                    <p className="text-xs font-bold text-[#1d5fc4]">{job.company_name} · {job.municipality || 'Cunene'}</p>
+
+                    <div className="flex flex-wrap gap-1.5 text-xs pt-1">
+                      {job.salary_min && (
+                        <span className="rounded-full bg-[#fbeec2] text-[#5b4300] px-2.5 py-0.5 font-bold">
+                          {job.salary_min.toLocaleString('pt-AO')} Kz
+                        </span>
+                      )}
+                      <span className="rounded-full bg-[#e9eef6] text-[#16213a] px-2.5 py-0.5 font-medium">
+                        {job.contract_type || 'Tempo Inteiro'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 7. CONTEÚDO: TAB EXAMES */}
+      {activeTab === 'exams' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="font-display font-extrabold text-lg text-[#16213a]">
+              Certificados & Exames ({userAttempts.length})
+            </h2>
+          </div>
+
+          {userAttempts.length === 0 ? (
+            <div className="bg-card border border-[#e0e6ee] rounded-[20px] p-10 text-center text-[#5d6778] space-y-3">
+              <Award className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-xs sm:text-sm font-bold text-[#16213a]">Nenhum exame realizado até ao momento.</p>
+              <p className="text-xs text-[#5d6778]">Ao candidatar-se a vagas com testes técnicos, os seus resultados aparecerão aqui.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {userAttempts.map((attempt) => (
+                <div key={attempt.id} className="border-2 border-[#f0b823] rounded-2xl p-4 bg-white shadow-2xs space-y-3 relative overflow-hidden">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase tracking-wider font-extrabold text-[#5b4300] bg-[#fbeec2] px-2 py-0.5 rounded-md inline-block">
+                        Certificado Digital
+                      </span>
+                      <h3 className="font-display font-extrabold text-base text-[#16213a]">
+                        Exame de Seleção Técnica
+                      </h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-[#f0b823] flex flex-col items-center justify-center border border-[#f0b823]/40 shrink-0 font-display font-black text-sm">
+                      <span>{attempt.percentage}%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                    <span className={`font-bold px-2.5 py-0.5 rounded-full ${
+                      attempt.passed ? 'bg-[#d8efe2] text-[#14573a]' : 'bg-[#f7dcdc] text-[#8d2626]'
+                    }`}>
+                      {attempt.passed ? 'Aprovado' : 'Não Aprovado'}
+                    </span>
+                    <span className="text-[11px] text-[#5d6778]">
+                      {new Date(attempt.created_at).toLocaleDateString('pt-AO')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 8. CONTEÚDO: TAB MINHAS PUBLICAÇÕES */}
       {activeTab === 'posts' && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           
-          {/* Caixa de Publicação Pessoal */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+          {/* Caixa para Publicar */}
+          <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#193B70] text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#1d5fc4] text-white flex items-center justify-center font-display font-extrabold text-sm overflow-hidden shrink-0">
                 {currentUser.avatar_url ? (
                   <img src={currentUser.avatar_url} alt="Foto" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
@@ -537,8 +945,8 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
                 )}
               </div>
               <div>
-                <h4 className="text-xs sm:text-sm font-bold text-[#172033]">Publicar no meu Perfil Profissional</h4>
-                <p className="text-[11px] text-[#64748B]">Partilhe conquistas, procura de emprego ou certificados</p>
+                <h4 className="font-display font-extrabold text-sm text-[#16213a]">Publicar no meu Perfil</h4>
+                <p className="text-[11px] text-[#5d6778]">Partilhe uma novidade ou conquista na comunidade</p>
               </div>
             </div>
 
@@ -548,26 +956,26 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
                 required
                 value={postContent}
                 onChange={e => setPostContent(e.target.value)}
-                placeholder="Escreva algo sobre a sua carreira, projetos ou procura de oportunidades..."
-                className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs sm:text-sm text-[#172033] focus:outline-none focus:ring-2 focus:ring-[#244F9A] bg-[#F8FAFC]/50"
+                placeholder="Escreva algo sobre a sua carreira, dicas ou projetos..."
+                className="w-full px-4 py-3 rounded-2xl border border-[#e0e6ee] text-xs sm:text-sm text-[#16213a] focus:outline-none focus:border-[#1d5fc4] bg-[#f3f5f8]/50 resize-none"
               />
 
-              <div className="flex flex-wrap justify-between items-center gap-3">
+              <div className="flex flex-wrap justify-between items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-[#172033] px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
-                    <ImageIcon className="w-4 h-4 text-[#244F9A]" />
-                    <span>{uploading ? 'A carregar...' : postImage ? 'Imagem pronta' : 'Foto'}</span>
+                  <label className="cursor-pointer bg-[#e9eef6] hover:bg-slate-200 text-[#16213a] px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <ImageIcon className="w-4 h-4 text-[#1d5fc4]" />
+                    <span>{uploading ? 'A carregar...' : postImage ? 'Imagem' : 'Anexar Imagem'}</span>
                     <input type="file" accept="image/*" onChange={handlePostImageUpload} className="hidden" />
                   </label>
 
                   <select
                     value={postCategory}
                     onChange={e => setPostCategory(e.target.value as any)}
-                    className="bg-slate-100 text-[#172033] px-3 py-2 rounded-xl text-xs font-semibold border-none focus:outline-none cursor-pointer"
+                    className="bg-[#e9eef6] text-[#16213a] px-3 py-1.5 rounded-xl text-xs font-semibold border-none focus:outline-none cursor-pointer"
                   >
-                    <option value="Emprego">Procura de Emprego</option>
-                    <option value="Formação">Formação & Curso</option>
-                    <option value="Dicas">Dica Profissional</option>
+                    <option value="Emprego">Emprego</option>
+                    <option value="Formação">Formação</option>
+                    <option value="Dicas">Dicas</option>
                     <option value="Negócios">Negócios</option>
                   </select>
                 </div>
@@ -575,7 +983,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
                 <button
                   type="submit"
                   disabled={uploading || !postContent.trim()}
-                  className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-5 py-2 rounded-xl text-xs sm:text-sm transition shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="bg-[#1d5fc4] hover:bg-[#14305f] text-white font-bold px-5 py-2 rounded-xl text-xs sm:text-sm transition shadow-2xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Publicar</span>
@@ -584,20 +992,20 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
             </form>
           </div>
 
-          {/* Lista de Publicações do Perfil */}
+          {/* Lista de Publicações Próprias */}
           <div className="space-y-4">
             {candidatePosts.length === 0 ? (
-              <div className="bg-white p-12 text-center rounded-3xl border border-slate-200/80 text-[#64748B] text-xs space-y-2">
-                <FileText className="w-8 h-8 mx-auto opacity-40 text-slate-400" />
-                <p className="font-semibold">Ainda não fez nenhuma publicação no seu perfil.</p>
-                <p className="text-slate-400">Use o formulário acima para publicar a sua primeira mensagem.</p>
+              <div className="bg-card border border-[#e0e6ee] rounded-[18px] p-10 text-center text-[#5d6778] text-xs space-y-2">
+                <FileText className="w-8 h-8 mx-auto opacity-40 text-[#5d6778]" />
+                <p className="font-bold text-[#16213a]">Ainda não fez nenhuma publicação no seu perfil.</p>
+                <p className="text-[#5d6778]">Use a caixa acima para partilhar atualizações com a rede.</p>
               </div>
             ) : (
               candidatePosts.map(post => (
-                <div key={post.id} className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 space-y-3.5 shadow-2xs">
+                <div key={post.id} className="bg-card border border-[#e0e6ee] rounded-[18px] p-4 sm:p-5 space-y-3 shadow-2xs">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#193B70] text-white flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-[#1d5fc4] text-white flex items-center justify-center font-display font-extrabold text-xs overflow-hidden shrink-0">
                         {currentUser.avatar_url ? (
                           <img src={currentUser.avatar_url} alt="Foto" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -605,30 +1013,30 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
                         )}
                       </div>
                       <div>
-                        <h4 className="text-xs sm:text-sm font-bold text-[#172033]">{currentUser.full_name}</h4>
-                        <div className="flex items-center gap-1.5 text-[11px] text-[#64748B]">
+                        <h4 className="font-display font-extrabold text-sm text-[#16213a]">{currentUser.full_name}</h4>
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#5d6778]">
                           <span>{new Date(post.created_at).toLocaleDateString('pt-AO')}</span>
                           <span aria-hidden="true">·</span>
-                          <span className="font-medium text-[#244F9A]">{post.category}</span>
+                          <span className="font-bold text-[#1d5fc4]">{post.category}</span>
                         </div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setDeleteConfirmPostId(post.id)}
-                      className="text-slate-400 hover:text-red-600 p-2 rounded-xl hover:bg-red-50 transition cursor-pointer"
+                      className="text-slate-400 hover:text-[#c23b3b] p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer"
                       title="Excluir publicação"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-[#263449] leading-relaxed whitespace-pre-line">
+                  <p className="text-xs sm:text-sm text-[#16213a] leading-relaxed whitespace-pre-line">
                     {post.content}
                   </p>
 
                   {post.image_url && (
-                    <div className="rounded-2xl overflow-hidden border border-slate-100 max-h-96">
+                    <div className="rounded-2xl overflow-hidden border border-[#e0e6ee] max-h-96">
                       <img 
                         src={post.image_url} 
                         alt="Foto da publicação" 
@@ -647,26 +1055,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
         </div>
       )}
 
-      {/* Exibição da Foto de Perfil na Parte Inferior da Aba Perfil */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 text-center space-y-4 shadow-2xs">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Identidade Visual & Foto de Perfil</h3>
-        <div className="w-28 h-28 sm:w-36 sm:h-36 mx-auto rounded-3xl ring-4 ring-[#244F9A]/20 overflow-hidden bg-slate-100 shadow-md">
-          {currentUser.avatar_url ? (
-            <img src={currentUser.avatar_url} alt={currentUser.full_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="w-full h-full bg-[#193B70] text-white flex items-center justify-center font-black text-4xl">
-              {currentUser.full_name?.charAt(0).toUpperCase() || 'C'}
-            </div>
-          )}
-        </div>
-        <div className="space-y-1">
-          <p className="text-base sm:text-lg font-black text-[#172033]">{currentUser.full_name}</p>
-          <p className="text-xs sm:text-sm font-semibold text-[#244F9A]">{currentUser.profession || 'Candidato Profissional'}</p>
-          <p className="text-xs text-slate-500">{currentUser.municipality || 'Ondjiva'}, Cunene · {currentUser.email || 'Conta Verificada'}</p>
-        </div>
-      </div>
-
-      {/* Tela Única de Edição do Perfil de Candidato */}
+      {/* Modais & Diálogos Auxiliares Invariantes */}
       <EditarPerfilCandidato
         isOpen={isEditing}
         currentUser={currentUser}
@@ -674,36 +1063,34 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
         onProfileUpdated={onProfileUpdated}
       />
 
-      {/* Modal de Seguidores */}
       <FollowersModal
         isOpen={isFollowersModalOpen}
         onClose={() => setIsFollowersModalOpen(false)}
         title="Quem Me Seguiu"
-        followers={StoreService.getFollowers(currentUser.id)}
+        followers={followers}
       />
 
-      {/* Modal / Diálogo de Confirmação para Apagar Publicação */}
       {deleteConfirmPostId && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn select-none">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-slate-200 text-center animate-scaleUp">
-            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200">
-              <Trash2 className="w-7 h-7 text-rose-600" />
+          <div className="bg-card rounded-[22px] shadow-2xl w-full max-w-sm p-6 space-y-4 border border-[#e0e6ee] text-center">
+            <div className="w-12 h-12 bg-red-50 text-[#c23b3b] rounded-2xl flex items-center justify-center mx-auto border border-red-200">
+              <Trash2 className="w-6 h-6 text-[#c23b3b]" />
             </div>
 
-            <div className="space-y-1.5">
-              <h3 className="text-base sm:text-lg font-black text-slate-950">
+            <div className="space-y-1">
+              <h3 className="font-display font-extrabold text-base text-[#16213a]">
                 Apagar Publicação?
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed px-1">
+              <p className="text-xs text-[#5d6778] leading-relaxed">
                 Tem a certeza de que deseja apagar esta publicação do seu perfil? Esta ação não pode ser desfeita.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 pt-2">
+            <div className="grid grid-cols-2 gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmPostId(null)}
-                className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer active:scale-95"
+                className="w-full py-2.5 px-4 bg-[#e9eef6] hover:bg-slate-200 text-[#16213a] font-bold text-xs rounded-xl transition cursor-pointer active:scale-95"
               >
                 Cancelar
               </button>
@@ -716,7 +1103,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
                   StoreService.deletePost(pid);
                   onPostCreated();
                 }}
-                className="w-full py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs sm:text-sm rounded-xl transition shadow-md cursor-pointer active:scale-95"
+                className="w-full py-2.5 px-4 bg-[#c23b3b] hover:bg-red-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer active:scale-95"
               >
                 Apagar Post
               </button>

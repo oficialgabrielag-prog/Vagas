@@ -357,27 +357,27 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white min-h-screen sm:rounded-3xl sm:border sm:border-slate-200/80 shadow-2xs sm:my-3 overflow-hidden pb-24">
+    <div className="max-w-2xl mx-auto bg-[var(--bg)] min-h-screen p-3 sm:p-4 space-y-4 pb-24">
       {/* Header - Native Facebook/TikTok Style Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-slate-100 space-y-1">
-        <div className="flex items-center gap-2 text-[11px] font-bold text-[#0F4C9C]">
+      <div className="px-5 py-4 bg-card border border-[#bce3f5] rounded-3xl shadow-2xs space-y-1">
+        <div className="flex items-center gap-2 text-[11px] font-bold text-[#1d5fc4]">
           <span>Comunidade</span>
           <span>·</span>
           <span>Rede Social & Profissional do Cunene</span>
         </div>
-        <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Feed da Comunidade</h1>
+        <h1 className="text-xl sm:text-2xl font-display font-extrabold text-[#16213a] tracking-tight">Feed da Comunidade</h1>
       </div>
 
       {/* Category Horizontal Filter Bar */}
-      <div className="px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto border-b border-slate-100 scrollbar-none bg-white">
+      <div className="px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-card border border-[#bce3f5] rounded-3xl shadow-2xs">
         {COMMUNITY_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer ${
               selectedCategory === cat
-                ? 'bg-[#0F4C9C] text-white shadow-2xs'
-                : 'bg-white border border-slate-200/80 text-slate-600 hover:text-slate-900'
+                ? 'bg-[#14305f] text-white shadow-2xs'
+                : 'bg-white border border-[#bce3f5] text-slate-600 hover:text-slate-900'
             }`}
           >
             {cat}
@@ -387,7 +387,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
 
       {/* Native Facebook-style Composer */}
       {currentUser ? (
-        <div className="p-4 border-b border-slate-100 space-y-3 bg-white">
+        <div className="p-4 sm:p-5 border border-[#bce3f5] rounded-3xl space-y-3 bg-card shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#0F4C9C] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
               {currentUser.role === 'employer' ? (
@@ -542,10 +542,10 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
         </div>
       )}
 
-      {/* Feed list - Pure Native Facebook / TikTok Class Posts without White Cards */}
-      <div className="divide-y divide-slate-100/80 bg-white">
+      {/* Feed list - Distinct Cards floating over Light Blue Platform Background */}
+      <div className="space-y-4 bg-transparent">
         {filteredPosts.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-xs">
+          <div className="p-12 text-center text-slate-500 text-xs bg-card border border-[#bce3f5] rounded-3xl">
             Nenhuma publicação nesta categoria ainda.
           </div>
         ) : (
@@ -557,7 +557,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
             return (
               <article 
                 key={post.id} 
-                className="bg-white hover:bg-slate-50/50 transition-colors py-4 sm:py-5 px-3 sm:px-6 relative border-b border-slate-100 last:border-b-0"
+                className="bg-card rounded-3xl border border-[#bce3f5] shadow-2xs hover:shadow-xs transition-all py-4 sm:py-5 px-3 sm:px-6 relative overflow-hidden"
               >
                 {/* Post author header */}
                 <div className="px-4 pt-4 pb-2.5 flex justify-between items-center">

@@ -112,7 +112,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 font-sans selection:bg-[#0F4C9C] selection:text-white">
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col justify-between py-8 px-4 sm:px-6 lg:px-8 font-sans selection:bg-[#1d5fc4] selection:text-white">
       {/* Top Header Branding Centered with Animated Letters */}
       <div className="max-w-md w-full mx-auto flex items-center justify-center pt-2">
         <div className="flex items-center gap-2.5">

@@ -191,8 +191,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   }
 
   return (
-    <div className="bg-white min-h-screen text-[#263449]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-8 pb-24">
+    <div className="bg-[var(--bg)] min-h-screen text-[#16213a]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 pb-24">
         
         {/* Carrossel Cinemático */}
         <GiantCinematicCarousel 
@@ -206,13 +206,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         />
 
         {/* 1. Área Principal (Hero & Ação Principal) */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-100 pb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border border-[#bce3f5] bg-card rounded-3xl p-6 shadow-2xs">
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#123D73] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-extrabold text-[#16213a] tracking-tight">
               Compra e vende em Angola.
             </h1>
-            <p className="text-sm sm:text-base text-[#66758A] mt-1.5 font-normal">
-              Descobre produtos perto de ti.
+            <p className="text-sm sm:text-base text-[#5d6778] mt-1.5 font-normal">
+              Descobre produtos perto de ti na Província do Cunene.
             </p>
           </div>
 
@@ -243,14 +243,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           if (displayProducts.length === 0) return null;
 
           return (
-            <div className="bg-[#F8FAFC] border border-slate-200/80 rounded-2xl p-6 sm:p-8">
+            <div className="bg-card border border-[#bce3f5] rounded-3xl p-6 sm:p-8 shadow-2xs">
               <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 mb-6">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  <h2 className="text-lg sm:text-xl font-black text-[#123D73] tracking-tight">
+                  <Sparkles className="w-5 h-5 text-[#f0b823]" />
+                  <h2 className="text-lg sm:text-xl font-display font-extrabold text-[#16213a] tracking-tight">
                     Negócios em Destaque
                   </h2>
-                  <span className="bg-amber-100 text-amber-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
+                  <span className="bg-[#fbeec2] text-[#5b4300] text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
                     Patrocinado
                   </span>
                 </div>
@@ -263,7 +263,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <div
                       key={prod.id}
                       onClick={() => handleProductClick(prod)}
-                      className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between relative group"
+                      className="bg-card rounded-2xl p-3.5 border border-[#bce3f5] shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between relative group"
                     >
                       {isSponsored && (
                         <span className="absolute top-2 right-2 z-10 bg-amber-100 text-amber-900 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
@@ -308,23 +308,23 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* 2. Barra de Pesquisa Simples e Integrada */}
         <div className="space-y-3">
-          <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-2xs flex flex-col md:flex-row items-stretch gap-2">
+          <div className="bg-card rounded-3xl border border-[#bce3f5] p-3 shadow-2xs flex flex-col md:flex-row items-stretch gap-2.5">
             
             {/* Nome do Produto */}
-            <div className="flex-1 flex items-center gap-2.5 px-3.5 py-2.5 bg-[#F8FAFC] rounded-xl border border-slate-100">
-              <Search className="w-4 h-4 text-[#66758A] shrink-0" />
+            <div className="flex-1 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 rounded-2xl border border-slate-200/60">
+              <Search className="w-4 h-4 text-[#5d6778] shrink-0" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 placeholder="Nome do produto..."
-                className="w-full text-xs sm:text-sm text-[#263449] placeholder:text-[#66758A]/80 outline-none bg-transparent font-medium"
+                className="w-full text-xs sm:text-sm text-[#16213a] placeholder:text-[#5d6778]/80 outline-none bg-transparent font-medium"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="text-xs text-[#66758A] hover:text-[#263449] font-bold p-1 cursor-pointer"
+                  className="text-xs text-[#5d6778] hover:text-[#16213a] font-bold p-1 cursor-pointer"
                   title="Limpar pesquisa"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -333,12 +333,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </div>
 
             {/* Município */}
-            <div className="w-full md:w-52 flex items-center gap-2 px-3.5 py-2.5 bg-[#F8FAFC] rounded-xl border border-slate-100">
-              <MapPin className="w-4 h-4 text-[#66758A] shrink-0" />
+            <div className="w-full md:w-52 flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 rounded-2xl border border-slate-200/60">
+              <MapPin className="w-4 h-4 text-[#5d6778] shrink-0" />
               <select
                 value={selectedMunicipality}
                 onChange={e => setSelectedMunicipality(e.target.value)}
-                className="w-full text-xs sm:text-sm text-[#263449] outline-none bg-transparent font-medium cursor-pointer"
+                className="w-full text-xs sm:text-sm text-[#16213a] outline-none bg-transparent font-medium cursor-pointer"
               >
                 <option value="Todos">Todos os Municípios</option>
                 <option value="Ondjiva">Ondjiva</option>
@@ -355,12 +355,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </div>
 
             {/* Categoria */}
-            <div className="w-full md:w-52 flex items-center gap-2 px-3.5 py-2.5 bg-[#F8FAFC] rounded-xl border border-slate-100">
-              <Tag className="w-4 h-4 text-[#66758A] shrink-0" />
+            <div className="w-full md:w-52 flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 rounded-2xl border border-slate-200/60">
+              <Tag className="w-4 h-4 text-[#5d6778] shrink-0" />
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
-                className="w-full text-xs sm:text-sm text-[#263449] outline-none bg-transparent font-medium cursor-pointer"
+                className="w-full text-xs sm:text-sm text-[#16213a] outline-none bg-transparent font-medium cursor-pointer"
               >
                 <option value="Todas">Todas as Categorias</option>
                 {categoryItems.filter(c => c.name !== 'Todas').map(c => (
@@ -372,20 +372,20 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             {/* Botão de Pesquisa */}
             <button
               type="button"
-              className="bg-[#123D73] hover:bg-[#0e2f59] text-white font-bold px-6 py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-95 shrink-0 cursor-pointer"
+              className="bg-[#14305f] hover:bg-[#122b54] text-white font-bold px-6 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-95 shrink-0 cursor-pointer shadow-2xs"
             >
-              <Search className="w-4 h-4 text-[#F5B91B]" />
+              <Search className="w-4 h-4 text-[#f0b823]" />
               <span>Pesquisar</span>
             </button>
           </div>
 
           {/* Filtros Secundários Rápidos */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs">
-            <div className="flex items-center gap-2 text-[#66758A]">
+            <div className="flex items-center gap-2 text-[#5d6778]">
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="inline-flex items-center gap-1.5 font-semibold text-[#123D73] hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 font-semibold text-[#1d5fc4] hover:underline cursor-pointer"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>{showAdvancedFilters ? 'Ocultar opções de preço' : 'Filtrar por preço e ordem'}</span>
@@ -397,7 +397,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="text-[#66758A] hover:text-[#123D73] font-medium cursor-pointer underline"
+                    className="text-[#5d6778] hover:text-[#1d5fc4] font-medium cursor-pointer underline"
                   >
                     Limpar todos os filtros
                   </button>
@@ -405,22 +405,22 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               )}
             </div>
 
-            <span className="text-[#66758A] font-medium">
+            <span className="text-[#5d6778] font-medium">
               {filteredProducts.length} {filteredProducts.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
             </span>
           </div>
 
           {/* Painel Avançado Discreto */}
           {showAdvancedFilters && (
-            <div className="bg-[#F8FAFC] p-3.5 rounded-xl border border-slate-200/80 flex flex-wrap items-center gap-4 text-xs">
+            <div className="bg-card p-4 rounded-2xl border border-[#bce3f5] shadow-2xs flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-[#66758A]">Preço (Kz):</span>
+                <span className="font-semibold text-[#5d6778]">Preço (Kz):</span>
                 <input
                   type="number"
                   value={minPrice}
                   onChange={e => setMinPrice(e.target.value)}
                   placeholder="Mín"
-                  className="w-20 sm:w-24 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-[#263449] outline-none"
+                  className="w-20 sm:w-24 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-[#16213a] outline-none"
                 />
                 <span className="text-slate-400">-</span>
                 <input
@@ -428,16 +428,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   value={maxPrice}
                   onChange={e => setMaxPrice(e.target.value)}
                   placeholder="Máx"
-                  className="w-20 sm:w-24 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-[#263449] outline-none"
+                  className="w-20 sm:w-24 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-[#16213a] outline-none"
                 />
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-[#66758A]">Ordenar por:</span>
+                <span className="font-semibold text-[#5d6778]">Ordenar por:</span>
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value as any)}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-[#263449] outline-none cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-[#16213a] outline-none cursor-pointer"
                 >
                   <option value="recent">Mais recentes</option>
                   <option value="price-asc">Menor preço</option>
@@ -446,11 +446,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-[#66758A]">Estado:</span>
+                <span className="font-semibold text-[#5d6778]">Estado:</span>
                 <select
                   value={selectedStatus}
                   onChange={e => setSelectedStatus(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-[#263449] outline-none cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-[#16213a] outline-none cursor-pointer"
                 >
                   <option value="all">Todos</option>
                   <option value="available">Apenas disponíveis</option>
@@ -473,13 +473,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   key={item.name}
                   type="button"
                   onClick={() => setSelectedCategory(item.name)}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#123D73] text-white shadow-2xs'
-                      : 'bg-white hover:bg-[#F8FAFC] text-[#66758A] hover:text-[#263449] border border-slate-200/90'
+                      ? 'bg-[#14305f] text-white shadow-2xs'
+                      : 'bg-card hover:bg-slate-50 text-[#5d6778] hover:text-[#16213a] border border-[#bce3f5]'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#F5B91B]' : 'text-[#66758A]'}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#f0b823]' : 'text-[#5d6778]'}`} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -491,8 +491,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         {onSelectCompany && storesWithProducts.length > 0 && (
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#66758A] uppercase tracking-wider flex items-center gap-1.5">
-                <Store className="w-3.5 h-3.5 text-[#123D73]" /> Lojas Locais em Destaque
+              <span className="text-xs font-bold text-[#5d6778] uppercase tracking-wider flex items-center gap-1.5">
+                <Store className="w-3.5 h-3.5 text-[#1d5fc4]" /> Lojas Locais em Destaque
               </span>
             </div>
             <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-none">
@@ -504,7 +504,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     key={emp.id}
                     type="button"
                     onClick={() => onSelectCompany(emp)}
-                    className="inline-flex items-center gap-2.5 py-1.5 px-3 rounded-xl hover:bg-[#F8FAFC] transition cursor-pointer shrink-0 group border border-slate-100"
+                    className="inline-flex items-center gap-2.5 py-2 px-3.5 rounded-2xl bg-card border border-[#bce3f5] hover:bg-slate-50 transition cursor-pointer shrink-0 group shadow-2xs"
                   >
                     <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
                       {displayLogo ? (
@@ -514,10 +514,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       )}
                     </div>
                     <div className="text-left">
-                      <span className="text-xs font-bold text-[#263449] group-hover:text-[#123D73] block truncate max-w-[130px]">
+                      <span className="text-xs font-bold text-[#16213a] group-hover:text-[#1d5fc4] block truncate max-w-[130px]">
                         {companyTitle}
                       </span>
-                      <span className="text-[10px] text-[#66758A] block">{emp.municipality || 'Cunene'}</span>
+                      <span className="text-[10px] text-[#5d6778] block">{emp.municipality || 'Cunene'}</span>
                     </div>
                   </button>
                 );
@@ -526,26 +526,26 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           </div>
         )}
 
-        {/* 4. Lista de Produtos (Apresentação aberta, sem caixotes/cards pesados) */}
+        {/* 4. Lista de Produtos (Cartões brancos individuais flutuantes sobre o fundo azul) */}
         {filteredProducts.length === 0 ? (
-          <div className="py-20 text-center space-y-3">
+          <div className="py-20 text-center space-y-3 bg-card border border-[#bce3f5] rounded-3xl p-6">
             <ShoppingBag className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-base font-bold text-[#263449]">Nenhum produto encontrado</h3>
-            <p className="text-xs sm:text-sm text-[#66758A] max-w-md mx-auto">
+            <h3 className="text-base font-bold text-[#16213a]">Nenhum produto encontrado</h3>
+            <p className="text-xs sm:text-sm text-[#5d6778] max-w-md mx-auto">
               Não encontramos anúncios com os filtros selecionados. Tenta ajustar a pesquisa ou escolher outra categoria.
             </p>
             {hasActiveFilters && (
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-2 text-xs font-bold text-[#123D73] hover:underline cursor-pointer"
+                className="mt-2 text-xs font-bold text-[#1d5fc4] hover:underline cursor-pointer"
               >
                 Limpar filtros de pesquisa
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredProducts.map(prod => {
               const seller = companies.find(c => c.id === prod.seller_id || c.id === prod.company_id);
               const sellerName = seller?.company_name || seller?.full_name || 'Vendedor Local';
@@ -555,107 +555,109 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 <div
                   key={prod.id}
                   onClick={() => handleProductClick(prod)}
-                  className="group cursor-pointer flex flex-col transition-all"
+                  className="bg-card rounded-3xl p-4 border border-[#bce3f5] shadow-2xs hover:shadow-md transition-all group cursor-pointer flex flex-col justify-between"
                 >
-                  {/* Fotografia real (proporção consistente, sem distorção) */}
-                  <div className="relative aspect-4/3 w-full bg-[#F8FAFC] rounded-2xl overflow-hidden border border-slate-100">
-                    {prod.image_url ? (
-                      <img
-                        src={prod.image_url}
-                        alt={prod.title}
-                        className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-1">
-                        <ShoppingBag className="w-8 h-8" />
-                        <span className="text-[10px] text-slate-400 font-medium">Sem imagem</span>
-                      </div>
-                    )}
-
-                    {/* Badge de Município sutil */}
-                    {prod.municipality && (
-                      <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-[#123D73]/85 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-white text-[10px] font-medium shadow-2xs">
-                        <MapPin className="w-2.5 h-2.5 text-[#F5B91B]" />
-                        <span>{prod.municipality}</span>
-                      </div>
-                    )}
-
-                    {/* Badges de Estado / Botão Excluir */}
-                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
-                      {prod.status !== 'available' && (
-                        <span className="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs">
-                          Esgotado
-                        </span>
+                  <div>
+                    {/* Fotografia real (proporção consistente, sem distorção) */}
+                    <div className="relative aspect-4/3 w-full bg-slate-50 rounded-2xl overflow-hidden border border-slate-100/80 mb-3">
+                      {prod.image_url ? (
+                        <img
+                          src={prod.image_url}
+                          alt={prod.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-1">
+                          <ShoppingBag className="w-8 h-8" />
+                          <span className="text-[10px] text-slate-400 font-medium">Sem imagem</span>
+                        </div>
                       )}
 
-                      {isOwnerOrAdmin && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteProduct(e, prod)}
-                          className="bg-white/90 hover:bg-rose-600 text-[#263449] hover:text-white p-1.5 rounded-full shadow-xs transition-colors cursor-pointer"
-                          title="Eliminar produto"
+                      {/* Badge de Município sutil */}
+                      {prod.municipality && (
+                        <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-[#14305f]/85 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-white text-[10px] font-medium shadow-2xs">
+                          <MapPin className="w-2.5 h-2.5 text-[#f0b823]" />
+                          <span>{prod.municipality}</span>
+                        </div>
+                      )}
+
+                      {/* Badges de Estado / Botão Excluir */}
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                        {prod.status !== 'available' && (
+                          <span className="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs">
+                            Esgotado
+                          </span>
+                        )}
+
+                        {isOwnerOrAdmin && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteProduct(e, prod)}
+                            className="bg-white/90 hover:bg-rose-600 text-[#16213a] hover:text-white p-1.5 rounded-full shadow-xs transition-colors cursor-pointer"
+                            title="Eliminar produto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Informações do Produto */}
+                    <div className="space-y-1">
+                      
+                      {/* Vendedor e Categoria */}
+                      <div className="flex items-center gap-1 text-[11px] text-[#5d6778] font-medium truncate">
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!onSelectCompany) return;
+                            const targetComp = seller || {
+                              id: prod.seller_id || prod.company_id || 'comp',
+                              company_name: sellerName,
+                              full_name: sellerName,
+                              role: 'employer',
+                              municipality: prod.municipality || 'Ondjiva'
+                            };
+                            onSelectCompany(targetComp as any);
+                          }}
+                          className="truncate hover:text-[#1d5fc4] hover:underline font-semibold cursor-pointer"
+                          title={sellerName}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                          {sellerName}
+                        </span>
+                        {prod.category && (
+                          <>
+                            <span className="text-slate-300">·</span>
+                            <span className="text-[#5d6778] shrink-0">{prod.category}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Nome do Produto */}
+                      <h3 className="text-sm font-bold text-[#16213a] group-hover:text-[#1d5fc4] transition line-clamp-2 leading-snug">
+                        {prod.title}
+                      </h3>
                     </div>
                   </div>
 
-                  {/* Informações do Produto (Sem caixas, diretamente sobre o fundo) */}
-                  <div className="pt-3 space-y-1">
-                    
-                    {/* Vendedor e Categoria */}
-                    <div className="flex items-center gap-1 text-[11px] text-[#66758A] font-medium truncate">
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!onSelectCompany) return;
-                          const targetComp = seller || {
-                            id: prod.seller_id || prod.company_id || 'comp',
-                            company_name: sellerName,
-                            full_name: sellerName,
-                            role: 'employer',
-                            municipality: prod.municipality || 'Ondjiva'
-                          };
-                          onSelectCompany(targetComp as any);
-                        }}
-                        className="truncate hover:text-[#123D73] hover:underline font-semibold cursor-pointer"
-                        title={sellerName}
+                  {/* Preço e acções no fundo do cartão */}
+                  <div className="flex items-baseline justify-between pt-3 mt-2 border-t border-slate-100">
+                    <p className="text-base font-extrabold text-[#1d5fc4]">
+                      {(Number(prod.price) || 0).toLocaleString('pt-AO')} Kz
+                    </p>
+
+                    {/* Botão de WhatsApp rápido e discreto */}
+                    {prod.contact_phone && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleWhatsAppContact(prod.contact_phone, prod.title, e)}
+                        className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                        title="Falar pelo WhatsApp"
                       >
-                        {sellerName}
-                      </span>
-                      {prod.category && (
-                        <>
-                          <span className="text-slate-300">·</span>
-                          <span className="text-[#66758A] shrink-0">{prod.category}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Nome do Produto */}
-                    <h3 className="text-sm font-bold text-[#263449] group-hover:text-[#123D73] transition line-clamp-2 leading-snug">
-                      {prod.title}
-                    </h3>
-
-                    {/* Preço em Kz */}
-                    <div className="flex items-baseline justify-between pt-0.5">
-                      <p className="text-base font-extrabold text-[#123D73]">
-                        {(Number(prod.price) || 0).toLocaleString('pt-AO')} Kz
-                      </p>
-
-                      {/* Botão de WhatsApp rápido e discreto */}
-                      {prod.contact_phone && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleWhatsAppContact(prod.contact_phone, prod.title, e)}
-                          className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          title="Falar pelo WhatsApp"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

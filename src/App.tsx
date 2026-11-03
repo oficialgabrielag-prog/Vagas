@@ -756,12 +756,24 @@ export default function App() {
       }
     };
 
+    const handlePostUpdatedEvent = (e: any) => {
+      const updatedPost = e.detail?.post;
+      if (updatedPost) {
+        setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+        if (selectedPost?.id === updatedPost.id) {
+          setSelectedPost(updatedPost);
+        }
+      }
+    };
+
+    window.addEventListener('cunene_post_updated', handlePostUpdatedEvent);
     window.addEventListener('cunene_post_deleted', handlePostDeleted);
     window.addEventListener('cunene_job_deleted', handleJobDeleted);
     window.addEventListener('cunene_job_updated', handleJobUpdated);
     window.addEventListener('cunene_product_deleted', handleProductDeletedEvent);
 
     return () => {
+      window.removeEventListener('cunene_post_updated', handlePostUpdatedEvent);
       window.removeEventListener('cunene_post_deleted', handlePostDeleted);
       window.removeEventListener('cunene_job_deleted', handleJobDeleted);
       window.removeEventListener('cunene_job_updated', handleJobUpdated);
@@ -830,7 +842,7 @@ export default function App() {
         onTouchMove={handleTouchMoveGlobal}
         onTouchEnd={handleTouchEndGlobal}
         onTouchCancel={handleTouchCancelGlobal}
-        className="min-h-screen flex flex-col bg-white font-sans text-[#111827] antialiased selection:bg-[#0F4C9C] selection:text-white"
+        className="min-h-screen flex flex-col bg-[var(--bg)] font-sans text-[var(--ink)] antialiased selection:bg-[#1d5fc4] selection:text-white"
       >
 
 

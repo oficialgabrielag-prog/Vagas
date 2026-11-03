@@ -2470,6 +2470,31 @@ export const StoreService = {
     return vid;
   },
 
+  resolveAuthorAvatar(authorId: string, currentAvatar?: string): string {
+    if (currentAvatar && currentAvatar.startsWith('http')) return currentAvatar;
+    if (!authorId) return currentAvatar || '';
+    try {
+      const rich = localStorage.getItem(`${STORAGE_KEYS.USER}_rich_${authorId}`);
+      if (rich) {
+        const u = JSON.parse(rich);
+        const av = u.avatar_url || u.company_logo || u.company?.logo_url;
+        if (av && av.startsWith('http')) return av;
+      }
+      const cur = this.getCurrentUser();
+      if (cur && cur.id === authorId) {
+        const av = cur.avatar_url || cur.company_logo || cur.company?.logo_url;
+        if (av && av.startsWith('http')) return av;
+      }
+      const comps = this.getCompanies();
+      const comp = comps.find(c => c.id === authorId || (c as any).user_id === authorId);
+      if (comp) {
+        const av = comp.company_logo || comp.avatar_url || comp.company?.logo_url;
+        if (av && av.startsWith('http')) return av;
+      }
+    } catch {}
+    return currentAvatar || '';
+  },
+
   // Community Posts (Fonte de Verdade: SUPABASE + Cache Local para Performance)
   async fetchPosts(): Promise<CommunityPost[]> {
     const localPosts = this.getPosts();
@@ -2504,20 +2529,29 @@ export const StoreService = {
         const localReactions = (local?.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions)) ? local.reactions : {};
         const combinedReactions = { ...remoteReactions, ...localReactions };
 
-        const userReaction = (activeUserId && combinedReactions[activeUserId]) 
-          ? combinedReactions[activeUserId] 
-          : (local?.user_reaction || undefined);
+        if (local && local.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions) && activeUserId) {
+          if (local.reactions[activeUserId]) {
+            combinedReactions[activeUserId] = local.reactions[activeUserId];
+          } else {
+            delete combinedReactions[activeUserId];
+          }
+        }
 
-        const rawRemoteLikes = typeof p.likes_count === 'number' ? p.likes_count : 0;
-        const rawLocalLikes = typeof local?.likes_count === 'number' ? local.likes_count : 0;
-        const reactionsCount = Object.keys(combinedReactions).length;
-        const finalLikesCount = Math.max(rawRemoteLikes, rawLocalLikes, reactionsCount);
+        const userReaction = activeUserId ? combinedReactions[activeUserId] : undefined;
+
+        let finalLikesCount = typeof p.likes_count === 'number' ? p.likes_count : 0;
+        if (local && typeof local.likes_count === 'number') {
+          finalLikesCount = local.likes_count;
+        }
+        finalLikesCount = Math.max(finalLikesCount, Object.keys(combinedReactions).length);
 
         const finalImageUrl = p.image_url || (p as any).imagem_url || (p as any).media_url || (p as any).image || local?.image_url || (local as any)?.imagem_url || (local as any)?.media_url;
+        const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar || local?.author_avatar);
 
         return {
           ...p,
           image_url: finalImageUrl || undefined,
+          author_avatar: resolvedAvatar || undefined,
           comments: Array.isArray(p.comments) ? p.comments : (local?.comments || []),
           reactions: combinedReactions,
           likes_count: finalLikesCount,
@@ -2548,12 +2582,17 @@ export const StoreService = {
       return parsed.map(p => {
         const reactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
         const postImg = p.image_url || p.imagem_url || p.media_url || p.image;
+        const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar);
+        const userReaction = activeUserId ? reactions[activeUserId] : undefined;
+        const likesCount = typeof p.likes_count === 'number' ? Math.max(p.likes_count, Object.keys(reactions).length) : Object.keys(reactions).length;
+
         return {
           ...p,
           image_url: postImg || undefined,
+          author_avatar: resolvedAvatar || undefined,
           reactions,
-          likes_count: typeof p.likes_count === 'number' ? Math.max(p.likes_count, Object.keys(reactions).length) : Object.keys(reactions).length,
-          user_reaction: p.user_reaction || (activeUserId && reactions[activeUserId] ? reactions[activeUserId] : undefined)
+          likes_count: likesCount,
+          user_reaction: userReaction
         };
       });
     } catch {
@@ -2729,21 +2768,21 @@ export const StoreService = {
     }
 
     const reactions = { ...(targetPost.reactions || {}) };
-    const current = reactions[activeUserId];
+    const previousReaction = reactions[activeUserId];
 
     let currentLikes = typeof targetPost.likes_count === 'number' ? targetPost.likes_count : Object.keys(reactions).length;
 
-    // Regra: UM utilizador só pode ter UMA reação por post.
-    // Ao tocar novamente na reação ativa: remover a reação e diminuir like.
-    if (current === reactionType) {
+    if (previousReaction === reactionType) {
+      // User is UNLIKING / Removing reaction
       delete reactions[activeUserId];
-      currentLikes = Math.max(0, currentLikes - 1);
+      if (previousReaction) {
+        currentLikes = Math.max(0, currentLikes - 1);
+      }
     } else {
-      if (!current) {
-        // Nova reação adicionada
+      // User is ADDING or CHANGING reaction
+      if (!previousReaction) {
         currentLikes = currentLikes + 1;
       }
-      // Alterna o tipo de reação (ex: like -> love)
       reactions[activeUserId] = reactionType;
     }
 
@@ -2788,6 +2827,11 @@ export const StoreService = {
     } catch (err) {
       console.warn('Sincronização de reação falhou no servidor:', err);
     }
+
+    // Disparar evento customizado para reatividade global instantânea
+    try {
+      window.dispatchEvent(new CustomEvent('cunene_post_updated', { detail: { post: updatedPost } }));
+    } catch {}
 
     return updatedPost;
   },
