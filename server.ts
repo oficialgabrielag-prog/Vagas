@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import { GoogleGenAI } from '@google/genai';
+import sendEmailCampaignHandler from './api/send-email-campaign.ts';
 
 dotenv.config();
 
@@ -938,6 +939,18 @@ Diretrizes:
     } catch (err: any) {
       console.error('Erro na rota de descrição de produtos:', err);
       return res.status(500).json({ error: 'Erro ao gerar descrição do produto.' });
+    }
+  });
+
+  // Endpoint para envio seguro de campanhas de email via Resend
+  app.all('/api/send-email-campaign', async (req: any, res: any) => {
+    try {
+      await sendEmailCampaignHandler(req, res);
+    } catch (err: any) {
+      console.error('Erro na rota /api/send-email-campaign:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err?.message || 'Erro interno ao processar campanha de email.' });
+      }
     }
   });
 

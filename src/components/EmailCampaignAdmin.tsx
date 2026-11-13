@@ -12,39 +12,81 @@ export const EmailCampaignAdmin = () => {
   const [feedback, setFeedback] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   const handleSend = async (isTest: boolean) => {
-    if (!isTest && !window.confirm('Tem a certeza que deseja enviar esta campanha para todos os destinatários selecionados? Esta ação não pode ser desfeita.')) return;
+    if (!isTest && !window.confirm(
+      "Confirmas o envio desta campanha aos utilizadores que aceitaram receber emails?"
+    )) return;
+
     setLoading(true);
     setFeedback(null);
+
     try {
-      // 2. Create Campaign in DB (if not test)
-      let campaignId = 'test';
-      if (!isTest) {
-        const { data: camp, error: campErr } = await supabase.from('email_campaigns').insert([{
-          subject, content, target_audience: targetAudience, status: 'sending', created_by: (await supabase.auth.getUser()).data.user?.id
-        }]).select().single();
-        if (campErr) throw campErr;
-        campaignId = camp.id;
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      const session = sessionData?.session;
+
+      if (sessionError || !session) {
+        throw new Error("Inicia sessão novamente.");
       }
 
-      // 3. Send
-      const response = await fetch('/api/send-email-campaign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      let campaignId: string | undefined;
+
+      if (!isTest) {
+        if (!subject.trim() || !content.trim()) {
+          throw new Error("Preenche o assunto e o conteúdo.");
+        }
+
+        const { data: userData } = await supabase.auth.getUser();
+
+        const { data: campaign, error: campaignError } =
+          await supabase
+            .from("email_campaigns")
+            .insert({
+              subject: subject.trim(),
+              content,
+              target_audience: targetAudience,
+              status: "sending",
+              created_by: userData.user?.id
+            })
+            .select("id")
+            .single();
+
+        if (campaignError) throw campaignError;
+        campaignId = campaign.id;
+      }
+
+      const response = await fetch("/api/send-email-campaign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
-          subject,
+          subject: subject.trim(),
           content,
-          targetAudience: isTest ? 'test' : targetAudience,
-          testEmail: isTest ? 'oficialgabrielag@gmail.com' : undefined,
+          targetAudience: isTest ? "test" : targetAudience,
           campaignId
         })
       });
 
-      if (!response.ok) throw new Error('Falha ao enviar campanha');
-      
-      setFeedback({ type: 'success', text: isTest ? 'Email de teste enviado com sucesso!' : 'Campanha enviada com sucesso!' });
-    } catch (err: unknown) {
-      console.warn('Erro ao enviar campanha:', err);
-      setFeedback({ type: 'error', text: toUserErrorMessage(err, 'Não foi possível enviar a campanha. Tenta novamente.') });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Não foi possível enviar.");
+      }
+
+      setFeedback({
+        type: "success",
+        text: isTest
+          ? "Email de teste enviado!"
+          : result.message || "Campanha processada."
+      });
+    } catch (err: any) {
+      console.error("Erro Resend:", err);
+      setFeedback({
+        type: "error",
+        text: err.message || "Erro ao enviar email."
+      });
     } finally {
       setLoading(false);
     }
