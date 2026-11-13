@@ -1190,32 +1190,30 @@ export const StoreService = {
     return updated;
   },
 
-  // Fetch real registered companies from Supabase (combining cache, users, companies, and profiles tables)
+  // Fetch all registered and partner companies from Supabase and defaults
   async fetchCompanies(): Promise<UserProfile[]> {
     try {
       const allCompaniesMap = new Map<string, UserProfile>();
-      const isFakeCompanyId = (id?: string) =>
-        Boolean(id) && (
-          id!.startsWith('comp-cunene-') ||
-          id!.startsWith('comp-trans-') ||
-          id!.startsWith('comp-farmacia-') ||
-          id!.startsWith('comp-ombandja-') ||
-          id!.startsWith('comp-rainha-')
-        );
 
-      // 1. Load existing locally cached real companies (excluding legacy seeded fake IDs)
+      // 0. Include default/partner companies first
+      const defaults = this.getDefaultCompanies();
+      defaults.forEach(d => {
+        allCompaniesMap.set(d.id, d);
+      });
+
+      // 1. Load existing locally cached real companies
       try {
         const cached = this.getCompanies();
         if (Array.isArray(cached)) {
           cached.forEach(c => {
-            if (c && c.id && !isFakeCompanyId(c.id)) {
+            if (c && c.id) {
               allCompaniesMap.set(c.id, c);
             }
           });
         }
       } catch {}
 
-      // 1. Fetch from profiles table (where role is empresa or employer)
+      // 2. Fetch from profiles table (where role is empresa or employer)
       try {
         const { data: profilesData } = await supabase
           .from('profiles')
@@ -1254,7 +1252,7 @@ export const StoreService = {
         // Skip profiles errors
       }
 
-      // 2. Fetch from users table (Legacy or auxiliary data)
+      // 3. Fetch from users table (Legacy or auxiliary data)
       try {
         const { data: usersData } = await supabase
           .from('users')
@@ -1269,7 +1267,6 @@ export const StoreService = {
               const cover = u.cover_url || '';
               const existing = allCompaniesMap.get(u.id);
               
-              // Map legacy names to new format
               allCompaniesMap.set(u.id, {
                 id: u.id,
                 email: u.email || existing?.email || '',
@@ -1318,7 +1315,7 @@ export const StoreService = {
         // Skip users table errors
       }
 
-      // 3. Check companies table
+      // 4. Check companies table
       try {
         const { data: companiesData } = await supabase
           .from('companies')
@@ -1408,14 +1405,13 @@ export const StoreService = {
       }
 
       const results = Array.from(allCompaniesMap.values())
-        .filter((c) => c && c.id && !isFakeCompanyId(c.id))
+        .filter((c) => c && c.id)
         .sort((a, b) => {
           const timeA = new Date(a.created_at || 0).getTime();
           const timeB = new Date(b.created_at || 0).getTime();
           return timeB - timeA;
         });
 
-      // Save valid real companies to local cache (and purge any legacy fake seed entries)
       try {
         safeSetItem(STORAGE_KEYS.COMPANIES, JSON.stringify(results));
       } catch {}
@@ -1514,24 +1510,24 @@ export const StoreService = {
 
   getCompanies(): UserProfile[] {
     try {
+      const map = new Map<string, UserProfile>();
+      this.getDefaultCompanies().forEach(d => map.set(d.id, d));
+
       const raw = localStorage.getItem(STORAGE_KEYS.COMPANIES);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          return parsed.filter(
-            (c: any) =>
-              c &&
-              c.id &&
-              !String(c.id).startsWith('comp-cunene-') &&
-              !String(c.id).startsWith('comp-trans-') &&
-              !String(c.id).startsWith('comp-farmacia-') &&
-              !String(c.id).startsWith('comp-ombandja-') &&
-              !String(c.id).startsWith('comp-rainha-')
-          );
+          parsed.forEach((c: any) => {
+            if (c && c.id) {
+              map.set(c.id, c);
+            }
+          });
         }
       }
-    } catch {}
-    return [];
+      return Array.from(map.values());
+    } catch {
+      return this.getDefaultCompanies();
+    }
   },
 
   getDefaultCompanies(): UserProfile[] {

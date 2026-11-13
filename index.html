@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt" class="h-full w-full bg-white text-slate-900" style="margin: 0; padding: 0; height: 100%; width: 100%; background-color: #FFFFFF;">
+<html lang="pt" class="h-full w-full bg-[#080808] text-slate-100" style="margin: 0; padding: 0; height: 100%; width: 100%; background-color: #080808;">
   <head>
     <meta charset="UTF-8" />
 
@@ -75,25 +75,8 @@
     }
     </script>
   </head>
-  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-[#0F4C9C] selection:text-white" style="margin: 0; padding: 0; min-height: 100vh; min-height: 100dvh; overflow-x: hidden;">
+  <body class="bg-[#080808] text-slate-100 antialiased selection:bg-[#D4AF37] selection:text-black" style="margin: 0; padding: 0; min-height: 100vh; min-height: 100dvh; overflow-x: hidden;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Desativa e remove definitivamente quaisquer Service Workers e caches legados do PWA
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          for (var i = 0; i < regs.length; i++) {
-            regs[i].unregister().catch(function() {});
-          }
-        }).catch(function() {});
-      }
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          for (var i = 0; i < names.length; i++) {
-            caches.delete(names[i]).catch(function() {});
-          }
-        }).catch(function() {});
-      }
-    </script>
   </body>
 </html>

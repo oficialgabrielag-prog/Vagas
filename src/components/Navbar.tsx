@@ -27,6 +27,7 @@ import {
 import { UserProfile } from "../lib/types";
 import { StoreService } from "../lib/store";
 import { isInsideAPKApp, APK_DOWNLOAD_URL } from "../lib/apkUtils";
+import { PWAInstallButton } from "./PWAInstallButton";
 
 export interface NavbarProps {
   user?: UserProfile | null;
@@ -203,7 +204,8 @@ export function Navbar({
             </span>
           </button>
 
-          <div className="cv-header-actions">
+          <div className="cv-header-actions flex items-center gap-2">
+            <PWAInstallButton />
             <button
               type="button"
               className="cv-icon-button"
