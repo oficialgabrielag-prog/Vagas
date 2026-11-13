@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { X, MapPin, Briefcase, DollarSign, Calendar, CheckCircle2, Send, Building, FileText, Award, Upload, Check, MessageCircle, Power, Trash2 } from 'lucide-react';
 import { Job, UserProfile, Exam } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { uploadDocumentToCloudinary } from '../lib/cloudinary';
+import { SeoHelmet } from './SeoHelmet';
 
 interface JobDetailModalProps {
   job: Job | null;
@@ -151,8 +153,9 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           console.warn('Falha ao analisar JSON da IA, mas o CV foi carregado com sucesso.');
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Erro ao processar currículo.');
+    } catch (err: unknown) {
+      console.warn('Erro ao processar currículo:', err);
+      setError(toUserErrorMessage(err, 'Não foi possível processar o currículo. Tenta novamente.'));
     } finally {
       setUploadingCv(false);
       setParsingCv(false);
@@ -193,16 +196,50 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
       setTimeout(() => {
         onSuccessApply();
       }, 1200);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar candidatura.');
+    } catch (err: unknown) {
+      console.warn('Erro ao enviar candidatura:', err);
+      setError(toUserErrorMessage(err, 'Não foi possível enviar a candidatura. Tenta novamente.'));
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <SeoHelmet
+        title={`${job.title} — ${job.company_name}`}
+        description={
+          job.description
+            ? `${job.title} em ${job.municipality || 'Cunene'} (${job.contract_type || 'Tempo Inteiro'}). ${job.description.slice(0, 130)}`
+            : `Vaga de ${job.title} na empresa ${job.company_name} em ${job.municipality || 'Cunene'}, Angola.`
+        }
+        image={job.company_logo}
+        type="article"
+        canonicalPath={`/?vaga=${encodeURIComponent(job.id)}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'JobPosting',
+          title: job.title,
+          description: job.description || `${job.title} na empresa ${job.company_name}`,
+          datePosted: job.created_at || new Date().toISOString(),
+          employmentType: job.contract_type || 'FULL_TIME',
+          hiringOrganization: {
+            '@type': 'Organization',
+            name: job.company_name,
+            ...(job.company_logo ? { logo: job.company_logo } : {})
+          },
+          jobLocation: {
+            '@type': 'Place',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: job.municipality || 'Ondjiva',
+              addressRegion: 'Cunene',
+              addressCountry: 'AO'
+            }
+          }
+        }}
+      />
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 my-8">
         {/* Header Banner */}
-        <div className="bg-[#0F4C9C] p-6 text-white relative">
+        <div className="bg-[#D4AF37] p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
@@ -211,7 +248,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           </button>
           
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md shrink-0 text-[#0F4C9C] font-bold text-2xl overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md shrink-0 text-[#D4AF37] font-bold text-2xl overflow-hidden">
               {job.company_logo ? (
                 <img src={job.company_logo} alt={job.company_name} className="w-full h-full object-cover" />
               ) : (
@@ -261,19 +298,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Quick Info bar */}
         <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-medium text-slate-600">
           <div className="flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-[#0F4C9C]" />
+            <MapPin className="w-4 h-4 text-[#D4AF37]" />
             <span>{job.municipality}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Briefcase className="w-4 h-4 text-[#0F4C9C]" />
+            <Briefcase className="w-4 h-4 text-[#D4AF37]" />
             <span>{job.contract_type}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <DollarSign className="w-4 h-4 text-[#0F4C9C]" />
+            <DollarSign className="w-4 h-4 text-[#D4AF37]" />
             <span>{job.salary_min && job.salary_max ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.salary_currency}` : 'A combinar'}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-[#0F4C9C]" />
+            <Calendar className="w-4 h-4 text-[#D4AF37]" />
             <span>{new Date(job.created_at).toLocaleDateString('pt-AO')}</span>
           </div>
         </div>
@@ -288,14 +325,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
           {existingApp ? (
             <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4 text-center">
-              <CheckCircle2 className="w-12 h-12 text-[#0F4C9C] mx-auto" />
+              <CheckCircle2 className="w-12 h-12 text-[#D4AF37] mx-auto" />
               <h3 className="text-lg font-bold text-slate-900">Candidatura Submetida</h3>
-              <p className="text-sm text-slate-600">Estado atual: <strong className="text-[#0F4C9C]">{existingApp.status}</strong></p>
+              <p className="text-sm text-slate-600">Estado atual: <strong className="text-[#D4AF37]">{existingApp.status}</strong></p>
               
               {existingApp.exam_score !== undefined && (
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 inline-block text-left">
                   <span className="text-xs text-slate-400 block font-bold">Resultado do Exame Técnico</span>
-                  <span className="text-base font-black text-[#0F4C9C]">{existingApp.exam_score}% ({existingApp.exam_passed ? 'Aprovado' : 'Não Aprovado'})</span>
+                  <span className="text-base font-black text-[#D4AF37]">{existingApp.exam_score}% ({existingApp.exam_passed ? 'Aprovado' : 'Não Aprovado'})</span>
                 </div>
               )}
 
@@ -341,7 +378,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       }}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-3 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <FileText className="w-4 h-4 text-[#0F4C9C]" />
+                      <FileText className="w-4 h-4 text-[#D4AF37]" />
                       <span>{existingApp.exam_score !== undefined ? 'Rever no Portal' : 'Fazer no Portal'}</span>
                     </button>
                   </div>
@@ -393,7 +430,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                         onClose();
                         onOpenExam(job.exam!, 'pending-app', job);
                       }}
-                      className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-4 py-3 rounded-xl text-xs sm:text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer"
+                      className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-4 py-3 rounded-xl text-xs sm:text-sm transition shadow flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Award className="w-4 h-4 text-[#FFC20E]" />
                       <span>Fazer no Portal</span>
@@ -415,7 +452,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   <ul className="space-y-2">
                     {job.requirements.map((req, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
-                        <CheckCircle2 className="w-4 h-4 text-[#0F4C9C] shrink-0 mt-0.5" />
+                        <CheckCircle2 className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
                         <span>{req}</span>
                       </li>
                     ))}
@@ -470,14 +507,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 </div>
               ) : !currentUser ? (
                 <div className="border-t border-slate-200 pt-6 mt-6 bg-blue-50/70 p-8 rounded-3xl text-center space-y-3 border border-blue-100">
-                  <h4 className="font-extrabold text-[#0F4C9C] text-base">Candidatura Profissional</h4>
+                  <h4 className="font-extrabold text-[#D4AF37] text-base">Candidatura Profissional</h4>
                   <p className="text-xs text-slate-600 max-w-md mx-auto">
                     Para se candidatar a esta oportunidade e realizar o teste de competências, inicie sessão ou crie uma conta gratuita.
                   </p>
                   <button
                     type="button"
                     onClick={onOpenAuth}
-                    className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-extrabold px-6 py-3 rounded-xl text-xs transition shadow-md cursor-pointer active:scale-95"
+                    className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-extrabold px-6 py-3 rounded-xl text-xs transition shadow-md cursor-pointer active:scale-95"
                   >
                     Iniciar Sessão para Candidatar-se
                   </button>
@@ -554,13 +591,13 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     {/* Real CV Upload (PDF/DOC) */}
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
                       <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <FileText className="w-4 h-4 text-[#0F4C9C]" />
+                        <FileText className="w-4 h-4 text-[#D4AF37]" />
                         <span>Currículo (PDF, DOC ou DOCX) *</span>
                       </label>
 
                       <div className="flex items-center gap-3">
                         <label className="cursor-pointer bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xs">
-                          <Upload className="w-4 h-4 text-[#0F4C9C]" />
+                          <Upload className="w-4 h-4 text-[#D4AF37]" />
                           <span>{uploadingCv ? 'A enviar...' : 'Selecionar Arquivo'}</span>
                           <input
                             type="file"
@@ -593,14 +630,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                         value={coverLetter}
                         onChange={e => setCoverLetter(e.target.value)}
                         placeholder="Explique brevemente porque é o candidato ideal..."
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={uploadingCv}
-                      className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       <Send className="w-4 h-4" />
                       <span>Submeter Candidatura com Snapshot</span>

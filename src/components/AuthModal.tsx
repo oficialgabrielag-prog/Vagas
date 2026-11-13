@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { X, UserCheck, Building2, Mail, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginSuccess: (user: UserProfile) => void;
+  initialMode?: 'login' | 'register';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess, initialMode = 'login' }) => {
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [role, setRole] = useState<'candidate' | 'employer'>('candidate');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,15 +23,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Pré-carrega o reCAPTCHA quando o modal é aberto
+  // Sincroniza modo inicial (Entrar vs Registar) e pré-carrega reCAPTCHA quando o modal abre
   useEffect(() => {
     if (isOpen) {
+      setAuthMode(initialMode);
+      setError('');
+      setSuccessMessage('');
       const siteKey = getRecaptchaSiteKey();
       if (siteKey) {
         loadRecaptchaScript(siteKey).catch(() => {});
       }
     }
-  }, [isOpen]);
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
@@ -54,8 +59,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
 
         await StoreService.resetPassword(email);
         setSuccessMessage('Instruções de recuperação enviadas para o seu email!');
-      } catch (err: any) {
-        setError(err.message || 'Erro ao enviar email de recuperação.');
+      } catch (err: unknown) {
+        console.warn('Erro ao recuperar palavra-passe:', err);
+        setError(toUserErrorMessage(err, 'Não foi possível enviar o email de recuperação. Tenta novamente.'));
       } finally {
         setLoading(false);
       }
@@ -99,8 +105,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
       }
       onLoginSuccess(user);
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao autenticar no Supabase. Verifique os seus dados.');
+    } catch (err: unknown) {
+      console.warn('Erro na autenticação:', err);
+      setError(toUserErrorMessage(err, 'Não foi possível iniciar sessão. Verifica os teus dados e tenta novamente.'));
     } finally {
       setLoading(false);
     }
@@ -110,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100">
         {/* Header */}
-        <div className="bg-[#0F4C9C] p-6 text-white relative">
+        <div className="bg-[#D4AF37] p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
@@ -118,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             <X className="w-5 h-5" />
           </button>
           <span className="text-xs uppercase tracking-widest font-semibold text-[#FFC20E]">
-            Supabase Auth • CuneneVagas
+            Acesso • CuneneVagas
           </span>
           <h2 className="text-2xl font-bold mt-1">
             {authMode === 'register' && 'Criar Nova Conta'}
@@ -126,9 +133,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             {authMode === 'forgot' && 'Recuperar Palavra-passe'}
           </h2>
           <p className="text-sm text-slate-200 mt-1">
-            {authMode === 'register' && 'Registo com Supabase Auth'}
-            {authMode === 'login' && 'Autenticação segura via Supabase'}
-            {authMode === 'forgot' && 'Insira o seu email para redefinir a palavra-passe'}
+            {authMode === 'register' && 'Cria a tua conta para aceder às oportunidades no Cunene'}
+            {authMode === 'login' && 'Inicia sessão de forma rápida e segura na tua conta'}
+            {authMode === 'forgot' && 'Insere o teu email para redefinir a palavra-passe'}
           </p>
         </div>
 
@@ -144,7 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     setError('');
                     setAuthMode('login');
                   }}
-                  className="text-xs font-bold text-[#0F4C9C] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   👉 Iniciar Sessão com este e-mail
                 </button>
@@ -169,7 +176,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     onClick={() => setRole('candidate')}
                     className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition ${
                       role === 'candidate'
-                        ? 'bg-[#0F4C9C] text-white shadow-xs'
+                        ? 'bg-[#D4AF37] text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -180,7 +187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     onClick={() => setRole('employer')}
                     className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition ${
                       role === 'employer'
-                        ? 'bg-[#0F4C9C] text-white shadow-xs'
+                        ? 'bg-[#D4AF37] text-white shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -201,7 +208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder={role === 'employer' ? 'Manuel António' : 'João Manuel Silva'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                 />
               </div>
             )}
@@ -215,7 +222,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                   value={companyName}
                   onChange={e => setCompanyName(e.target.value)}
                   placeholder="Ex: AgroCunene LDA"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                 />
               </div>
             )}
@@ -230,7 +237,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="seu.email@exemplo.ao"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                 />
               </div>
             </div>
@@ -243,7 +250,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     <button
                       type="button"
                       onClick={() => setAuthMode('forgot')}
-                      className="text-[11px] text-[#0F4C9C] hover:underline"
+                      className="text-[11px] text-[#D4AF37] hover:underline"
                     >
                       Esqueceu-se?
                     </button>
@@ -257,7 +264,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                   />
                 </div>
               </div>
@@ -266,7 +273,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+              className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
             >
               <span>
                 {loading
@@ -288,7 +295,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                 <button
                   type="button"
                   onClick={() => setAuthMode('login')}
-                  className="text-[#0F4C9C] font-bold hover:underline"
+                  className="text-[#D4AF37] font-bold hover:underline"
                 >
                   Entrar
                 </button>
@@ -301,7 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                 <button
                   type="button"
                   onClick={() => setAuthMode('register')}
-                  className="text-[#0F4C9C] font-bold hover:underline"
+                  className="text-[#D4AF37] font-bold hover:underline"
                 >
                   Registar gratuitamente
                 </button>
@@ -314,7 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                 <button
                   type="button"
                   onClick={() => setAuthMode('login')}
-                  className="text-[#0F4C9C] font-bold hover:underline"
+                  className="text-[#D4AF37] font-bold hover:underline"
                 >
                   Voltar ao início de sessão
                 </button>

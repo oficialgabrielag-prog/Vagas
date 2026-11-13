@@ -50,7 +50,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
           existingDescription: description
         })
       });
-      if (!res.ok) throw new Error('Falha na resposta do servidor');
+      if (!res.ok) throw new Error('Não foi possível gerar a descrição.');
       const data = await res.json();
       if (data.description) {
         setDescription(data.description);
@@ -119,7 +119,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 my-8">
-        <div className="bg-[#0F4C9C] p-5 sm:p-6 text-white relative">
+        <div className="bg-[#D4AF37] p-5 sm:p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
@@ -172,7 +172,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Ex: Sofá modular, Milho a granel ou Serviços de Canalização"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
             />
           </div>
 
@@ -181,7 +181,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
             currentImageUrl={imageUrl}
             onUploadSuccess={url => setImageUrl(url)}
             onRemove={() => setImageUrl('')}
-            label="Fotografia do Produto (Upload Cloudinary)"
+            label="Fotografia do Produto"
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -190,7 +190,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
               <select
                 value={category}
                 onChange={e => setCategory(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
               >
                 <option value="Agricultura">Agricultura</option>
                 <option value="Móveis">Móveis</option>
@@ -214,7 +214,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
               <select
                 value={municipality}
                 onChange={e => setMunicipality(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
               >
                 {CUNENE_MUNICIPALITIES.map(m => (
                   <option key={m} value={m}>{m}</option>
@@ -232,7 +232,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
                 value={price}
                 onChange={e => setPrice(e.target.value)}
                 placeholder="Ex: 250000"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
               />
             </div>
 
@@ -244,7 +244,7 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
                 value={contactPhone}
                 onChange={e => setContactPhone(e.target.value)}
                 placeholder="+244 923 000 000"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
               />
             </div>
           </div>
@@ -256,12 +256,12 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
                 type="button"
                 onClick={handleGenerateAIDescription}
                 disabled={isGeneratingDescription}
-                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0F4C9C] bg-blue-50 hover:bg-blue-100/90 active:scale-95 px-2.5 py-1 rounded-lg border border-blue-200 transition cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#D4AF37] bg-blue-50 hover:bg-blue-100/90 active:scale-95 px-2.5 py-1 rounded-lg border border-blue-200 transition cursor-pointer disabled:opacity-50"
                 title="Ajudar a criar uma descrição comercial persuasiva com Inteligência Artificial"
               >
                 {isGeneratingDescription ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0F4C9C]" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D4AF37]" />
                     <span>A gerar com IA...</span>
                   </>
                 ) : (
@@ -285,13 +285,13 @@ export const NewProductModal: React.FC<NewProductModalProps> = ({
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Descreva o estado, condições de entrega ou detalhes do serviço..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 rounded-xl text-xs sm:text-sm transition shadow-md flex items-center justify-center gap-2 mt-4 active:scale-98"
+            className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3.5 rounded-xl text-xs sm:text-sm transition shadow-md flex items-center justify-center gap-2 mt-4 active:scale-[0.96]"
           >
             <Plus className="w-4 h-4" />
             <span>Publicar Anúncio no Marketplace</span>

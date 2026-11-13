@@ -206,8 +206,8 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#0F4C9C] flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-[#0F4C9C]" />
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
               Anúncios do Mercado Local (Cunene)
             </span>
             <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
@@ -224,7 +224,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
 
             <button
               onClick={handlePrev}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-[#0F4C9C] hover:bg-slate-50 transition cursor-pointer"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-[#D4AF37] hover:bg-slate-50 transition cursor-pointer"
               title="Anúncio anterior"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -235,7 +235,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
               className={`p-1.5 rounded-lg border transition cursor-pointer flex items-center gap-1 text-[11px] font-semibold ${
                 isPaused 
                   ? 'bg-amber-50 border-amber-200 text-amber-700' 
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#0F4C9C]'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#D4AF37]'
               }`}
               title={isPaused ? 'Retomar rotação automática' : 'Pausar rotação'}
             >
@@ -245,7 +245,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
 
             <button
               onClick={handleNext}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-[#0F4C9C] hover:bg-slate-50 transition cursor-pointer"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-[#D4AF37] hover:bg-slate-50 transition cursor-pointer"
               title="Próximo anúncio"
             >
               <ChevronRight className="w-3.5 h-3.5" />
@@ -254,7 +254,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
             {onOpenNewProduct && (
               <button
                 onClick={onOpenNewProduct}
-                className="ml-2 inline-flex items-center gap-1 bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition shadow-2xs cursor-pointer"
+                className="ml-2 inline-flex items-center gap-1 bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition shadow-2xs cursor-pointer"
               >
                 <PlusCircle className="w-3 h-3" />
                 <span className="hidden sm:inline">Anunciar Produto</span>
@@ -266,7 +266,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
         {/* Barra de Progresso de 10 Segundos */}
         <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mb-3.5">
           <div 
-            className="h-full bg-[#0F4C9C] transition-all duration-100 ease-linear rounded-full"
+            className="h-full bg-[#D4AF37] transition-all duration-100 ease-linear rounded-full"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -294,7 +294,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-blue-50 text-[#0F4C9C]">
+                  <div className="w-full h-full flex items-center justify-center bg-blue-50 text-[#D4AF37]">
                     <ShoppingBag className="w-7 h-7" />
                   </div>
                 )}
@@ -306,8 +306,8 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
               {/* Informações reais do produto */}
               <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0F4C9C] bg-blue-50/90 px-2 py-0.5 rounded-md border border-blue-100">
-                    <ShieldCheck className="w-3 h-3 text-[#0F4C9C]" />
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#D4AF37] bg-blue-50/90 px-2 py-0.5 rounded-md border border-blue-100">
+                    <ShieldCheck className="w-3 h-3 text-[#D4AF37]" />
                     {currentProduct.category || 'Mercado Geral'}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
@@ -316,7 +316,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
                   </span>
                 </div>
 
-                <h4 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#0F4C9C] transition-colors truncate leading-snug">
+                <h4 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#D4AF37] transition-colors truncate leading-snug">
                   {currentProduct.title}
                 </h4>
 
@@ -375,7 +375,7 @@ export const ModernProductAdFooter: React.FC<ModernProductAdFooterProps> = ({
               }}
               className={`h-1.5 rounded-full transition-all cursor-pointer ${
                 idx === currentIndex 
-                  ? 'w-6 bg-[#0F4C9C]' 
+                  ? 'w-6 bg-[#D4AF37]' 
                   : 'w-1.5 bg-slate-200 hover:bg-slate-300'
               }`}
               title={`Ir para produto ${idx + 1}`}

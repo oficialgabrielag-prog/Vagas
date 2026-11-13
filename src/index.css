@@ -7,25 +7,18 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
     --sat: env(safe-area-inset-top, 0px);
     --sab: env(safe-area-inset-bottom, 0px);
     --sal: env(safe-area-inset-left, 0px);
     --sar: env(safe-area-inset-right, 0px);
-    --bg: #c4ecfb;
-    --card: #ffffff;
-    --ink: #16213a;
-    --mute: #5d6778;
-    --line: #bce3f5;
-    --blue: #1d5fc4;
-    --sun: #f0b823;
-    --navy: #14305f;
-    --soft: #d8f2fd;
-    --ok: #1d8a52;
-    --bad: #c23b3b;
-    --wash: #c4ecfb;
-    --editorial-bg: #c4ecfb;
-    --editorial-card: #ffffff;
+    --bg-main: #080808;
+    --bg-secondary: #121212;
+    --gold: #D4AF37;
+    --gold-light: #F5D77A;
+    --text-main: #FFFFFF;
+    --text-muted: #A0A0A0;
+    --line: #222222;
   }
 
   *, ::before, ::after {
@@ -40,27 +33,27 @@
     -moz-osx-font-smoothing: grayscale;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    background-color: var(--wash);
-    color: var(--ink);
+    background-color: var(--bg-main);
+    color: var(--text-main);
     font-family: "DM Sans", "Ubuntu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   
   body {
     @apply antialiased font-sans text-base leading-relaxed;
     font-family: "DM Sans", "Ubuntu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: var(--ink);
+    color: var(--text-main);
     padding-top: var(--sat);
     padding-bottom: var(--sab);
     -webkit-overflow-scrolling: touch;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
-    background-color: var(--wash);
+    background-color: var(--bg-main);
     max-width: 100vw;
     overflow-x: hidden;
   }
 
   #root {
-    background-color: var(--wash);
+    background-color: var(--bg-main);
     min-height: 100vh;
   }
 
@@ -75,7 +68,7 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold text-balance tracking-normal;
-    color: var(--ink);
+    color: var(--text-main);
     font-family: "DM Sans", "Ubuntu", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   
@@ -157,15 +150,15 @@
 
 @layer components {
   .btn-primary {
-    @apply px-5 py-3 bg-[#0F4C9C] text-white font-semibold rounded-2xl transition-all active:scale-[0.97] shadow-sm hover:bg-[#0c3c7d] disabled:opacity-50 select-none flex items-center justify-center gap-2;
+    @apply px-5 py-3 bg-[#D4AF37] text-slate-950 font-extrabold rounded-2xl transition-all active:scale-[0.97] shadow-md hover:bg-[#F5D77A] disabled:opacity-50 select-none flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply px-5 py-3 bg-white border border-slate-200/90 text-slate-700 font-semibold rounded-2xl transition-all active:scale-[0.97] hover:bg-slate-50 disabled:opacity-50 select-none flex items-center justify-center gap-2;
+    @apply px-5 py-3 bg-[#121212] border border-[#D4AF37]/30 text-[#F5D77A] font-semibold rounded-2xl transition-all active:scale-[0.97] hover:bg-[#1C1811] disabled:opacity-50 select-none flex items-center justify-center gap-2;
   }
 
   .card-premium {
-    @apply bg-white border border-slate-200/80 rounded-2xl shadow-xs transition-all hover:border-slate-300 overflow-hidden;
+    @apply bg-[#121212] border border-[#D4AF37]/25 rounded-2xl shadow-xl transition-all hover:border-[#D4AF37] overflow-hidden;
   }
 
   .container-responsive {
@@ -314,3 +307,562 @@
   background-color: #CBD5E1;
   margin: 0 auto 12px auto;
 }
+
+/* Dynamic UI Transitions & Animations */
+@keyframes cvFadeIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cvPulseGold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(212, 175, 55, 0); }
+}
+
+@keyframes cvShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.cv-dynamic-enter {
+  animation: cvFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.cv-gold-pulse {
+  animation: cvPulseGold 2.5s infinite;
+}
+
+.cv-skeleton {
+  background: linear-gradient(90deg, #15130e 20%, #2a2213 50%, #15130e 80%);
+  background-size: 200% 100%;
+  animation: cvShimmer 1.35s ease-in-out infinite;
+}
+
+/* Subtle editorial transitions & tactile press feedback (scale 0.96) */
+.content-card,
+.cv-company-card,
+.cv-candidate-card,
+.cv-exam-card,
+.cv-job-card,
+.cv-product-card,
+.cv-post-card,
+.cv-product,
+.cv-card-pressable {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background-color 0.2s ease !important;
+}
+
+.content-card:hover,
+.cv-company-card:hover,
+.cv-candidate-card:hover,
+.cv-exam-card:hover {
+  border-color: rgba(212, 175, 55, 0.5) !important;
+}
+
+button,
+.gold-cta,
+.btn-gold-action,
+.btn-secondary,
+.cv-brand,
+.cv-icon-button,
+.cv-login-button,
+.cv-register-button,
+.cv-avatar-button,
+.cv-drawer-btn,
+.cv-editorial-btn {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+button:not(:disabled):active,
+a[role="button"]:active,
+.gold-cta:active,
+.btn-gold-action:active,
+.btn-secondary:active,
+.cv-brand:active,
+.cv-icon-button:active,
+.cv-login-button:active,
+.cv-register-button:active,
+.cv-avatar-button:active,
+.cv-drawer-btn:active,
+.cv-editorial-btn:active,
+.content-card:active,
+.cv-company-card:active,
+.cv-candidate-card:active,
+.cv-exam-card:active,
+.cv-job-card:active,
+.cv-product-card:active,
+.cv-post-card:active,
+.cv-product:active,
+.cv-card-pressable:active {
+  transform: scale(0.96) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active,
+  .cv-card-pressable:active,
+  .cv-product:active,
+  .content-card:active {
+    transform: none !important;
+  }
+}
+
+/* Garante zero fundos brancos e azuis em toda a plataforma (Empresas, Marketplace, Feed, Perfil, Modais) */
+.bg-white,
+.bg-slate-50,
+.bg-slate-100,
+.bg-slate-200,
+.bg-slate-900,
+.bg-slate-950,
+.bg-card,
+.bg-blue-50,
+.bg-blue-100,
+.bg-blue-500,
+.bg-blue-600,
+.bg-blue-900,
+.bg-sky-50,
+.bg-sky-100,
+.bg-sky-500,
+[class*="bg-white"],
+[class*="bg-slate-50"],
+[class*="bg-slate-100"],
+[class*="bg-blue"],
+[class*="bg-sky"] {
+  background-color: #121212 !important;
+  color: #F5D77A !important;
+  border-color: rgba(212, 175, 55, 0.25) !important;
+}
+
+/* Post text content: soft warm off-white (#EAE4D7) for comfortable readability without harsh glare */
+.post-content-text,
+.community-post-text,
+[data-post-text="true"],
+.post-card p,
+.feed-post-body,
+.cv-ai-response-text {
+  color: #EAE4D7 !important;
+}
+
+input, select, textarea {
+  background-color: #1C1811 !important;
+  color: #FFFFFF !important;
+  border-color: rgba(212, 175, 55, 0.35) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #BDB29F !important;
+}
+
+/* Forçar letras douradas em títulos, nomes, botões de abas e cabeçalhos */
+h1, h2, h3, h4, h5, h6,
+.font-bold, .font-extrabold, .font-black {
+  color: #F5D77A !important;
+}
+
+/* Abas e botões de acção (curtir, partilhar, etc.) com fundo preto premium e letras douradas */
+button:not(.gold-cta):not([class*="bg-[#D4AF37]"]):not(.btn-gold-action):not(.cv-brand):not(.cv-icon-button):not(.cv-login-button):not(.cv-register-button):not(.cv-avatar-button):not(.cv-drawer-btn):not(.cv-editorial-btn),
+.btn-secondary {
+  background-color: #16140F !important;
+  color: #F5D77A !important;
+  border-color: rgba(212, 175, 55, 0.3) !important;
+}
+
+button:not(.gold-cta):not([class*="bg-[#D4AF37]"]):not(.btn-gold-action):not(.cv-brand):not(.cv-icon-button):not(.cv-login-button):not(.cv-register-button):not(.cv-avatar-button):not(.cv-drawer-btn):not(.cv-editorial-btn):hover {
+  background-color: #201A12 !important;
+  border-color: rgba(212, 175, 55, 0.6) !important;
+  color: #FFFFFF !important;
+}
+
+/* Primary Gold CTA Buttons */
+.gold-cta,
+.btn-gold-action {
+  background-color: #D4AF37 !important;
+  color: #080808 !important;
+  border-color: #F5D77A !important;
+  font-weight: 800 !important;
+}
+
+.gold-cta:hover,
+.btn-gold-action:hover {
+  background-color: #F5D77A !important;
+  color: #000000 !important;
+}
+
+/* ==================================
+   CUNENEVAGAS PREMIUM HEADER
+================================== */
+
+:root {
+  --cv-black: #080808;
+  --cv-surface: #14130f;
+  --cv-gold: #e6c34f;
+  --cv-gold-light: #f5dc85;
+  --cv-border: rgba(230, 195, 79, 0.20);
+  --cv-text: #f8f5eb;
+  --cv-muted: #aaa69a;
+}
+
+.cv-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  width: 100%;
+  background: rgba(8, 8, 8, 0.96);
+  border-bottom: 1px solid var(--cv-border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.cv-header-inner {
+  width: 100%;
+  max-width: 1280px;
+  min-height: 82px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: auto;
+}
+
+.cv-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--cv-text);
+  cursor: pointer;
+  min-width: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cv-brand:hover {
+  opacity: 0.92;
+}
+
+.cv-brand-icon {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cv-gold);
+  border: 1px solid var(--cv-border);
+  border-radius: 19px;
+  background: var(--cv-surface);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.cv-brand:hover .cv-brand-icon {
+  border-color: rgba(230, 195, 79, 0.45);
+}
+
+.cv-brand-name {
+  font-size: clamp(19px, 4vw, 29px);
+  font-weight: 850;
+  letter-spacing: -1.2px;
+  white-space: nowrap;
+  color: var(--cv-text);
+  line-height: 1;
+}
+
+.cv-brand-name span {
+  color: var(--cv-gold);
+}
+
+.cv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.cv-icon-button {
+  position: relative;
+  width: 49px;
+  height: 49px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cv-gold);
+  background: var(--cv-surface);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.cv-icon-button:hover {
+  border-color: var(--cv-border);
+  background: #201d14;
+  transform: translateY(-2px);
+}
+
+.cv-login-button,
+.cv-register-button {
+  height: 49px;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-login-button {
+  color: var(--cv-gold-light);
+  background: #17150f;
+  border: 1px solid var(--cv-border);
+}
+
+.cv-login-button:hover {
+  background: #201d14;
+  border-color: rgba(230, 195, 79, 0.45);
+  transform: translateY(-1px);
+}
+
+.cv-register-button {
+  color: #17130a;
+  background: var(--cv-gold);
+  border: 1px solid var(--cv-gold);
+}
+
+.cv-register-button:hover {
+  background: var(--cv-gold-light);
+  border-color: var(--cv-gold-light);
+  transform: translateY(-1px);
+}
+
+.cv-avatar-button {
+  width: 49px;
+  height: 49px;
+  padding: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cv-gold);
+  background: #17150f;
+  border: 2px solid var(--cv-gold);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.cv-avatar-button:hover {
+  border-color: var(--cv-gold-light);
+  transform: translateY(-1px);
+}
+
+.cv-avatar-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cv-notification-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  color: #080808;
+  background: var(--cv-gold);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* MOBILE */
+
+@media (max-width: 600px) {
+  .cv-header-inner {
+    min-height: 75px;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .cv-brand {
+    gap: 8px;
+  }
+
+  .cv-brand-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+
+  .cv-brand-name {
+    font-size: clamp(17px, 5vw, 23px);
+    letter-spacing: -1px;
+  }
+
+  .cv-header-actions {
+    gap: 6px;
+  }
+
+  .cv-icon-button {
+    width: 43px;
+    height: 43px;
+    border-radius: 14px;
+  }
+
+  .cv-avatar-button {
+    width: 43px;
+    height: 43px;
+  }
+
+  .cv-login-button,
+  .cv-register-button {
+    height: 43px;
+    padding: 0 11px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 370px) {
+  .cv-brand-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .cv-brand-name {
+    font-size: 17px;
+  }
+
+  .cv-icon-button,
+  .cv-avatar-button {
+    width: 37px;
+    height: 37px;
+    border-radius: 12px;
+  }
+
+  .cv-avatar-button {
+    border-radius: 50%;
+  }
+
+  .cv-login-button,
+  .cv-register-button {
+    height: 37px;
+    padding: 0 9px;
+    font-size: 12px;
+    border-radius: 11px;
+  }
+
+  .cv-header-actions {
+    gap: 4px;
+  }
+}
+
+/* ==================================
+   FEED E MARKETPLACE — ESTILO EDITORIAL
+================================== */
+
+.cv-post,
+.cv-product {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.cv-post + .cv-post,
+.cv-product + .cv-product {
+  border-top: 1px solid rgba(230, 195, 79, .12);
+}
+
+.cv-product-grid .cv-product + .cv-product {
+  border-top: 0;
+}
+
+.cv-post-image,
+.cv-product-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 580px;
+  object-fit: cover;
+  border-radius: 9px;
+}
+
+.cv-post-content,
+.cv-product-content {
+  padding: 13px 2px;
+}
+
+.cv-post-title,
+.cv-product-title {
+  color: #f5f1e7;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.cv-post-description {
+  color: #c4beb0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cv-product-price {
+  color: #e6c34f;
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.cv-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  padding: 10px 0;
+}
+
+.cv-post-actions button,
+.cv-editorial-btn {
+  color: #d6cba9;
+  background: transparent !important;
+  border: 0 !important;
+  cursor: pointer;
+}
+
+.cv-post-actions button:hover,
+.cv-editorial-btn:hover {
+  color: #e6c34f !important;
+  background: transparent !important;
+}
+
+.cv-post-meta {
+  color: #8e887b;
+  font-size: 12px;
+}
+
+/* Lazy / Virtualized List Rendering Optimization for Mobile Smoothness */
+.cv-lazy-job-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 112px;
+}
+
+.cv-lazy-post-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+.cv-lazy-post-item.is-overlay-open {
+  content-visibility: visible !important;
+}
+

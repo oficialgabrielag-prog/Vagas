@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, Mail, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { supabase } from '../lib/supabase';
 import { AnimatedBrandLogo } from '../components/AnimatedBrandLogo';
 import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
@@ -44,10 +45,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         }
       });
       if (error) {
-        alert('Erro Facebook: ' + error.message);
+        console.warn('Erro OAuth Facebook:', error.message);
+        setError('Não foi possível iniciar sessão com o Facebook. Tenta novamente.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      setError('Não foi possível iniciar sessão com o Facebook. Tenta novamente.');
     } finally {
       setLoading(false);
     }
@@ -75,8 +78,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
         await StoreService.resetPassword(email.trim());
         setSuccessMessage('Instruções de recuperação enviadas para o seu email!');
-      } catch (err: any) {
-        setError(err.message || 'Erro ao enviar email de recuperação.');
+      } catch (err: unknown) {
+        console.warn('Erro recuperação LoginPage:', err);
+        setError(toUserErrorMessage(err, 'Não foi possível enviar o email de recuperação. Tenta novamente.'));
       } finally {
         setLoading(false);
       }
@@ -100,8 +104,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       const user = await StoreService.loginWithSupabase(email.trim(), password);
       onLoginSuccess(user);
-    } catch (err: any) {
-      setError(err.message || 'Dados de acesso incorretos. Verifique o email e a palavra-passe.');
+    } catch (err: unknown) {
+      console.warn('Erro login LoginPage:', err);
+      setError(toUserErrorMessage(err, 'Dados de acesso incorretos. Verifica o email e a palavra-passe.'));
     } finally {
       setLoading(false);
     }
@@ -112,7 +117,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Top Header Branding Centered with Animated Letters */}
       <div className="max-w-md w-full mx-auto flex items-center justify-center pt-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 bg-[#0F4C9C] rounded-xl flex items-center justify-center text-white shadow-xs">
+          <div className="w-10 h-10 bg-[#D4AF37] rounded-xl flex items-center justify-center text-white shadow-xs">
             <Briefcase className="w-5 h-5 text-[#FFC20E]" />
           </div>
           <AnimatedBrandLogo mode="active" size="lg" />
@@ -162,7 +167,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="exemplo@cunenevagas.online"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
               />
             </div>
           </div>
@@ -180,7 +185,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     setError('');
                     setSuccessMessage('');
                   }}
-                  className="text-xs text-[#0F4C9C] font-bold hover:text-[#0c3c7d]"
+                  className="text-xs text-[#D4AF37] font-bold hover:text-[#F5D77A]"
                 >
                   Esqueceu-se?
                 </button>
@@ -193,7 +198,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+                  className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
                 />
                 <button
                   type="button"
@@ -209,7 +214,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-sm active:scale-[0.98] flex items-center justify-center disabled:opacity-60 cursor-pointer mt-2"
+            className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-sm active:scale-[0.98] flex items-center justify-center disabled:opacity-60 cursor-pointer mt-2"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -255,7 +260,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   setError('');
                   setSuccessMessage('');
                 }}
-                className="text-[#0F4C9C] font-bold hover:underline"
+                className="text-[#D4AF37] font-bold hover:underline"
               >
                 Voltar ao início
               </button>
@@ -266,7 +271,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToRegister}
-                className="text-[#0F4C9C] font-bold hover:underline"
+                className="text-[#D4AF37] font-bold hover:underline"
               >
                 Registe-se agora
               </button>

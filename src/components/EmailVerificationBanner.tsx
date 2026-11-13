@@ -47,7 +47,7 @@ export const EmailVerificationBanner: React.FC<EmailVerificationBannerProps> = (
   };
 
   return (
-    <div className="bg-gradient-to-r from-blue-950 via-[#0F4C9C] to-slate-900 text-white px-4 py-3 sm:py-3.5 rounded-2xl shadow-sm border border-blue-400/30 mb-5 animate-fadeIn">
+    <div className="bg-gradient-to-r from-blue-950 via-[#D4AF37] to-slate-900 text-white px-4 py-3 sm:py-3.5 rounded-2xl shadow-sm border border-blue-400/30 mb-5 animate-fadeIn">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-[#FFC20E] text-slate-950 flex items-center justify-center shrink-0 shadow-xs mt-0.5 sm:mt-0">

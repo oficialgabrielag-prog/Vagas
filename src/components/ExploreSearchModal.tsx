@@ -123,7 +123,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Pesquisar..."
-            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 rounded-full text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 rounded-full text-xs sm:text-sm text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
           />
           {query && (
             <button
@@ -151,7 +151,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
             onClick={() => setActiveTab(tab.id as any)}
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-[#0F4C9C] text-white shadow-xs'
+                ? 'bg-[#D4AF37] text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -167,7 +167,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
         {!query && (
           <div className="space-y-3">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-[#0F4C9C]" /> Tendências
+              <TrendingUp className="w-4 h-4 text-[#D4AF37]" /> Tendências
             </div>
             <div className="flex flex-wrap gap-2">
               {TRENDING_SEARCHES.map(term => (
@@ -190,7 +190,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {(activeTab === 'all' || activeTab === 'companies') && filteredCompanies.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-[#0F4C9C]" /> Empresas ({filteredCompanies.length})
+                <Building2 className="w-4 h-4 text-[#D4AF37]" /> Empresas ({filteredCompanies.length})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {filteredCompanies.map(comp => {
@@ -212,14 +212,14 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#0F4C9C] transition truncate">
+                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#D4AF37] transition truncate">
                           {comp.company_name || comp.full_name}
                         </h4>
                         <p className="text-xs text-slate-500 truncate">
                           {comp.municipality || 'Ondjiva'} • {comp.industry || 'Empresa'}
                         </p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#0F4C9C] transition" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#D4AF37] transition" />
                     </div>
                   );
                 })}
@@ -231,7 +231,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {(activeTab === 'all' || activeTab === 'users') && filteredUsers.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-[#0F4C9C]" /> Usuários ({filteredUsers.length})
+                <Users className="w-4 h-4 text-[#D4AF37]" /> Usuários ({filteredUsers.length})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {filteredUsers.map(user => (
@@ -251,14 +251,14 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#0F4C9C] transition truncate">
+                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#D4AF37] transition truncate">
                         {user.full_name}
                       </h4>
                       <p className="text-xs text-slate-500 truncate">
                         {user.municipality || 'Cunene'} • {user.profession || 'Usuário'}
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#0F4C9C] transition" />
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#D4AF37] transition" />
                   </div>
                 ))}
               </div>
@@ -269,7 +269,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {(activeTab === 'all' || activeTab === 'jobs') && filteredJobs.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Briefcase className="w-4 h-4 text-[#0F4C9C]" /> Vagas ({filteredJobs.length})
+                <Briefcase className="w-4 h-4 text-[#D4AF37]" /> Vagas ({filteredJobs.length})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {filteredJobs.map(job => (
@@ -282,14 +282,14 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
                     className="bg-white hover:bg-slate-50 p-4 rounded-xl border border-slate-200 transition cursor-pointer space-y-2 group"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#0F4C9C] transition line-clamp-1">{job.title}</h4>
+                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#D4AF37] transition line-clamp-1">{job.title}</h4>
                       <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">Vaga</span>
                     </div>
                     <p className="text-xs text-slate-600 line-clamp-1">{job.company_name}</p>
                     <div className="flex items-center gap-2 text-[11px] text-slate-500">
                       <span>{job.municipality || 'Cunene'}</span>
                       <span>·</span>
-                      <span className="text-[#0F4C9C] font-bold">{job.salary_min ? `${job.salary_min.toLocaleString()} ${job.salary_currency || 'AOA'}` : 'A combinar'}</span>
+                      <span className="text-[#D4AF37] font-bold">{job.salary_min ? `${job.salary_min.toLocaleString()} ${job.salary_currency || 'AOA'}` : 'A combinar'}</span>
                     </div>
                   </div>
                 ))}
@@ -301,7 +301,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {(activeTab === 'all' || activeTab === 'products') && filteredProducts.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <ShoppingBag className="w-4 h-4 text-[#0F4C9C]" /> Marketplace ({filteredProducts.length})
+                <ShoppingBag className="w-4 h-4 text-[#D4AF37]" /> Marketplace ({filteredProducts.length})
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredProducts.map(prod => (
@@ -324,8 +324,8 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
                       </span>
                     </div>
                     <div className="p-3 space-y-1 flex-1 flex flex-col justify-between">
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#0F4C9C]">{prod.title}</h4>
-                      <p className="text-xs font-extrabold text-[#0F4C9C]">{Number(prod.price || 0).toLocaleString()} {prod.currency || 'AOA'}</p>
+                      <h4 className="text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#D4AF37]">{prod.title}</h4>
+                      <p className="text-xs font-extrabold text-[#D4AF37]">{Number(prod.price || 0).toLocaleString()} {prod.currency || 'AOA'}</p>
                     </div>
                   </div>
                 ))}
@@ -337,7 +337,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {(activeTab === 'all' || activeTab === 'posts') && filteredPosts.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-[#0F4C9C]" /> Comunidade ({filteredPosts.length})
+                <Users className="w-4 h-4 text-[#D4AF37]" /> Comunidade ({filteredPosts.length})
               </h3>
               <div className="space-y-2">
                 {filteredPosts.map(post => (
@@ -350,7 +350,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
                     className="bg-white hover:bg-slate-50 p-4 rounded-xl border border-slate-200 transition cursor-pointer space-y-2"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs">
+                      <div className="w-7 h-7 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-xs">
                         {(post.author_name || 'U').charAt(0)}
                       </div>
                       <div>
@@ -368,7 +368,7 @@ export const ExploreSearchModal: React.FC<ExploreSearchModalProps> = ({
           {totalResults === 0 && (
             <div className="py-20 text-center space-y-3">
               <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto">
-                <Search className="w-5 h-5 text-[#0F4C9C]" />
+                <Search className="w-5 h-5 text-[#D4AF37]" />
               </div>
               <p className="text-sm font-bold text-slate-800">Nenhum resultado para "{query}"</p>
               <p className="text-xs text-slate-500">Tente pesquisar por outros termos ou municípios do Cunene.</p>

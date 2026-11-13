@@ -45,7 +45,7 @@ export const HomeTopTalents: React.FC<HomeTopTalentsProps> = ({ attempts, onSele
         </div>
         <button 
           onClick={onSelectRanking}
-          className="text-xs font-bold text-[#0F4C9C] hover:underline flex items-center gap-1"
+          className="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1"
         >
           Ver ranking completo <ChevronRight className="w-3 h-3" />
         </button>
@@ -63,13 +63,13 @@ export const HomeTopTalents: React.FC<HomeTopTalentsProps> = ({ attempts, onSele
             </div>
             
             <div className="flex flex-col items-center text-center space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0F4C9C] to-blue-800 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-blue-200 group-hover:scale-110 transition duration-300">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-blue-800 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-blue-200 group-hover:scale-110 transition duration-300">
                 {talent.name.charAt(0)}
               </div>
               <div>
                 <h4 className="text-sm font-black text-slate-900 line-clamp-1">{talent.name}</h4>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Top Performer</p>
-                <div className="inline-flex items-center gap-1.5 bg-blue-50 text-[#0F4C9C] font-black px-3 py-1 rounded-full text-xs border border-blue-100 mt-2">
+                <div className="inline-flex items-center gap-1.5 bg-blue-50 text-[#D4AF37] font-black px-3 py-1 rounded-full text-xs border border-blue-100 mt-2">
                   <Star className="w-3 h-3 fill-current" />
                   {talent.avg}% de Média
                 </div>

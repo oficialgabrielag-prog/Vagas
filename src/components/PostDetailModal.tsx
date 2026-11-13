@@ -189,16 +189,16 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 my-auto max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-fadeIn">
+      <div className="bg-[#121212] rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-[#D4AF37]/30 my-auto max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="bg-[#0F4C9C] p-4 sm:p-5 text-white flex items-center justify-between shrink-0">
+        <div className="bg-[#16140F] p-4 sm:p-5 text-[#F5D77A] border-b border-[#D4AF37]/30 flex items-center justify-between shrink-0">
           <div 
             onClick={() => handleAuthorClick(post.author_id, authorDisplayName, authorDisplayAvatar, isEmpPost)}
             className="flex items-center gap-3 cursor-pointer group"
             title={`Ver perfil completo de ${authorDisplayName}`}
           >
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0 group-hover:scale-105 transition">
+            <div className="w-10 h-10 rounded-full bg-[#1C1811] border border-[#D4AF37]/40 flex items-center justify-center font-bold text-sm overflow-hidden shrink-0 group-hover:scale-105 transition">
               {authorDisplayAvatar ? (
                 <img src={authorDisplayAvatar} alt={authorDisplayName} className="w-full h-full object-cover" />
               ) : (
@@ -207,14 +207,12 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold truncate max-w-[200px] sm:max-w-xs group-hover:underline">{authorDisplayName}</h3>
-                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-sm ${
-                  isEmpPost ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-[#0F4C9C]'
-                }`}>
+                <h3 className="text-sm font-bold truncate max-w-[200px] sm:max-w-xs group-hover:underline text-[#F5D77A]">{authorDisplayName}</h3>
+                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-sm bg-[#1C1811] text-[#F5D77A] border border-[#D4AF37]/40`}>
                   {isEmpPost ? 'Empresa' : 'Candidato'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-200">
+              <p className="text-[11px] text-[#BDB29F]">
                 {new Date(post.created_at).toLocaleDateString('pt-AO')} • {post.category || 'Geral'}
               </p>
             </div>
@@ -255,7 +253,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition"
+              className="text-[#F5D77A] hover:text-white p-1.5 rounded-full hover:bg-[#1C1811] transition cursor-pointer"
               title="Fechar"
             >
               <X className="w-5 h-5" />
@@ -264,15 +262,15 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
         </div>
 
         {/* Scrollable Post Content & Comments Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 bg-[#121212]">
           {/* Main Text Content */}
-          <div className="text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-line font-normal">
+          <div className="text-sm sm:text-base text-[#EAE4D7] leading-relaxed whitespace-pre-line font-normal post-content-text" data-post-text="true">
             {post.content}
           </div>
 
           {/* Full Resolution Image */}
           {post.image_url && (
-            <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 max-h-[450px] cursor-pointer" onClick={() => setViewingMedia(true)}>
+            <div className="rounded-2xl overflow-hidden border border-[#D4AF37]/30 bg-[#121212] max-h-[450px] cursor-pointer" onClick={() => setViewingMedia(true)}>
               <img
                 src={post.image_url}
                 alt="Fotografia da publicação"
@@ -292,29 +290,29 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
           )}
 
           {/* Action Row */}
-          <div className="flex items-center justify-between border-y border-slate-100 py-3 text-xs relative">
+          <div className="flex items-center justify-between border-y border-[#26241E] py-3 text-xs relative">
             <div className="flex items-center gap-1.5">
-              <div className="relative inline-flex items-center rounded-xl bg-slate-50 border border-slate-200/80 p-0.5">
+              <div className="relative inline-flex items-center rounded-xl bg-[#16140F] border border-[#D4AF37]/30 p-0.5">
                 <button
                   onClick={() => handleReaction(post.user_reaction || 'like')}
-                  className={`flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg transition ${
+                  className={`flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     post.user_reaction
-                      ? 'bg-blue-100/70 text-[#0F4C9C]'
-                      : 'text-slate-700 hover:bg-slate-200/60'
+                      ? 'bg-[#1C1811] text-[#F5D77A]'
+                      : 'text-[#F5D77A] hover:bg-[#201A12]'
                   }`}
                   title={post.user_reaction ? 'Remover reação' : 'Gostar'}
                 >
                   {post.user_reaction ? (
                     <span className="text-base leading-none">{REACTIONS_CONFIG.find(r => r.type === post.user_reaction)?.emoji || '👍'}</span>
                   ) : (
-                    <ThumbsUp className="w-4 h-4 text-slate-600" />
+                    <ThumbsUp className="w-4 h-4 text-[#D4AF37]" />
                   )}
                   <span>{post.user_reaction ? (REACTIONS_CONFIG.find(r => r.type === post.user_reaction)?.label || 'Gostei') : 'Gostar'}</span>
                 </button>
 
                 <button
                   onClick={() => setShowReactions(!showReactions)}
-                  className="py-1.5 px-2 rounded-r-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition"
+                  className="py-1.5 px-2 rounded-r-lg hover:bg-[#201A12] text-[#F5D77A] transition cursor-pointer"
                   title="Outras reações"
                 >
                   <span className="text-[10px]">▼</span>
@@ -331,63 +329,63 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 )}
               </div>
               
-              <span className="text-slate-500 font-semibold text-xs ml-1.5">
+              <span className="text-[#BDB29F] font-semibold text-xs ml-1.5">
                 {post.likes_count || 0} {post.likes_count === 1 ? 'gosto' : 'gostos'}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 font-bold text-slate-500">
-              <MessageSquare className="w-4 h-4 text-[#0F4C9C]" />
+            <div className="flex items-center gap-1.5 font-bold text-[#F5D77A]">
+              <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
               <span>{post.comments_count || 0} Comentários</span>
             </div>
           </div>
 
           {/* Comments Section */}
           <div className="space-y-4">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider">
               Comentários ({post.comments_count || 0})
             </h4>
 
             {topLevelComments.length === 0 ? (
-              <div className="text-center py-6 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-400">
+              <div className="text-center py-6 bg-[#16140F] rounded-2xl border border-[#D4AF37]/25 text-xs text-[#BDB29F]">
                 Ainda não há comentários nesta publicação. Seja o primeiro a comentar!
               </div>
             ) : (
               <div className="space-y-4">
                 {topLevelComments.map(c => (
                   <div key={c.id} className="space-y-2">
-                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-1">
+                    <div className="bg-[#16140F] p-3.5 rounded-2xl border border-[#D4AF37]/25 space-y-1">
                       <div className="flex items-center justify-between">
                         <div 
                           onClick={() => handleAuthorClick(c.author_id, c.author_name, c.author_avatar, false)}
                           className="flex items-center gap-2 cursor-pointer group"
                           title={`Ver perfil de ${c.author_name}`}
                         >
-                          <div className="w-6 h-6 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center text-[10px] font-bold overflow-hidden group-hover:scale-105 transition">
+                          <div className="w-6 h-6 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center text-[10px] font-bold overflow-hidden group-hover:scale-105 transition">
                             {c.author_avatar ? (
                               <img src={c.author_avatar} alt={c.author_name} className="w-full h-full object-cover" />
                             ) : (
                               c.author_name.charAt(0)
                             )}
                           </div>
-                          <span className="text-xs font-bold text-slate-900 group-hover:underline group-hover:text-[#0F4C9C]">{c.author_name}</span>
+                          <span className="text-xs font-bold text-[#F5D77A] group-hover:underline group-hover:text-[#D4AF37]">{c.author_name}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-[#BDB29F]">
                           {new Date(c.created_at).toLocaleDateString('pt-AO')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-700 leading-relaxed pl-8">{c.content}</p>
+                      <p className="text-xs text-[#BDB29F] leading-relaxed pl-8">{c.content}</p>
                       
                       <div className="pl-8 pt-2 flex items-center gap-4 text-[10px] font-bold">
                         <button 
                           onClick={() => handleLikeComment(c.id)}
-                          className={`${c.liked_by_user ? 'text-blue-600' : 'text-slate-500'}`}
+                          className={`${c.liked_by_user ? 'text-[#D4AF37]' : 'text-[#BDB29F]'}`}
                         >
                           Gostar {c.likes_count ? `(${c.likes_count})` : ''}
                         </button>
                         <button 
                           onClick={() => setReplyingTo(c)}
-                          className="text-slate-500 hover:text-[#0F4C9C]"
+                          className="text-[#BDB29F] hover:text-[#D4AF37]"
                         >
                           Responder
                         </button>
@@ -400,7 +398,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
                         {!expandedComments[c.id] ? (
                           <button 
                             onClick={() => toggleReplies(c.id)}
-                            className="flex items-center gap-1.5 text-[10px] font-extrabold text-[#0F4C9C] hover:underline"
+                            className="flex items-center gap-1.5 text-[10px] font-extrabold text-[#D4AF37] hover:underline cursor-pointer"
                           >
                             <ChevronDown className="w-3 h-3" />
                             Ver {repliesMap[c.id].length} respostas
@@ -409,29 +407,29 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
                           <>
                             <button 
                               onClick={() => toggleReplies(c.id)}
-                              className="flex items-center gap-1.5 text-[10px] font-extrabold text-slate-400 hover:underline mb-2"
+                              className="flex items-center gap-1.5 text-[10px] font-extrabold text-[#BDB29F] hover:underline mb-2 cursor-pointer"
                             >
                               <ChevronUp className="w-3 h-3" />
                               Ocultar respostas
                             </button>
                             {repliesMap[c.id].map(reply => (
-                              <div key={reply.id} className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100/50 space-y-1">
+                              <div key={reply.id} className="bg-[#1C1811] p-3 rounded-2xl border border-[#D4AF37]/25 space-y-1">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 rounded-full bg-slate-300 text-white flex items-center justify-center text-[9px] font-bold overflow-hidden">
+                                    <div className="w-5 h-5 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center text-[9px] font-bold overflow-hidden">
                                       {reply.author_avatar ? (
                                         <img src={reply.author_avatar} alt={reply.author_name} className="w-full h-full object-cover" />
                                       ) : (
                                         reply.author_name.charAt(0)
                                       )}
                                     </div>
-                                    <span className="text-[11px] font-bold text-slate-900">{reply.author_name}</span>
+                                    <span className="text-[11px] font-bold text-[#F5D77A]">{reply.author_name}</span>
                                   </div>
-                                  <span className="text-[9px] text-slate-400">
+                                  <span className="text-[9px] text-[#BDB29F]">
                                     {new Date(reply.created_at).toLocaleDateString('pt-AO')}
                                   </span>
                                 </div>
-                                <p className="text-xs text-slate-700 leading-relaxed pl-7">{reply.content}</p>
+                                <p className="text-xs text-[#BDB29F] leading-relaxed pl-7">{reply.content}</p>
                               </div>
                             ))}
                           </>
@@ -446,13 +444,13 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
         </div>
 
         {/* Comment Input Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+        <div className="p-4 bg-[#16140F] border-t border-[#26241E] shrink-0">
           {replyingTo && (
-            <div className="mb-2 flex items-center justify-between bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
-              <span className="text-[10px] text-blue-700 font-medium">
+            <div className="mb-2 flex items-center justify-between bg-[#1C1811] px-3 py-1.5 rounded-xl border border-[#D4AF37]/30">
+              <span className="text-[10px] text-[#F5D77A] font-medium">
                 A responder a <span className="font-bold">@{replyingTo.author_name}</span>
               </span>
-              <button onClick={() => setReplyingTo(null)} className="text-blue-400 hover:text-blue-600">
+              <button onClick={() => setReplyingTo(null)} className="text-[#BDB29F] hover:text-white">
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -465,24 +463,24 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 placeholder={replyingTo ? "Escreva uma resposta..." : "Escreva um comentário..."}
-                className="flex-1 px-4 py-2.5 rounded-2xl border border-slate-300 text-xs focus:outline-none focus:border-[#0F4C9C] focus:ring-2 focus:ring-[#0F4C9C]/20 bg-white"
+                className="flex-1 px-4 py-2.5 rounded-2xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37] bg-[#1C1811] text-white placeholder:text-[#BDB29F]"
                 autoFocus={!!replyingTo}
               />
               <button
                 type="submit"
                 disabled={isSubmitting || !commentText.trim()}
-                className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white p-2.5 rounded-2xl transition shadow-xs disabled:opacity-50 flex items-center justify-center shrink-0"
+                className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-extrabold p-2.5 rounded-2xl transition shadow-xs disabled:opacity-50 flex items-center justify-center shrink-0 cursor-pointer gold-cta"
                 title="Enviar"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4 text-slate-950" />
               </button>
             </form>
           ) : (
             <div className="text-center py-2 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Inicie sessão para interagir nesta publicação</span>
+              <span className="text-xs text-[#BDB29F]">Inicie sessão para interagir nesta publicação</span>
               <button
                 onClick={onOpenAuth}
-                className="bg-[#0F4C9C] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs"
+                className="bg-[#D4AF37] text-slate-950 font-bold px-3.5 py-1.5 rounded-xl text-xs gold-cta cursor-pointer"
               >
                 Entrar
               </button>
@@ -492,17 +490,17 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
       </div>
       {/* Diálogo de Confirmação de Eliminação do Post */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn select-none">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-slate-200 text-center animate-scaleUp">
-            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn select-none">
+          <div className="bg-[#121212] rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-[#D4AF37]/30 text-center animate-scaleUp">
+            <div className="w-12 h-12 bg-rose-950 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/40">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-base sm:text-lg font-black text-slate-950">
+              <h3 className="text-base sm:text-lg font-black text-[#F5D77A]">
                 Apagar Publicação?
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#BDB29F] leading-relaxed">
                 {showDeleteConfirm.message}
               </p>
             </div>
@@ -511,7 +509,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(null)}
-                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer active:scale-95"
+                className="w-full py-2.5 px-4 bg-[#1C1811] hover:bg-[#201A12] text-[#F5D77A] font-bold text-xs sm:text-sm rounded-xl transition border border-[#D4AF37]/30 cursor-pointer active:scale-95"
               >
                 Cancelar
               </button>

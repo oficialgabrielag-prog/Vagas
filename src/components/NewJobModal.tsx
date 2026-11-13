@@ -189,7 +189,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 my-8">
-        <div className="bg-[#0F4C9C] p-6 sm:p-8 text-white relative">
+        <div className="bg-[#D4AF37] p-6 sm:p-8 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-6 right-6 text-white/80 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition"
@@ -217,7 +217,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Ex: Engenheiro Agrónomo Sénior"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F4C9C]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
               />
             </div>
 
@@ -330,7 +330,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                   onChange={e => setHasExam(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0F4C9C]"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
               </label>
             </div>
 
@@ -339,7 +339,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                 {/* Templates Selector */}
                 <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="w-5 h-5 text-[#0F4C9C] shrink-0" />
+                    <Sparkles className="w-5 h-5 text-[#D4AF37] shrink-0" />
                     <div>
                       <span className="text-xs font-bold text-slate-900 block">Carregar Modelo Pronto de Exame</span>
                       <span className="text-[11px] text-slate-500">Preencha perguntas e notas com 1 clique</span>
@@ -348,7 +348,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                   <select
                     onChange={e => handleApplyTemplate(e.target.value)}
                     defaultValue=""
-                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#0F4C9C]"
+                    className="text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-[#D4AF37]"
                   >
                     <option value="" disabled>Escolha um Modelo Profissional...</option>
                     {EXAM_TEMPLATES.map(t => (
@@ -397,7 +397,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                         onChange={e => setIsExamRequired(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0F4C9C]"></div>
+                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#D4AF37]"></div>
                     </label>
                   </div>
                 </div>
@@ -419,7 +419,7 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddQuestion}
-                      className="text-xs font-semibold text-[#0F4C9C] hover:underline flex items-center gap-1"
+                      className="text-xs font-semibold text-[#D4AF37] hover:underline flex items-center gap-1"
                     >
                       <Plus className="w-3.5 h-3.5" /> Adicionar Pergunta
                     </button>
@@ -544,10 +544,10 @@ export const NewJobModal: React.FC<NewJobModalProps> = ({
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-4"
+            className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 mt-4"
           >
             <Plus className={`w-4 h-4 ${submitting ? 'animate-spin' : ''}`} />
-            <span>{submitting ? 'A publicar vaga no banco de dados...' : 'Publicar Vaga e Exame Oficial'}</span>
+            <span>{submitting ? 'A publicar vaga...' : 'Publicar Vaga e Exame Oficial'}</span>
           </button>
         </form>
       </div>

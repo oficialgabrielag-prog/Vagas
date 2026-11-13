@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Briefcase, User, Bookmark, CheckCircle2, Trash2, Plus, Edit3, Clock, XCircle, Building2, FileText, Award, Bell, ShieldCheck, Users, Search, RefreshCw, BarChart3, MessageSquare, MessageCircle, ExternalLink, ShoppingBag, Sparkles, BookOpen, AlertTriangle, Megaphone, Send, Star, AtSign, CreditCard, Mail, Copy, Check, Lock } from 'lucide-react';
 import { UserProfile, Job, JobApplication, ExamAttempt, Exam, CommunityPost, PlatformStats, CUNENE_MUNICIPALITIES, PlatformPartner, PlatformUserInfo } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { supabase } from '../lib/supabase';
 import { cleanDocumentUrl } from '../lib/cloudinary';
 import { FREE_PRACTICE_EXAMS } from '../lib/examTemplates';
@@ -110,14 +111,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     try {
       const { error } = await StoreService.updatePassword(newPassword);
       if (error) {
-        setPasswordError('Erro ao atualizar palavra-passe: ' + (error.message || error));
+        console.warn('Erro ao atualizar palavra-passe:', error);
+        setPasswordError(toUserErrorMessage(error, 'Não foi possível atualizar a palavra-passe. Tenta novamente.'));
       } else {
         setPasswordFeedback('Palavra-passe alterada com sucesso!');
         setNewPassword('');
         setConfirmPassword('');
       }
-    } catch (err: any) {
-      setPasswordError('Erro inesperado: ' + err.message);
+    } catch (err: unknown) {
+      console.warn('Erro inesperado palavra-passe:', err);
+      setPasswordError(toUserErrorMessage(err, 'Não foi possível atualizar a palavra-passe. Tenta novamente.'));
     }
   };
 
@@ -378,79 +381,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const timestamp = new Date().toLocaleString('pt-AO');
 
     return `================================================================================
-RELATÓRIO TÉCNICO DE AUDITORIA E SINCRONIZAÇÃO DE UTILIZADORES
+RELATÓRIO OFICIAL DE ATIVIDADE E UTILIZADORES
 CuneneVagas (https://cunenevagas.online)
 Data de Emissão: ${timestamp}
-Fonte Canónica de Dados: Supabase PostgreSQL (public.profiles)
 ================================================================================
 
-1. CENSO REAL E CONSOLIDADO DE UTILIZADORES (SUPABASE)
+1. RESUMO CONSOLIDADO DE UTILIZADORES
 --------------------------------------------------------------------------------
 • Total Geral de Contas Registadas: ${total} utilizadores
 • Candidatos / Perfis Profissionais: ${candidates} candidatos
 • Empresas / Empregadores Registados: ${employers} empresas
-• Publicações Ativas no Feed Social: ${postsCount}
+• Publicações Ativas no Feed: ${postsCount}
 • Vagas de Emprego Disponíveis: ${jobsCount}
-• Consistência entre Navegadores: 100% Identificada e Unificada
+• Estado dos Dados: Atualizados em todos os dispositivos
 
-2. DIAGNÓSTICO DO PROBLEMA ANTERIOR
+2. NOTAS DA PLATAFORMA
 --------------------------------------------------------------------------------
-a) Inconsistência entre Tabelas:
-   A interface apresentava anteriormente números divergentes devido à leitura
-   parcial de "public.profiles" concorrendo com valores em cache local e
-   empresas mock geradas no armazenamento do navegador.
-b) Presença de PWA e Service Worker:
-   Caches de Service Worker desatualizados retinham respostas antigas em certos
-   navegadores móveis e desktop, impedindo a visualização de novas adesões.
-c) Pisos Artificiais e Fórmulas Incorretas:
-   A página inicial continha um limite estático (Math.max(120, ...)) que falseava
-   o número público em relação ao total real de 34 utilizadores registados.
-d) Cache HTTP de Navegador:
-   Falta de cabeçalhos estritos de revalidação permitia que o Chrome, Firefox ou
-   Safari usassem cópias locais de consultas anteriores.
-
-3. CORREÇÕES TÉCNICAS EFETUADAS
---------------------------------------------------------------------------------
-1. Fonte Única de Verdade:
-   - Todas as páginas (Home, Dashboard Admin, Estatísticas) agora consom
-     exclusivamente a tabela "public.profiles" do Supabase via StoreService.
-   - Eliminados utilizadores falsos e listas locais duplicadas.
-
-2. Endpoint Dedicado com Revalidação Estrita:
-   - Criado endpoint REST seguro (/api/stats/users-count) no backend.
-   - Cabeçalhos de cache aplicados:
-     * Cache-Control: no-cache, no-store, must-revalidate, max-age=0
-     * Pragma: no-cache
-     * Expires: 0
-
-3. Mecanismo de Sincronização em Tempo Real e Re-conexão:
-   - Eventos de atualização em tempo real implementados:
-     * Disparo de evento 'cunene_user_stats_updated' após registo.
-     * Escuta de eventos nativos: 'focus', 'online', 'visibilitychange'.
-     * Auto-polling seguro de salvaguarda (45 segundos).
-
-4. Remoção Completa de PWA e Limpeza de Service Workers:
-   - Removido manifesto PWA, registos de Service Worker e caches obsoletos.
-   - Website a funcionar 100% como aplicação web convencional.
-
-5. Privacidade e Segurança (RLS):
-   - Nenhuma tabela privada (auth.users, senhas, chaves) foi exposta.
-   - Políticas RLS rigorosamente mantidas. Apenas contagens agregadas e dados
-     autorizados de perfis públicos são transmitidos.
-
-4. MATRIZ DE TESTES DE COMPATIBILIDADE MULTI-NAVEGADOR
---------------------------------------------------------------------------------
-Navegador / Plataforma         Contagem Verificada    Estado de Sincronização
-Google Chrome (Desktop/Mobile) ${total} Utilizadores        SINCRONIZADO (100%)
-Mozilla Firefox                ${total} Utilizadores        SINCRONIZADO (100%)
-Apple Safari (iOS/macOS)       ${total} Utilizadores        SINCRONIZADO (100%)
-Navegadores Android            ${total} Utilizadores        SINCRONIZADO (100%)
-
-5. CONCLUSÃO
---------------------------------------------------------------------------------
-A contagem de ${total} utilizadores registados no Supabase está rigorosamente
-confirmada e consistente em todos os dispositivos, sessões e navegadores.
-Novos registos de candidatos e empresas são imediatamente refletidos sem atrasos.
+• Os dados de candidatos, empresas, vagas e publicações estão unificados em
+  toda a plataforma CuneneVagas.
+• Novos registos de candidatos e empresas ficam disponíveis de imediato.
+• A privacidade das contas é protegida: apenas informações públicas de perfil
+  e contagens gerais são apresentadas.
 ================================================================================`;
   }, [platformStats, adminPosts.length, allJobs.length]);
 
@@ -612,7 +563,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Dashboard Header */}
-      <div className="bg-[#0F4C9C] text-white p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-white/10">
+      <div className="bg-[#D4AF37] text-white p-8 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border border-white/10">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-white p-0.5 border-2 border-white shadow-md overflow-hidden shrink-0 flex items-center justify-center">
             {displayAvatar ? (
@@ -650,7 +601,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
         <button
           onClick={() => setActiveTab('overview')}
           className={`pb-3 border-b-2 transition whitespace-nowrap ${
-            activeTab === 'overview' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            activeTab === 'overview' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           Resumo Geral
@@ -674,7 +625,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <button
               onClick={() => setActiveTab('applications')}
               className={`pb-3 border-b-2 transition whitespace-nowrap ${
-                activeTab === 'applications' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+                activeTab === 'applications' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
               Minhas Candidaturas
@@ -682,7 +633,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <button
               onClick={() => setActiveTab('saved')}
               className={`pb-3 border-b-2 transition whitespace-nowrap ${
-                activeTab === 'saved' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+                activeTab === 'saved' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
               Vagas Guardadas ({savedJobIds.length})
@@ -690,7 +641,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <button
               onClick={() => setActiveTab('exams')}
               className={`pb-3 border-b-2 transition whitespace-nowrap ${
-                activeTab === 'exams' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+                activeTab === 'exams' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
               Meus Exames ({attempts.filter(a => a.candidate_id === currentUser.id).length})
@@ -712,7 +663,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <button
               onClick={() => setActiveTab('my-jobs')}
               className={`pb-3 border-b-2 transition whitespace-nowrap ${
-                activeTab === 'my-jobs' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+                activeTab === 'my-jobs' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
               Vagas Publicadas
@@ -720,7 +671,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <button
               onClick={() => setActiveTab('candidates')}
               className={`pb-3 border-b-2 transition whitespace-nowrap ${
-                activeTab === 'candidates' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+                activeTab === 'candidates' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >
               Candidaturas Recebidas
@@ -740,7 +691,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
         <button
           onClick={() => setActiveTab('notifications')}
           className={`pb-3 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
-            activeTab === 'notifications' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            activeTab === 'notifications' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <Bell className="w-4 h-4" /> Notificações
@@ -750,7 +701,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
         <button
           onClick={() => setActiveTab('settings')}
           className={`pb-3 border-b-2 transition whitespace-nowrap ${
-            activeTab === 'settings' ? 'border-[#0F4C9C] text-[#0F4C9C]' : 'border-transparent text-slate-500 hover:text-slate-900'
+            activeTab === 'settings' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           Configurações & Perfil
@@ -762,7 +713,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 space-y-3 cursor-pointer hover:bg-slate-50 transition border border-transparent hover:border-slate-100 rounded-2xl" onClick={() => setActiveTab('settings')}>
             <span className="text-xs uppercase tracking-wider font-bold text-slate-400">Tipo de Conta</span>
-            <h3 className="text-xl font-bold text-[#0F4C9C]">
+            <h3 className="text-xl font-bold text-[#D4AF37]">
               {currentUser.role === 'employer' ? 'Empresa / Empregador' : 'Candidato Profissional'}
             </h3>
             <p className="text-slate-600 text-sm">
@@ -774,19 +725,19 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
           <div className="p-6 space-y-3 cursor-pointer hover:bg-slate-50 transition border border-transparent hover:border-slate-100 rounded-2xl" onClick={() => setActiveTab('settings')}>
             <span className="text-xs uppercase tracking-wider font-bold text-slate-400">Localização</span>
-            <h3 className="text-xl font-bold text-[#0F4C9C]">{currentUser.municipality || 'Cunene'}</h3>
+            <h3 className="text-xl font-bold text-[#D4AF37]">{currentUser.municipality || 'Cunene'}</h3>
             <p className="text-slate-600 text-sm">Província do Cunene, República de Angola.</p>
           </div>
 
           <div className="p-6 space-y-3 cursor-pointer hover:bg-slate-50 transition border border-transparent hover:border-slate-100 rounded-2xl" onClick={() => setActiveTab('settings')}>
             <span className="text-xs uppercase tracking-wider font-bold text-slate-400">Contacto</span>
-            <h3 className="text-xl font-bold text-[#0F4C9C]">{currentUser.phone || currentUser.whatsapp || 'Não definido'}</h3>
+            <h3 className="text-xl font-bold text-[#D4AF37]">{currentUser.phone || currentUser.whatsapp || 'Não definido'}</h3>
             <p className="text-slate-600 text-sm">{currentUser.email}</p>
           </div>
 
         {/* CTA para primeiro post/vaga/produto */}
           {(!adminPosts.some(p => p.author_name === currentUser.full_name) && (
-            <div className="col-span-1 md:col-span-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-3xl border-2 border-dashed border-[#0F4C9C] flex items-center justify-between gap-6 shadow-sm animate-pulse">
+            <div className="col-span-1 md:col-span-3 bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-3xl border-2 border-dashed border-[#D4AF37] flex items-center justify-between gap-6 shadow-sm animate-pulse">
               <div>
                 <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
                   <Sparkles className="w-6 h-6 text-[#FFC20E]" /> 
@@ -801,7 +752,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
               <div className="flex gap-3">
                 <button 
                   onClick={currentUser.role === 'employer' ? onOpenNewJob : () => setActiveTab('notifications')}
-                  className="bg-[#0F4C9C] text-white font-black px-6 py-3 rounded-xl text-sm transition hover:bg-blue-900 shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 shrink-0"
+                  className="bg-[#D4AF37] text-white font-black px-6 py-3 rounded-xl text-sm transition hover:bg-blue-900 shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2 shrink-0"
                 >
                   <Plus className="w-4 h-4" />
                   {currentUser.role === 'employer' ? 'Publicar Agora' : 'Criar Post'}
@@ -813,13 +764,13 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
           {/* Cards de Navegação da Dashboard */}
           {currentUser.role === 'employer' && (
             <>
-              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-[#0F4C9C] transition" onClick={() => setActiveTab('my-jobs')}>
-                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center mb-4"><Briefcase /></div>
+              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-[#D4AF37] transition" onClick={() => setActiveTab('my-jobs')}>
+                <div className="w-12 h-12 rounded-xl bg-[#1C1811] text-[#D4AF37] flex items-center justify-center mb-4"><Briefcase /></div>
                 <h3 className="font-black text-slate-900">Vagas Publicadas</h3>
                 <p className="text-sm text-slate-500">Gerencie suas vagas abertas.</p>
               </div>
-              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-[#0F4C9C] transition" onClick={() => setActiveTab('candidates')}>
-                <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center mb-4"><Users /></div>
+              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:border-[#D4AF37] transition" onClick={() => setActiveTab('candidates')}>
+                <div className="w-12 h-12 rounded-xl bg-[#1C1811] text-[#D4AF37] flex items-center justify-center mb-4"><Users /></div>
                 <h3 className="font-black text-slate-900">Candidatos</h3>
                 <p className="text-sm text-slate-500">Veja quem se candidatou.</p>
               </div>
@@ -832,15 +783,15 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                 <Award className="w-5 h-5 text-amber-500" />
                 <span>Líderes de Exame (Talentos locais)</span>
               </h3>
-              <button onClick={() => setActiveTab('ranking')} className="text-[#0F4C9C] text-xs font-bold hover:underline">Ver Ranking Completo →</button>
+              <button onClick={() => setActiveTab('ranking')} className="text-[#D4AF37] text-xs font-bold hover:underline">Ver Ranking Completo →</button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {rankingData.slice(0, 4).length > 0 ? rankingData.slice(0, 4).map((talent, idx) => (
                 <div key={talent.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 relative overflow-hidden group">
                   <div className={"absolute top-0 right-0 w-7 h-7 flex items-center justify-center font-black text-[10px] rounded-bl-xl " + (idx === 0 ? "bg-amber-100 text-amber-600" : idx === 1 ? "bg-slate-200 text-slate-600" : "bg-orange-100 text-orange-600")}>#{idx + 1}</div>
                   <div className="flex flex-col items-center text-center space-y-2">
-                    <div className="w-10 h-10 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-110 transition">{talent.name.charAt(0)}</div>
-                    <div><h4 className="text-sm font-bold text-slate-900 line-clamp-1">{talent.name}</h4><div className="inline-flex items-center gap-1 text-[11px] font-black text-[#0F4C9C] mt-1 bg-white px-2 py-0.5 rounded-full border border-blue-100">{talent.avg}%</div></div>
+                    <div className="w-10 h-10 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-black text-lg shadow-sm group-hover:scale-110 transition">{talent.name.charAt(0)}</div>
+                    <div><h4 className="text-sm font-bold text-slate-900 line-clamp-1">{talent.name}</h4><div className="inline-flex items-center gap-1 text-[11px] font-black text-[#D4AF37] mt-1 bg-white px-2 py-0.5 rounded-full border border-blue-100">{talent.avg}%</div></div>
                   </div>
                 </div>
               )) : <div className="col-span-4 py-6 text-center text-slate-400 italic text-sm">O ranking será atualizado em breve.</div>}
@@ -873,7 +824,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
       {isAdmin && activeTab === 'admin' && (
         <div className="space-y-8 animate-fadeIn">
           {/* Header Banner */}
-          <div className="bg-gradient-to-r from-slate-900 via-[#0F4C9C] to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-white/10 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="bg-gradient-to-r from-slate-900 via-[#D4AF37] to-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-white/10 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-full text-xs uppercase tracking-wider">
                 <ShieldCheck className="w-4 h-4" /> Administrador da Plataforma
@@ -906,7 +857,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-[#0F4C9C]" />
+                <BarChart3 className="w-5 h-5 text-[#D4AF37]" />
                 <span>Métricas de Utilizadores & Conteúdo</span>
               </h3>
               <span className="text-xs font-bold text-slate-500">
@@ -915,7 +866,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-              <div className="bg-gradient-to-br from-[#0F4C9C] to-blue-900 text-white p-5 rounded-2xl flex flex-col justify-between">
+              <div className="bg-gradient-to-br from-[#D4AF37] to-blue-900 text-white p-5 rounded-2xl flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-200 uppercase tracking-wider">Total de Utilizadores</span>
                   <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
@@ -939,7 +890,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
               >
                 <div className="flex items-center justify-between text-slate-500">
                   <span className="text-[11px] font-bold uppercase tracking-wider">Candidatos</span>
-                  <User className="w-4 h-4 text-[#0F4C9C]" />
+                  <User className="w-4 h-4 text-[#D4AF37]" />
                 </div>
                 <div className="my-1.5"><span className="text-2xl font-black text-slate-900">{platformStats ? platformStats.totalCandidates : '...'}</span></div>
                 <span className="text-[10px] text-slate-400 font-medium">Perfis profissionais</span>
@@ -977,24 +928,21 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             </div>
           </div>
 
-          {/* Section: Relatório Técnico de Auditoria & Sincronização (Campo para Copiar) */}
+          {/* Section: Resumo Executivo & Contagem de Utilizadores */}
           <div className="bg-slate-900 text-white p-6 sm:p-7 rounded-3xl border border-slate-800 shadow-md space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    Sincronizado • Supabase PostgreSQL
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Fonte Canónica: public.profiles
+                    Atualizado • CuneneVagas
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                   <FileText className="w-5 h-5 text-amber-400" />
-                  <span>Relatório Oficial de Auditoria & Contagem de Utilizadores</span>
+                  <span>Relatório Oficial de Atividade & Utilizadores</span>
                 </h3>
                 <p className="text-xs text-slate-400 max-w-2xl">
-                  Diagnóstico completo da unificação de contas, remoção de PWA/Service Workers, cabeçalhos de revalidação HTTP e censo verificado de 34 utilizadores em todos os navegadores.
+                  Resumo consolidado de contas registadas, candidatos, empresas, vagas e publicações ativas no CuneneVagas.
                 </p>
               </div>
 
@@ -1066,7 +1014,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                   placeholder="Pesquisar publicações..."
                   value={postSearch}
                   onChange={e => setPostSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C]"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
 
@@ -1076,7 +1024,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                     key={f}
                     onClick={() => setAdminPostFilter(f as any)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                      adminPostFilter === f ? 'bg-[#0F4C9C] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      adminPostFilter === f ? 'bg-[#D4AF37] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     {f === 'all' ? 'Todas' : f === 'candidates' ? 'Candidatos' : f === 'employers' ? 'Empresas' : 'Com Imagem'}
@@ -1101,7 +1049,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-xs text-slate-900">{authorName}</span>
-                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isEmp ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-[#0F4C9C]'}`}>
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isEmp ? 'bg-amber-100 text-amber-900' : 'bg-[#1C1811] text-[#D4AF37]'}`}>
                               {isEmp ? 'Empresa' : 'Candidato'}
                             </span>
                             <span className="text-[11px] text-slate-400">{new Date(post.created_at).toLocaleDateString('pt-AO')} • {post.category || 'Geral'}</span>
@@ -1117,7 +1065,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onSelectPost?.(post)}
-                          className="p-2 text-slate-400 hover:text-[#0F4C9C] hover:bg-blue-50 rounded-lg transition"
+                          className="p-2 text-[#F5D77A] hover:text-[#D4AF37] hover:bg-[#1C1811] rounded-lg transition"
                           title="Ver Detalhes"
                         >
                           <ExternalLink className="w-4 h-4" />
@@ -1138,20 +1086,20 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
           </div>
 
           {/* Section: Censo de Utilizadores Registados */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-500" />
+          <div className="bg-[#121212] p-6 rounded-3xl border border-[#D4AF37]/25 shadow-2xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#26241E] pb-4">
+              <h3 className="text-base sm:text-lg font-black text-[#F5D77A] flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#D4AF37]" />
                 <span>Censo de Utilizadores Registados</span>
               </h3>
               <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 text-[#BDB29F] absolute left-3 top-2.5" />
                 <input
                   type="text"
                   placeholder="Pesquisar por nome, email, whatsapp ou município..."
                   value={userSearch}
                   onChange={e => setUserSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C]"
+                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37] bg-[#1C1811] text-white"
                 />
               </div>
             </div>
@@ -1159,36 +1107,36 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">Nome</th>
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">Email</th>
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">WhatsApp</th>
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">Tipo</th>
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider">Município</th>
-                    <th className="py-3 px-3 text-[10px] font-black uppercase text-slate-400 tracking-wider text-right">Data Registo</th>
+                  <tr className="bg-[#16140F]">
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider">Nome</th>
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider">Email</th>
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider">WhatsApp</th>
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider">Tipo</th>
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider">Município</th>
+                    <th className="py-3 px-3 text-[10px] font-black uppercase text-[#D4AF37] tracking-wider text-right">Data Registo</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-[#26241E]">
                   {filteredUsers.length === 0 ? (
-                    <tr><td colSpan={6} className="py-8 text-center text-slate-400 italic text-xs">Nenhum utilizador encontrado.</td></tr>
+                    <tr><td colSpan={6} className="py-8 text-center text-[#BDB29F] italic text-xs">Nenhum utilizador encontrado.</td></tr>
                   ) : (
                     filteredUsers.map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50 transition">
-                        <td className="py-3 px-3 font-bold text-slate-900 flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                      <tr key={u.id} className="hover:bg-[#1C1811] transition">
+                        <td className="py-3 px-3 font-bold text-[#F5D77A] flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-[#1C1811] border border-[#D4AF37]/40 text-[#F5D77A] flex items-center justify-center font-bold text-[10px] shrink-0">
                             {u.avatar_url ? <img src={u.avatar_url} alt={u.name} className="w-full h-full object-cover rounded-full" /> : u.name.charAt(0)}
                           </div>
                           <span className="truncate max-w-[160px] sm:max-w-xs">{u.name}</span>
                         </td>
-                        <td className="py-3 px-3 text-slate-600 truncate max-w-[180px] text-xs">{u.email}</td>
-                        <td className="py-3 px-3 text-slate-600 text-xs font-medium">{u.whatsapp || '-'}</td>
+                        <td className="py-3 px-3 text-[#BDB29F] truncate max-w-[180px] text-xs">{u.email}</td>
+                        <td className="py-3 px-3 text-[#BDB29F] text-xs font-medium">{u.whatsapp || '-'}</td>
                         <td className="py-3 px-3">
-                          <span className={`px-2 py-0.5 rounded-full font-black text-[10px] uppercase ${u.role === 'Administrador' ? 'bg-amber-100 text-amber-900 border border-amber-300' : u.role === 'Empresa' ? 'bg-amber-50 text-amber-800' : 'bg-blue-50 text-[#0F4C9C]'}`}>
+                          <span className={`px-2 py-0.5 rounded-full font-black text-[10px] uppercase bg-[#1C1811] text-[#F5D77A] border border-[#D4AF37]/40`}>
                             {u.role}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-slate-600">{u.municipality || 'Cunene'}</td>
-                        <td className="py-3 px-3 text-right text-slate-400">{u.created_at ? new Date(u.created_at).toLocaleDateString('pt-AO') : '-'}</td>
+                        <td className="py-3 px-3 text-[#BDB29F]">{u.municipality || 'Cunene'}</td>
+                        <td className="py-3 px-3 text-right text-[#BDB29F]">{u.created_at ? new Date(u.created_at).toLocaleDateString('pt-AO') : '-'}</td>
                       </tr>
                     ))
                   )}
@@ -1198,45 +1146,45 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
           </div>
 
           {/* Section: Gestão de Parceiros Oficiais (Mencionando Usuário da Plataforma) */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="bg-[#121212] p-6 rounded-3xl border border-[#D4AF37]/25 shadow-2xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#26241E] pb-4">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                  <Award className="w-5 h-5 text-amber-500" />
+                <h3 className="text-base sm:text-lg font-black text-[#F5D77A] flex items-center gap-2">
+                  <Award className="w-5 h-5 text-[#D4AF37]" />
                   <span>Parceiros Oficiais da Plataforma (Mencionar Utilizador)</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[#BDB29F] mt-0.5">
                   Como administrador, oficialize empresas ou utilizadores da plataforma como parceiros oficiais do CuneneVagas.
                 </p>
               </div>
-              <span className="text-xs font-bold text-amber-900 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/80">
+              <span className="text-xs font-bold text-[#F5D77A] bg-[#1C1811] px-3 py-1.5 rounded-xl border border-[#D4AF37]/40">
                 {partners.length} {partners.length === 1 ? 'Parceiro Oficial' : 'Parceiros Oficiais'}
               </span>
             </div>
 
             {partnerFeedback && (
-              <div className="p-3.5 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-bold border border-emerald-200 flex items-center gap-2 animate-fadeIn">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="p-3.5 bg-[#16140F] text-[#F5D77A] rounded-2xl text-xs font-bold border border-[#D4AF37]/40 flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>{partnerFeedback}</span>
               </div>
             )}
 
             {/* Formulário para designar parceiro mencionando usuário */}
-            <form onSubmit={handleAddPartner} className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 space-y-4">
-              <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
-                <AtSign className="w-4 h-4 text-[#0F4C9C]" />
+            <form onSubmit={handleAddPartner} className="bg-[#16140F] p-5 rounded-2xl border border-[#D4AF37]/25 space-y-4">
+              <h4 className="text-xs font-black uppercase text-[#F5D77A] tracking-wider flex items-center gap-1.5">
+                <AtSign className="w-4 h-4 text-[#D4AF37]" />
                 Designar Novo Parceiro Mencionado
               </h4>
 
               {/* Seletor de usuário por menção */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">
+                <label className="text-xs font-bold text-[#F5D77A] block">
                   Mencionar Utilizador ou Empresa da Plataforma *
                 </label>
                 {selectedPartnerUser ? (
-                  <div className="flex items-center justify-between bg-blue-50 border border-blue-200 p-3 rounded-xl">
+                  <div className="flex items-center justify-between bg-[#1C1811] border border-[#D4AF37]/40 p-3 rounded-xl">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
                         {selectedPartnerUser.avatar_url ? (
                           <img src={selectedPartnerUser.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -1245,18 +1193,18 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-xs text-slate-900 truncate">@{selectedPartnerUser.name}</span>
-                          <span className="text-[10px] bg-blue-200/80 text-[#0F4C9C] px-2 py-0.2 rounded-md font-bold">
+                          <span className="font-extrabold text-xs text-[#F5D77A] truncate">@{selectedPartnerUser.name}</span>
+                          <span className="text-[10px] bg-[#D4AF37] text-slate-950 px-2 py-0.2 rounded-md font-bold">
                             {selectedPartnerUser.role}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">{selectedPartnerUser.email}</p>
+                        <p className="text-[11px] text-[#BDB29F] truncate">{selectedPartnerUser.email}</p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedPartnerUser(null)}
-                      className="text-xs text-red-600 hover:text-red-800 font-bold px-2 py-1 bg-white rounded-lg border border-red-200 cursor-pointer"
+                      className="text-xs text-rose-400 hover:text-rose-300 font-bold px-2 py-1 bg-[#121212] rounded-lg border border-rose-500/30 cursor-pointer"
                     >
                       Alterar
                     </button>
@@ -1264,18 +1212,18 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                 ) : (
                   <div className="relative">
                     <div className="relative">
-                      <AtSign className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                      <AtSign className="w-4 h-4 text-[#BDB29F] absolute left-3.5 top-3" />
                       <input
                         type="text"
                         value={partnerMentionSearch}
                         onChange={e => setPartnerMentionSearch(e.target.value)}
                         placeholder="Escreva @nome ou email do utilizador para selecionar..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37] bg-[#1C1811] text-white"
                       />
                     </div>
                     {/* Lista suspensa de menções */}
                     {(platformStats?.users || []).length > 0 && (
-                      <div className="mt-1.5 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 shadow-sm">
+                      <div className="mt-1.5 max-h-48 overflow-y-auto bg-[#16140F] border border-[#D4AF37]/30 rounded-xl divide-y divide-[#26241E] shadow-sm">
                         {(platformStats?.users || [])
                           .filter(u => {
                             const query = partnerMentionSearch.replace('@', '').toLowerCase().trim();
@@ -1290,18 +1238,18 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                                 setSelectedPartnerUser(u);
                                 setPartnerMentionSearch('');
                               }}
-                              className="p-2.5 hover:bg-blue-50 transition cursor-pointer flex items-center justify-between gap-3 text-xs"
+                              className="p-2.5 hover:bg-[#1C1811] transition cursor-pointer flex items-center justify-between gap-3 text-xs"
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-6 h-6 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                <div className="w-6 h-6 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center font-bold text-[10px] shrink-0">
                                   {u.avatar_url ? <img src={u.avatar_url} alt="" className="w-full h-full object-cover rounded-full" /> : u.name.charAt(0)}
                                 </div>
                                 <div className="truncate">
-                                  <span className="font-bold text-slate-900 block truncate">@{u.name}</span>
-                                  <span className="text-[10px] text-slate-400 truncate">{u.email}</span>
+                                  <span className="font-bold text-[#F5D77A] block truncate">@{u.name}</span>
+                                  <span className="text-[10px] text-[#BDB29F] truncate">{u.email}</span>
                                 </div>
                               </div>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1C1811] text-[#F5D77A] shrink-0">
                                 {u.role}
                               </span>
                             </div>
@@ -1314,24 +1262,24 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Título / Categoria da Parceria *</label>
+                  <label className="text-xs font-bold text-[#F5D77A] block">Título / Categoria da Parceria *</label>
                   <input
                     type="text"
                     required
                     value={partnerTitle}
                     onChange={e => setPartnerTitle(e.target.value)}
                     placeholder="Ex: Parceiro Estratégico do Agronegócio ou Parceiro Oficial de TI"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37] bg-[#1C1811] text-white"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 block">Descrição ou Contribuição (opcional)</label>
+                  <label className="text-xs font-bold text-[#F5D77A] block">Descrição ou Contribuição (opcional)</label>
                   <input
                     type="text"
                     value={partnerDescription}
                     onChange={e => setPartnerDescription(e.target.value)}
                     placeholder="Ex: Cooperação na qualificação de mão-de-obra e contratação local."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37] bg-[#1C1811] text-white"
                   />
                 </div>
               </div>
@@ -1340,9 +1288,9 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                 <button
                   type="submit"
                   disabled={!selectedPartnerUser}
-                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer gold-cta"
                 >
-                  <Award className="w-4 h-4 text-[#FFC20E]" />
+                  <Award className="w-4 h-4 text-slate-950" />
                   <span>Oficializar como Parceiro</span>
                 </button>
               </div>
@@ -1358,7 +1306,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                   <div key={p.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-[#0F4C9C] text-white flex items-center justify-center font-black text-sm shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-[#D4AF37] text-white flex items-center justify-center font-black text-sm shrink-0">
                           {p.avatar_url ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover rounded-xl" /> : p.user_name.charAt(0)}
                         </div>
                         <div>
@@ -1368,7 +1316,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                               🤝 {p.badge_label || 'Parceiro'}
                             </span>
                           </div>
-                          <p className="text-[11px] font-bold text-[#0F4C9C] mt-0.5">{p.partner_title}</p>
+                          <p className="text-[11px] font-bold text-[#D4AF37] mt-0.5">{p.partner_title}</p>
                         </div>
                       </div>
                       <button
@@ -1420,7 +1368,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
             <form onSubmit={handleCreateCampaign} className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 space-y-4">
               <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-[#0F4C9C]" />
+                <Plus className="w-4 h-4 text-[#D4AF37]" />
                 Criar Nova Campanha de Destaque Patrocinado
               </h4>
 
@@ -1433,7 +1381,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       setCampaignType(e.target.value as any);
                       setCampaignTargetId('');
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                   >
                     <option value="company">Empresa em Destaque</option>
                     <option value="product">Negócio / Produto em Destaque</option>
@@ -1446,7 +1394,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                     required
                     value={campaignTargetId}
                     onChange={e => setCampaignTargetId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                   >
                     <option value="">-- Escolher {campaignType === 'company' ? 'Empresa' : 'Produto'} --</option>
                     {campaignType === 'company' ? (
@@ -1468,7 +1416,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                     required
                     value={campaignEndDate}
                     onChange={e => setCampaignEndDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                   />
                 </div>
               </div>
@@ -1481,14 +1429,14 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                   value={campaignTitle}
                   onChange={e => setCampaignTitle(e.target.value)}
                   placeholder="Ex: Campanha Especial Verão 2026 - Patrocinado"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                 />
               </div>
 
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#FFC20E]" />
                   <span>Publicar Destaque Patrocinado</span>
@@ -1514,7 +1462,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                           }`}>
                             {c.status === 'active' ? 'Ativa' : c.status === 'suspended' ? 'Suspensa' : 'Expirada'}
                           </span>
-                          <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full uppercase">
+                          <span className="text-[10px] font-bold text-blue-800 bg-[#1C1811] px-2 py-0.5 rounded-full uppercase">
                             {c.type === 'company' ? 'Empresa' : 'Produto'}
                           </span>
                           <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
@@ -1596,7 +1544,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                           }`}>
                             {mp.status === 'approved' ? 'Aprovado' : mp.status === 'rejected' ? 'Rejeitado' : 'Pendente de Aprovação'}
                           </span>
-                          <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-blue-800 bg-[#1C1811] px-2 py-0.5 rounded-full">
                             Valor: {mp.amount}
                           </span>
                         </div>
@@ -1635,25 +1583,25 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
           </div>
 
           {/* Section: Enviar Mensagem com Nome "Notificação do Sistema" */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div className="bg-[#121212] p-6 rounded-3xl border border-[#D4AF37]/25 shadow-2xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#26241E] pb-4">
               <div>
-                <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                  <Megaphone className="w-5 h-5 text-[#0F4C9C]" />
+                <h3 className="text-base sm:text-lg font-black text-[#F5D77A] flex items-center gap-2">
+                  <Megaphone className="w-5 h-5 text-[#D4AF37]" />
                   <span>Transmissão Oficial — Notificação do Sistema</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[#BDB29F] mt-0.5">
                   Envie comunicados e avisos oficiais aos utilizadores. O remetente aparecerá estritamente com o nome <strong>"Notificação do Sistema"</strong>.
                 </p>
               </div>
-              <span className="text-xs font-black text-[#0F4C9C] bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+              <span className="text-xs font-black text-[#F5D77A] bg-[#1C1811] px-3 py-1.5 rounded-xl border border-[#D4AF37]/40">
                 Remetente: Notificação do Sistema
               </span>
             </div>
 
             {sysNotifFeedback && (
-              <div className="p-3.5 bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-bold border border-emerald-200 flex items-center gap-2 animate-fadeIn">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="p-3.5 bg-[#16140F] text-[#F5D77A] rounded-2xl text-xs font-bold border border-[#D4AF37]/40 flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>{sysNotifFeedback}</span>
               </div>
             )}
@@ -1661,7 +1609,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <form onSubmit={handleSendSystemNotification} className="space-y-4">
               {/* Seletor de Destinatários */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 block">Destinatário da Notificação:</label>
+                <label className="text-xs font-bold text-[#F5D77A] block">Destinatário da Notificação:</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { id: 'all', label: 'Todos os Utilizadores' },
@@ -1675,8 +1623,8 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       onClick={() => setSysNotifTarget(tgt.id as any)}
                       className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
                         sysNotifTarget === tgt.id
-                          ? 'bg-[#0F4C9C] text-white border-[#0F4C9C] shadow-2xs'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          ? 'bg-[#D4AF37] text-slate-950 border-[#F5D77A] shadow-2xs gold-cta'
+                          : 'bg-[#1C1811] text-[#F5D77A] border-[#D4AF37]/30 hover:bg-[#201A12]'
                       }`}
                     >
                       {tgt.label}
@@ -1687,25 +1635,25 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
               {/* Seletor de Utilizador Específico (se selecionado) */}
               {sysNotifTarget === 'specific' && (
-                <div className="space-y-1.5 bg-blue-50/50 p-3.5 rounded-2xl border border-blue-200/80">
-                  <label className="text-xs font-bold text-slate-700 block">
+                <div className="space-y-1.5 bg-[#16140F] p-3.5 rounded-2xl border border-[#D4AF37]/30">
+                  <label className="text-xs font-bold text-[#F5D77A] block">
                     Mencionar/Selecionar Utilizador Destinatário *
                   </label>
                   {selectedTargetUser ? (
-                    <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-blue-200">
+                    <div className="flex items-center justify-between bg-[#1C1811] p-2.5 rounded-xl border border-[#D4AF37]/40">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-[#D4AF37] text-slate-950 flex items-center justify-center font-bold text-xs shrink-0">
                           {selectedTargetUser.name.charAt(0)}
                         </div>
                         <div className="truncate text-xs">
-                          <span className="font-bold text-slate-900 block truncate">@{selectedTargetUser.name}</span>
-                          <span className="text-[10px] text-slate-500 truncate">{selectedTargetUser.email}</span>
+                          <span className="font-bold text-[#F5D77A] block truncate">@{selectedTargetUser.name}</span>
+                          <span className="text-[10px] text-[#BDB29F] truncate">{selectedTargetUser.email}</span>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedTargetUser(null)}
-                        className="text-xs text-red-600 font-bold px-2 py-1 hover:underline cursor-pointer"
+                        className="text-xs text-rose-400 font-bold px-2 py-1 hover:underline cursor-pointer"
                       >
                         Trocar
                       </button>
@@ -1717,9 +1665,9 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                         placeholder="Pesquisar utilizador por nome, email ou whatsapp..."
                         value={userSearch}
                         onChange={e => setUserSearch(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#0F4C9C]"
+                        className="w-full px-3.5 py-2 rounded-xl border border-[#D4AF37]/30 text-xs bg-[#1C1811] text-white focus:outline-none focus:border-[#D4AF37]"
                       />
-                      <div className="max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+                      <div className="max-h-36 overflow-y-auto bg-[#16140F] border border-[#D4AF37]/30 rounded-xl divide-y divide-[#26241E]">
                         {(platformStats?.users || [])
                           .filter(u => {
                             if (!userSearch.trim()) return true;
@@ -1733,10 +1681,10 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                             <div
                               key={u.id}
                               onClick={() => setSelectedTargetUser(u)}
-                              className="p-2 hover:bg-blue-50 transition cursor-pointer flex items-center justify-between text-xs"
+                              className="p-2 hover:bg-[#1C1811] transition cursor-pointer flex items-center justify-between text-xs"
                             >
-                              <span className="font-bold text-slate-800">@{u.name} ({u.role})</span>
-                              <span className="text-[10px] text-slate-400">{u.email}</span>
+                              <span className="font-bold text-[#F5D77A]">@{u.name} ({u.role})</span>
+                              <span className="text-[10px] text-[#BDB29F]">{u.email}</span>
                             </div>
                           ))}
                       </div>
@@ -1747,41 +1695,41 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
               {/* Título da Notificação */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Título da Notificação *</label>
+                <label className="text-xs font-bold text-[#F5D77A] block">Título da Notificação *</label>
                 <input
                   type="text"
                   required
                   value={sysNotifTitle}
                   onChange={e => setSysNotifTitle(e.target.value)}
                   placeholder="Ex: Atualização Importante do Sistema CuneneVagas"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs bg-[#1C1811] text-white focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
 
               {/* Mensagem */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 block">Mensagem Oficial *</label>
+                <label className="text-xs font-bold text-[#F5D77A] block">Mensagem Oficial *</label>
                 <textarea
                   rows={4}
                   required
                   value={sysNotifMessage}
                   onChange={e => setSysNotifMessage(e.target.value)}
                   placeholder="Escreva a mensagem oficial que será entregue aos utilizadores com o remetente 'Notificação do Sistema'..."
-                  className="w-full p-3.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#0F4C9C]"
+                  className="w-full p-3.5 rounded-xl border border-[#D4AF37]/30 text-xs sm:text-sm bg-[#1C1811] text-white focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
 
               <div className="flex justify-between items-center pt-2">
-                <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-[11px] text-[#BDB29F] font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                   Nome exibido ao utilizador: Notificação do Sistema
                 </span>
                 <button
                   type="submit"
                   disabled={!sysNotifMessage.trim()}
-                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-6 py-3 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-bold px-6 py-3 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer gold-cta"
                 >
-                  <Send className="w-4 h-4 text-[#FFC20E]" />
+                  <Send className="w-4 h-4 text-slate-950" />
                   <span>Enviar Notificação do Sistema</span>
                 </button>
               </div>
@@ -1792,29 +1740,29 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
 
       {/* Candidate Applications */}
       {activeTab === 'applications' && currentUser.role === 'candidate' && (
-        <div className="space-y-2 divide-y divide-slate-100">
+        <div className="space-y-2 divide-y divide-[#26241E]">
           {applications.filter(app => app.candidate_id === currentUser.id).length === 0 ? (
-            <div className="py-12 text-center text-slate-400 space-y-2">
-              <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
-              <h3 className="text-sm font-bold text-slate-800">Nenhuma candidatura encontrada</h3>
-              <p className="text-xs text-slate-500">Explore as vagas disponíveis e submeta a sua candidatura.</p>
+            <div className="py-12 text-center text-[#BDB29F] space-y-2">
+              <Briefcase className="w-12 h-12 text-[#D4AF37]/40 mx-auto" />
+              <h3 className="text-sm font-bold text-[#F5D77A]">Nenhuma candidatura encontrada</h3>
+              <p className="text-xs text-[#BDB29F]">Explore as vagas disponíveis e submeta a sua candidatura.</p>
             </div>
           ) : (
             applications.filter(app => app.candidate_id === currentUser.id).map(app => {
               const job = allJobs.find(j => j.id === app.job_id);
               return (
-                <div key={app.id} className="p-5 hover:bg-slate-50/80 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div key={app.id} className="p-5 hover:bg-[#1C1811] transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="space-y-1">
-                    <span className="text-[11px] font-bold text-slate-400">{new Date(app.created_at).toLocaleDateString('pt-AO')}</span>
-                    <h3 className="text-base font-black text-slate-900">{job?.title || 'Vaga no Cunene'}</h3>
-                    <p className="text-xs font-bold text-slate-500">{job?.company_name}</p>
+                    <span className="text-[11px] font-bold text-[#BDB29F]">{new Date(app.created_at).toLocaleDateString('pt-AO')}</span>
+                    <h3 className="text-base font-black text-[#F5D77A]">{job?.title || 'Vaga no Cunene'}</h3>
+                    <p className="text-xs font-bold text-[#BDB29F]">{job?.company_name}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-100 text-[#0F4C9C]">{app.status}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-black bg-[#1C1811] text-[#F5D77A] border border-[#D4AF37]/40">{app.status}</span>
                     {job && (
                       <button
                         onClick={() => onSelectJob(job)}
-                        className="bg-slate-100 hover:bg-[#0F4C9C] hover:text-white text-slate-800 text-xs font-bold px-4 py-2 rounded-xl transition"
+                        className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition gold-cta"
                       >
                         Ver Vaga
                       </button>
@@ -1831,25 +1779,25 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
       {activeTab === 'exams' && currentUser.role === 'candidate' && (
         <div className="space-y-8">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs text-slate-500 font-bold block uppercase">Exames Realizados</span>
-              <span className="text-2xl font-black text-slate-900 mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id).length}</span>
+            <div className="bg-[#121212] p-5 rounded-2xl border border-[#D4AF37]/25 shadow-2xs">
+              <span className="text-xs text-[#BDB29F] font-bold block uppercase">Exames Realizados</span>
+              <span className="text-2xl font-black text-[#F5D77A] mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id).length}</span>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs text-slate-500 font-bold block uppercase">Aprovados</span>
-              <span className="text-2xl font-black text-emerald-600 mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id && a.passed).length}</span>
+            <div className="bg-[#121212] p-5 rounded-2xl border border-[#D4AF37]/25 shadow-2xs">
+              <span className="text-xs text-[#BDB29F] font-bold block uppercase">Aprovados</span>
+              <span className="text-2xl font-black text-emerald-400 mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id && a.passed).length}</span>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs text-slate-500 font-bold block uppercase">Média Geral</span>
-              <span className="text-2xl font-black text-[#0F4C9C] mt-1 block">
+            <div className="bg-[#121212] p-5 rounded-2xl border border-[#D4AF37]/25 shadow-2xs">
+              <span className="text-xs text-[#BDB29F] font-bold block uppercase">Média Geral</span>
+              <span className="text-2xl font-black text-[#D4AF37] mt-1 block">
                 {attempts.filter(a => a.candidate_id === currentUser.id).length > 0 
                   ? Math.round(attempts.filter(a => a.candidate_id === currentUser.id).reduce((acc, curr) => acc + curr.percentage, 0) / attempts.filter(a => a.candidate_id === currentUser.id).length)
                   : 0}%
               </span>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs text-slate-500 font-bold block uppercase">Certificados</span>
-              <span className="text-2xl font-black text-amber-500 mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id && a.passed).length}</span>
+            <div className="bg-[#121212] p-5 rounded-2xl border border-[#D4AF37]/25 shadow-2xs">
+              <span className="text-xs text-[#BDB29F] font-bold block uppercase">Certificados</span>
+              <span className="text-2xl font-black text-[#D4AF37] mt-1 block">{attempts.filter(a => a.candidate_id === currentUser.id && a.passed).length}</span>
             </div>
           </div>
 
@@ -1869,31 +1817,31 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                 <>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-[#0F4C9C]" />
-                      <h3 className="text-base font-bold text-slate-900">Exames Pendentes / Convocados</h3>
+                      <Clock className="w-5 h-5 text-[#D4AF37]" />
+                      <h3 className="text-base font-bold text-[#F5D77A]">Exames Pendentes / Convocados</h3>
                     </div>
-                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#0F4C9C]">{pendingExamItems.length} pendente(s)</span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#1C1811] text-[#F5D77A] border border-[#D4AF37]/40">{pendingExamItems.length} pendente(s)</span>
                   </div>
 
                   {pendingExamItems.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-6 text-center border border-slate-200 text-xs text-slate-500">
+                    <div className="bg-[#121212] rounded-2xl p-6 text-center border border-[#D4AF37]/25 text-xs text-[#BDB29F]">
                       <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                      <p className="font-semibold text-slate-700">Não tem nenhum exame pendente no momento.</p>
+                      <p className="font-semibold text-[#F5D77A]">Não tem nenhum exame pendente no momento.</p>
                       <p className="mt-0.5">Quando uma empresa o convocar para uma prova técnica, ela aparecerá aqui.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {pendingExamItems.map(({ app, job }) => (
-                        <div key={app.id} className="bg-white p-5 rounded-2xl border-2 border-blue-200 shadow-sm space-y-3 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 bg-[#0F4C9C] text-white text-[10px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-wider">{app.status === 'Selecionada para exame' ? 'Convocatória Ativa' : 'Exame Disponível'}</div>
+                        <div key={app.id} className="bg-[#121212] p-5 rounded-2xl border-2 border-[#D4AF37]/40 shadow-sm space-y-3 relative overflow-hidden">
+                          <div className="absolute top-0 right-0 bg-[#D4AF37] text-slate-950 text-[10px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-wider">{app.status === 'Selecionada para exame' ? 'Convocatória Ativa' : 'Exame Disponível'}</div>
                           <div>
-                            <span className="text-xs font-bold text-slate-400 block">{job!.company_name}</span>
-                            <h4 className="text-base font-bold text-slate-900">{job!.exam?.title || job!.title}</h4>
-                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{job!.exam?.description || job!.description}</p>
+                            <span className="text-xs font-bold text-[#BDB29F] block">{job!.company_name}</span>
+                            <h4 className="text-base font-bold text-[#F5D77A]">{job!.exam?.title || job!.title}</h4>
+                            <p className="text-xs text-[#BDB29F] mt-1 line-clamp-2">{job!.exam?.description || job!.description}</p>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-slate-600 pt-2 border-t border-slate-100">
-                            <span className="flex items-center gap-1 font-semibold"><Clock className="w-3.5 h-3.5 text-[#0F4C9C]" /> {job!.exam?.time_limit_minutes || 15} min</span>
-                            <span className="flex items-center gap-1 font-semibold"><Award className="w-3.5 h-3.5 text-amber-500" /> Mínimo: {job!.exam?.passing_score || 70}%</span>
+                          <div className="flex items-center gap-4 text-xs text-[#BDB29F] pt-2 border-t border-[#26241E]">
+                            <span className="flex items-center gap-1 font-semibold"><Clock className="w-3.5 h-3.5 text-[#D4AF37]" /> {job!.exam?.time_limit_minutes || 15} min</span>
+                            <span className="flex items-center gap-1 font-semibold"><Award className="w-3.5 h-3.5 text-[#D4AF37]" /> Mínimo: {job!.exam?.passing_score || 70}%</span>
                           </div>
                           <div className="pt-1">
                             {(() => {
@@ -1937,7 +1885,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                                     className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                                     title="Fazer exame online na plataforma"
                                   >
-                                    <FileText className="w-3.5 h-3.5 text-[#0F4C9C]" />
+                                    <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
                                     <span>Fazer no Portal</span>
                                   </button>
                                 </div>
@@ -1975,7 +1923,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                                 <h4 className="text-base font-bold text-slate-900">{attempt.exam?.title || attempt.job_title || 'Avaliação Técnica'}</h4>
                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                                   isSim 
-                                    ? 'bg-blue-50 text-[#0F4C9C] border border-blue-200' 
+                                    ? 'bg-[#1C1811] text-[#D4AF37] border border-[#D4AF37]/30' 
                                     : 'bg-purple-50 text-purple-800 border border-purple-200'
                                 }`}>
                                   {isSim ? 'Simulado de Treino' : 'Exame Oficial'}
@@ -2014,11 +1962,11 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-500" /><div><h3 className="text-base font-bold text-slate-900">Simulados & Treino Livre</h3><p className="text-xs text-slate-500">Pratique gratuitamente.</p></div></div></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {FREE_PRACTICE_EXAMS.map(practiceExam => (
-                <div key={practiceExam.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between hover:border-[#0F4C9C] transition">
-                  <div><span className="text-[10px] font-black uppercase text-[#0F4C9C] bg-blue-50 px-2 py-0.5 rounded-md">Simulado Gratuito</span><h4 className="text-sm font-bold text-slate-900 mt-2">{practiceExam.title}</h4><p className="text-xs text-slate-500 mt-1 line-clamp-2">{practiceExam.description}</p></div>
+                <div key={practiceExam.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3 flex flex-col justify-between hover:border-[#D4AF37] transition">
+                  <div><span className="text-[10px] font-black uppercase text-[#D4AF37] bg-[#1C1811] px-2 py-0.5 rounded-md">Simulado Gratuito</span><h4 className="text-sm font-bold text-slate-900 mt-2">{practiceExam.title}</h4><p className="text-xs text-slate-500 mt-1 line-clamp-2">{practiceExam.description}</p></div>
                   <div className="space-y-3 pt-2 border-t border-slate-100 text-xs text-slate-600">
                     <div className="flex justify-between items-center text-[11px]"><span>Pergs: {practiceExam.questions.length}</span><span>{practiceExam.time_limit_minutes} min</span><span>Min: {practiceExam.passing_score}%</span></div>
-                    <button onClick={() => onOpenExam?.(practiceExam, undefined, undefined)} className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-2 rounded-xl text-xs transition shadow-2xs flex items-center justify-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /><span>Fazer Simulado Agora</span></button>
+                    <button onClick={() => onOpenExam?.(practiceExam, undefined, undefined)} className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-2 rounded-xl text-xs transition shadow-2xs flex items-center justify-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /><span>Fazer Simulado Agora</span></button>
                   </div>
                 </div>
               ))}
@@ -2048,17 +1996,17 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       else if (notif.link === 'my-jobs') setActiveTab('my-jobs'); 
                     } 
                   }} 
-                  className={`p-5 rounded-2xl border transition cursor-pointer hover:border-[#0F4C9C] flex justify-between items-center ${
+                  className={`p-5 rounded-2xl border transition cursor-pointer hover:border-[#D4AF37] flex justify-between items-center ${
                     notif.read 
                       ? 'bg-white border-slate-200' 
                       : isSystem 
                         ? 'bg-amber-50/40 border-amber-200/80 shadow-2xs' 
-                        : 'bg-blue-50/50 border-blue-200 shadow-2xs'
+                        : 'bg-[#1C1811]/50 border-[#D4AF37]/30 shadow-2xs'
                   }`}
                 >
                   <div className="space-y-1">
                     {isSystem && (
-                      <span className="inline-flex items-center gap-1.5 bg-[#0F4C9C] text-white text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-1">
+                      <span className="inline-flex items-center gap-1.5 bg-[#D4AF37] text-white text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-1">
                         <ShieldCheck className="w-3 h-3 text-[#FFC20E]" />
                         <span>Notificação do Sistema</span>
                       </span>
@@ -2069,7 +2017,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       {new Date(notif.created_at).toLocaleString('pt-AO')}
                     </span>
                   </div>
-                  {!notif.read && <span className="w-2.5 h-2.5 rounded-full bg-[#0F4C9C] shrink-0 ml-3" />}
+                  {!notif.read && <span className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] shrink-0 ml-3" />}
                 </div>
               );
             })
@@ -2080,7 +2028,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
       {/* Talent Ranking Tab */}
       {activeTab === 'ranking' && (
         <div className="space-y-6">
-          <div className="bg-[#0F4C9C] p-6 sm:p-8 rounded-3xl text-white shadow-sm relative overflow-hidden border border-white/10">
+          <div className="bg-[#D4AF37] p-6 sm:p-8 rounded-3xl text-white shadow-sm relative overflow-hidden border border-white/10">
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-2">
                 <Award className="w-7 h-7 text-[#FFC20E]" />
@@ -2148,7 +2096,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                            <div className="w-9 h-9 rounded-xl bg-[#D4AF37] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                               {talent.name.charAt(0)}
                             </div>
                             <span className="font-bold text-slate-900 text-xs sm:text-sm whitespace-nowrap">{talent.name}</span>
@@ -2187,13 +2135,13 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             </div>
             <div><label className="block text-xs font-semibold text-slate-700 mb-1">Município</label><input type="text" value={municipality} onChange={e => setMunicipality(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" /></div>
             <div><label className="block text-xs font-semibold text-slate-700 mb-1">Biografia</label><textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" /></div>
-            <button type="submit" className="w-full bg-[#0F4C9C] text-white font-semibold py-3 rounded-xl text-sm transition shadow">Guardar Alterações</button>
+            <button type="submit" className="w-full bg-[#D4AF37] text-white font-semibold py-3 rounded-xl text-sm transition shadow">Guardar Alterações</button>
           </form>
 
           {/* Alterar Palavra-passe */}
           <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
             <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-[#0F4C9C]" /> Alterar Palavra-passe
+              <Lock className="w-4 h-4 text-[#D4AF37]" /> Alterar Palavra-passe
             </h4>
             {passwordError && <div className="bg-rose-50 text-rose-700 p-3 rounded-xl text-xs font-medium">{passwordError}</div>}
             {passwordFeedback && <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-medium">{passwordFeedback}</div>}
@@ -2218,7 +2166,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm"
                 />
               </div>
-              <button type="submit" className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer">
+              <button type="submit" className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer">
                 Atualizar Palavra-passe
               </button>
             </form>
@@ -2262,7 +2210,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
             allJobs.filter(j => j.employer_id === currentUser.id || j.company_name === currentUser.company_name).map(job => (
               <div key={job.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
                 <div><h3 className="text-lg font-bold text-slate-900">{job.title}</h3><p className="text-xs text-slate-500 mt-1">{job.municipality} • {job.contract_type}</p></div>
-                <div className="flex items-center gap-3"><button onClick={() => onSelectJob(job)} className="bg-slate-100 hover:bg-[#0F4C9C] hover:text-white text-slate-800 text-xs font-semibold px-4 py-2 rounded-xl transition">Ver</button><button onClick={() => handleDeleteJob(job.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition"><Trash2 className="w-4 h-4" /></button></div>
+                <div className="flex items-center gap-3"><button onClick={() => onSelectJob(job)} className="bg-slate-100 hover:bg-[#D4AF37] hover:text-white text-slate-800 text-xs font-semibold px-4 py-2 rounded-xl transition">Ver</button><button onClick={() => handleDeleteJob(job.id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition"><Trash2 className="w-4 h-4" /></button></div>
               </div>
             ))
           )}
@@ -2286,7 +2234,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                     console.warn(e);
                   }
                 }} 
-                className="flex items-center gap-2 bg-[#244F9A] text-white hover:bg-[#193B70] px-4 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+                className="flex items-center gap-2 bg-[#D4AF37] text-white hover:bg-[#F5D77A] px-4 py-2 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
               >
                 <RefreshCw className="w-4 h-4" /> Consultar candidaturas
               </button>
@@ -2314,7 +2262,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                   <div key={app.id} className="bg-white p-5 rounded-2xl shadow-2xs border border-slate-200 space-y-4">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div>
-                        <span className="text-xs font-bold text-[#0F4C9C] uppercase">{job?.title || 'Vaga'}</span>
+                        <span className="text-xs font-bold text-[#D4AF37] uppercase">{job?.title || 'Vaga'}</span>
                         <h3 className="text-base font-bold text-slate-900">{candidateName}</h3>
                         <p className="text-xs text-slate-500">{app.candidate?.email || 'Email não disponível'} • {app.candidate?.phone || 'Telefone não disponível'}</p>
                         {attempt ? (
@@ -2376,7 +2324,7 @@ Novos registos de candidatos e empresas são imediatamente refletidos sem atraso
                       </div>
                     </div>
                     {app.cover_letter && <div className="bg-slate-50 p-3 rounded-xl border border-slate-100"><p className="text-xs text-slate-600 italic">"{app.cover_letter}"</p></div>}
-                    {app.cv_url && <a href={cleanDocumentUrl(app.cv_url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#0F4C9C] hover:underline"><FileText className="w-3.5 h-3.5" /> Ver CV</a>}
+                    {app.cv_url && <a href={cleanDocumentUrl(app.cv_url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#D4AF37] hover:underline"><FileText className="w-3.5 h-3.5" /> Ver CV</a>}
                   </div>
                 );
               });

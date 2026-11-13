@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, ShieldAlert, CreditCard, Send, Building, FileText } from 'lucide-react';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { UserProfile } from '../lib/types';
 
 interface PayPalPaymentModalProps {
@@ -41,7 +42,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
       setManualSuccess(false);
       fetch('/api/paypal/config')
         .then(res => {
-          if (!res.ok) throw new Error('Falha ao carregar configuração de pagamento');
+          if (!res.ok) throw new Error('Não foi possível carregar as opções de pagamento.');
           return res.json();
         })
         .then(data => {
@@ -75,8 +76,9 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
       });
       setManualSuccess(true);
       setError('');
-    } catch (err: any) {
-      setError('Erro ao submeter pagamento manual: ' + err.message);
+    } catch (err: unknown) {
+      console.warn('Erro pagamento manual:', err);
+      setError(toUserErrorMessage(err, 'Não foi possível registar o pagamento. Tenta novamente.'));
     }
   };
 
@@ -87,7 +89,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] my-auto animate-fadeIn">
         
         {/* Header */}
-        <div className="bg-[#0F4C9C] px-5 py-4 sm:p-6 text-white relative shrink-0">
+        <div className="bg-[#D4AF37] px-5 py-4 sm:p-6 text-white relative shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -108,7 +110,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
             type="button"
             onClick={() => setPaymentMode('paypal')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              paymentMode === 'paypal' ? 'bg-[#0F4C9C] text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100'
+              paymentMode === 'paypal' ? 'bg-[#D4AF37] text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100'
             }`}
           >
             <CreditCard className="w-4 h-4" />
@@ -118,7 +120,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
             type="button"
             onClick={() => setPaymentMode('manual')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              paymentMode === 'manual' ? 'bg-[#0F4C9C] text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100'
+              paymentMode === 'manual' ? 'bg-[#D4AF37] text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-100'
             }`}
           >
             <Building className="w-4 h-4" />
@@ -147,7 +149,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-2 bg-[#0F4C9C] text-white font-bold px-5 py-2 rounded-xl text-xs cursor-pointer"
+                className="mt-2 bg-[#D4AF37] text-white font-bold px-5 py-2 rounded-xl text-xs cursor-pointer"
               >
                 Concluir
               </button>
@@ -190,7 +192,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
                         type="button"
                         onClick={() => setSelectedPlan(planKey)}
                         className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition text-center gap-0.5 cursor-pointer ${
-                          isSelected ? 'border-[#0F4C9C] bg-blue-50/50 text-[#0F4C9C]' : 'border-slate-100 text-slate-600'
+                          isSelected ? 'border-[#D4AF37] bg-blue-50/50 text-[#D4AF37]' : 'border-slate-100 text-slate-600'
                         }`}
                       >
                         <span className="text-xs font-black">{plan.name}</span>
@@ -209,7 +211,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
                   value={manualReference}
                   onChange={e => setManualReference(e.target.value)}
                   placeholder="Ex: TRF-2026-984512 ou talão Multicaixa"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                 />
               </div>
 
@@ -220,13 +222,13 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
                   onChange={e => setManualProof(e.target.value)}
                   placeholder="Ex: Transferido a partir de conta BAI em nome de..."
                   rows={2}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C] bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#D4AF37] bg-white"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+                className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
               >
                 <Send className="w-4 h-4 text-[#FFC20E]" />
                 <span>Enviar Comprovante para Aprovação do Admin</span>
@@ -250,7 +252,7 @@ export const PayPalPaymentModal: React.FC<PayPalPaymentModalProps> = ({
                         onClick={() => setSelectedPlan(planKey)}
                         className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition text-center gap-1 cursor-pointer ${
                           isSelected
-                            ? 'border-[#0F4C9C] bg-blue-50/50 text-[#0F4C9C]'
+                            ? 'border-[#D4AF37] bg-blue-50/50 text-[#D4AF37]'
                             : 'border-slate-100 hover:border-slate-200 text-slate-600'
                         }`}
                       >

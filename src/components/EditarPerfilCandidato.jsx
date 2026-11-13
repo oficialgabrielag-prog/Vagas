@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { 
   isPushNotificationSupported, 
   getPushNotificationPermission, 
@@ -276,7 +277,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
       }, 700);
     } catch (err) {
       console.error('Save error:', err);
-      setStatusMessage({ type: 'error', text: err.message || 'Erro ao guardar dados do candidato.' });
+      setStatusMessage({ type: 'error', text: toUserErrorMessage(err, 'Não foi possível guardar os dados. Tenta novamente.') });
     } finally {
       setSaving(false);
     }
@@ -316,7 +317,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           <div>
             <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>Editar Perfil do Candidato</span>
-              <span className="text-[10px] font-bold text-[#244F9A] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 hidden sm:inline-block">
+              <span className="text-[10px] font-bold text-[#D4AF37] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 hidden sm:inline-block">
                 Tela Única
               </span>
             </h1>
@@ -336,7 +337,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
             type="button"
             onClick={handleSaveProfile}
             disabled={saving}
-            className="px-5 py-2 bg-[#244F9A] hover:bg-[#193B70] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
+            className="px-5 py-2 bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin text-[#F5B91B]" /> : <Save className="w-4 h-4" />}
             <span>{saving ? 'A guardar...' : 'Guardar Alterações'}</span>
@@ -361,7 +362,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
         {/* Visual Identity Hero Card */}
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs">
           {/* Cover Photo */}
-          <div className="h-36 sm:h-48 w-full bg-gradient-to-r from-blue-900 via-[#244F9A] to-slate-800 relative group overflow-hidden">
+          <div className="h-36 sm:h-48 w-full bg-gradient-to-r from-blue-900 via-[#D4AF37] to-slate-800 relative group overflow-hidden">
             {coverUrl ? (
               <img src={coverUrl} alt="Capa" className="w-full h-full object-cover" />
             ) : (
@@ -402,7 +403,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={uploadingAvatar}
-                  className="absolute bottom-1 right-1 p-2 bg-[#244F9A] hover:bg-[#193B70] text-white rounded-xl shadow-md transition cursor-pointer"
+                  className="absolute bottom-1 right-1 p-2 bg-[#D4AF37] hover:bg-[#F5D77A] text-white rounded-xl shadow-md transition cursor-pointer"
                   title="Alterar fotografia"
                 >
                   <Camera className="w-3.5 h-3.5" />
@@ -430,7 +431,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           {/* 1. Dados Pessoais e Profissão */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <User className="w-4 h-4 text-[#244F9A]" />
+              <User className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Dados Pessoais e Identificação
               </h3>
@@ -447,7 +448,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Ex: Alberto Tchipopilo"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -461,7 +462,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   value={profession}
                   onChange={e => setProfession(e.target.value)}
                   placeholder="Ex: Engenheiro Agrónomo, Contabilista, Motorista"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -472,7 +473,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                 <select
                   value={municipality}
                   onChange={e => setMunicipality(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 >
                   <option value="Ondjiva">Ondjiva (Cuanhama)</option>
                   <option value="Namacunde">Namacunde (Santa Clara)</option>
@@ -492,7 +493,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="seuemail@exemplo.com"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
             </div>
@@ -501,7 +502,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           {/* 2. Contactos Diretos */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Phone className="w-4 h-4 text-[#244F9A]" />
+              <Phone className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Contactos Rápidos
               </h3>
@@ -517,7 +518,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="Ex: +244 923 000 000"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -530,7 +531,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   value={whatsapp}
                   onChange={e => setWhatsapp(e.target.value)}
                   placeholder="Ex: +244 931 000 000"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
             </div>
@@ -539,7 +540,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           {/* 3. Resumo Profissional & Competências */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <FileText className="w-4 h-4 text-[#244F9A]" />
+              <FileText className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Resumo Profissional e Competências
               </h3>
@@ -554,7 +555,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                 value={bio}
                 onChange={e => setBio(e.target.value)}
                 placeholder="Apresente a sua trajetória, pontos fortes, ambições profissionais e disponibilidade para trabalhar no Cunene..."
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:border-[#244F9A] focus:bg-white transition resize-none leading-relaxed"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition resize-none leading-relaxed"
               />
             </div>
 
@@ -567,7 +568,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                 value={skillsInput}
                 onChange={e => setSkillsInput(e.target.value)}
                 placeholder="Ex: Gestão de Projetos, Excel Avançado, Condução Pesados, Atendimento ao Cliente"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
               />
             </div>
           </div>
@@ -576,7 +577,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-2xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#244F9A]" />
+                <Bell className="w-4 h-4 text-[#D4AF37]" />
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                   Notificações Push Nativas no Dispositivo
                 </h3>
@@ -601,7 +602,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                 <button
                   type="button"
                   onClick={handleTogglePush}
-                  className="bg-[#244F9A] hover:bg-[#193B70] text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
                 >
                   <Bell className="w-4 h-4 text-[#F5B91B]" />
                   <span>Ativar Notificações Push Nativas</span>
@@ -631,7 +632,7 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-[#244F9A] hover:bg-[#193B70] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-md flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
+              className="px-6 py-2.5 bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-md flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin text-[#F5B91B]" /> : <Save className="w-4 h-4" />}
               <span>{saving ? 'A guardar perfil...' : 'Guardar Todas as Alterações'}</span>

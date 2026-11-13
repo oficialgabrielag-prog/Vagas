@@ -32,14 +32,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 pb-safe">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#080808] border-t border-[#121212] pb-safe shadow-2xl">
       <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => triggerHaptic(item.id)}
-            className={`flex flex-col items-center justify-center flex-1 py-1 ${
-              currentTab === item.id ? 'text-[#FFB900]' : 'text-[#073B70]'
+            className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+              currentTab === item.id ? 'text-[#F5D77A] font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <item.icon className="w-6 h-6" strokeWidth={currentTab === item.id ? 2.5 : 2} />

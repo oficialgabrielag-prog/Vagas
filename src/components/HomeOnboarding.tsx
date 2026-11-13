@@ -15,7 +15,7 @@ export const HomeOnboarding: React.FC = () => {
           {/* Candidates */}
           <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0F4C9C] text-white flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#D4AF37] text-white flex items-center justify-center">
                 <UserPlus className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Para Candidatos</h3>
@@ -27,7 +27,7 @@ export const HomeOnboarding: React.FC = () => {
                 { step: '3', text: 'Destaque-se no Ranking de Talentos e seja convidado por empresas.', icon: Zap }
               ].map((item, i) => (
                 <div key={i} className="flex gap-4">
-                  <span className="text-2xl font-black text-[#0F4C9C]/20 leading-none">{item.step}</span>
+                  <span className="text-2xl font-black text-[#D4AF37]/20 leading-none">{item.step}</span>
                   <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">{item.text}</p>
                 </div>
               ))}
@@ -35,7 +35,7 @@ export const HomeOnboarding: React.FC = () => {
           </div>
 
           {/* Companies */}
-          <div className="bg-[#0F4C9C]/5 p-8 rounded-[2.5rem] border border-[#0F4C9C]/10 space-y-6">
+          <div className="bg-[#D4AF37]/5 p-8 rounded-[2.5rem] border border-[#D4AF37]/10 space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center">
                 <FileSearch className="w-5 h-5" />
@@ -59,7 +59,7 @@ export const HomeOnboarding: React.FC = () => {
       </section>
 
       {/* Web Portal Banner */}
-      <section className="bg-gradient-to-br from-[#0F4C9C] to-slate-900 p-8 sm:p-12 rounded-[3rem] text-white relative overflow-hidden shadow-xl shadow-blue-900/20 group">
+      <section className="bg-gradient-to-br from-[#D4AF37] to-slate-900 p-8 sm:p-12 rounded-[3rem] text-white relative overflow-hidden shadow-xl shadow-blue-900/20 group">
         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="text-center md:text-left space-y-4 max-w-md">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
@@ -77,9 +77,9 @@ export const HomeOnboarding: React.FC = () => {
                  <div className="w-12 h-1.5 bg-slate-600 rounded-full" />
                </div>
                <div className="p-4 space-y-4">
-                 <div className="w-full h-2 bg-[#0F4C9C]/30 rounded" />
-                 <div className="w-2/3 h-2 bg-[#0F4C9C]/30 rounded" />
-                 <div className="w-full h-24 bg-[#0F4C9C]/20 rounded-xl flex items-center justify-center">
+                 <div className="w-full h-2 bg-[#D4AF37]/30 rounded" />
+                 <div className="w-2/3 h-2 bg-[#D4AF37]/30 rounded" />
+                 <div className="w-full h-24 bg-[#D4AF37]/20 rounded-xl flex items-center justify-center">
                    <Smartphone className="w-8 h-8 text-white/20" />
                  </div>
                </div>

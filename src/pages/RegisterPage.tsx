@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Briefcase, UserCheck, Building2, Mail, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { supabase } from '../lib/supabase';
 import { AnimatedBrandLogo } from '../components/AnimatedBrandLogo';
 import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
@@ -45,10 +46,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
         }
       });
       if (error) {
-        alert('Erro Facebook: ' + error.message);
+        console.warn('Erro OAuth Facebook:', error.message);
+        setError('Não foi possível continuar com o Facebook. Tenta novamente.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
+      setError('Não foi possível continuar com o Facebook. Tenta novamente.');
     } finally {
       setLoading(false);
     }
@@ -104,8 +107,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
 
       // Usuário entra imediatamente na plataforma sem necessidade de confirmação de e-mail
       onRegisterSuccess(user);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta. Verifique os dados introduzidos.');
+    } catch (err: unknown) {
+      console.warn('Erro registo RegisterPage:', err);
+      setError(toUserErrorMessage(err, 'Não foi possível criar a conta. Verifica os dados introduzidos.'));
     } finally {
       setLoading(false);
     }
@@ -116,7 +120,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
       {/* Top Header Branding Centered with Animated Letters */}
       <div className="max-w-md w-full mx-auto flex items-center justify-center pt-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 bg-[#0F4C9C] rounded-xl flex items-center justify-center text-white shadow-xs">
+          <div className="w-10 h-10 bg-[#D4AF37] rounded-xl flex items-center justify-center text-white shadow-xs">
             <Briefcase className="w-5 h-5 text-[#FFC20E]" />
           </div>
           <AnimatedBrandLogo mode="active" size="lg" />
@@ -146,7 +150,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToLogin}
-                className="self-start text-xs font-bold text-[#0F4C9C] hover:text-[#0a3366] bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs transition hover:underline cursor-pointer"
+                className="self-start text-xs font-bold text-[#D4AF37] hover:text-[#F5D77A] bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs transition hover:underline cursor-pointer"
               >
                 👉 Ir para Iniciar Sessão com este e-mail
               </button>
@@ -165,7 +169,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               onClick={() => setRole('candidate')}
               className={`py-3 px-3.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3 cursor-pointer ${
                 role === 'candidate'
-                  ? 'bg-[#0F4C9C] text-white shadow-sm'
+                  ? 'bg-[#D4AF37] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/40'
               }`}
             >
@@ -187,7 +191,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               onClick={() => setRole('employer')}
               className={`py-3 px-3.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3 cursor-pointer ${
                 role === 'employer'
-                  ? 'bg-[#0F4C9C] text-white shadow-sm'
+                  ? 'bg-[#D4AF37] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/40'
               }`}
             >
@@ -218,7 +222,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               placeholder={role === 'employer' ? 'Nome e Apelido' : 'O seu nome completo'}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
             />
           </div>
 
@@ -233,7 +237,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 value={companyName}
                 onChange={e => setCompanyName(e.target.value)}
                 placeholder="Ex: AgroCunene ou Minha Loja"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
               />
             </div>
           )}
@@ -250,7 +254,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="exemplo@cunenevagas.online"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
               />
             </div>
           </div>
@@ -267,7 +271,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C] transition-all bg-white"
+                className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] transition-all bg-white"
               />
               <button
                 type="button"
@@ -282,7 +286,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-sm active:scale-[0.98] flex items-center justify-center disabled:opacity-60 cursor-pointer mt-3"
+            className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-sm active:scale-[0.98] flex items-center justify-center disabled:opacity-60 cursor-pointer mt-3"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -319,7 +323,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
             <button
               type="button"
               onClick={onNavigateToLogin}
-              className="text-[#0F4C9C] font-bold hover:underline"
+              className="text-[#D4AF37] font-bold hover:underline"
             >
               Inicie sessão
             </button>

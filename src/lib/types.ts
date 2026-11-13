@@ -263,8 +263,8 @@ export interface PostPoll {
 export interface CommunityPost {
   id: string;
   author_id: string; // auth.users.id
-  author_type?: 'candidate' | 'employer';
-  post_type?: 'candidate' | 'employer';
+  author_type?: 'candidate' | 'employer' | 'admin';
+  post_type?: 'candidate' | 'employer' | 'admin';
   author_name: string;
   author_avatar?: string;
   author?: UserProfile;
@@ -333,10 +333,11 @@ export const JOB_CATEGORIES = [
 export const COMMUNITY_CATEGORIES = [
   'Todos',
   'Emprego',
-  'Negócios',
+  'Comunidade',
   'Dicas',
-  'Formação',
   'Empresas',
+  'Negócios',
+  'Formação',
   'Marketplace'
 ] as const;
 

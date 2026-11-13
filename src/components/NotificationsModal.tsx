@@ -57,7 +57,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden">
       <div className="w-full h-full flex flex-col">
         {/* Header */}
-        <div className="bg-[#0F4C9C] p-5 sm:p-6 text-white relative flex items-center justify-between shrink-0">
+        <div className="bg-[#D4AF37] p-5 sm:p-6 text-white relative flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center text-[#FFC20E]">
               <Bell className="w-5 h-5" />
@@ -127,7 +127,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        isSys ? 'bg-amber-100 text-amber-800' : 'bg-[#0F4C9C]/10 text-[#0F4C9C]'
+                        isSys ? 'bg-amber-100 text-amber-800' : 'bg-[#D4AF37]/10 text-[#D4AF37]'
                       }`}>
                         {isSys ? <ShieldCheck className="w-5 h-5 text-amber-600" /> : <Bell className="w-5 h-5" />}
                       </div>
@@ -140,7 +140,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           )}
                           <span className="text-[10px] font-bold text-slate-400">{formatTimeAgo(notif.created_at)}</span>
                           {!notif.read && (
-                            <span className="w-2 h-2 rounded-full bg-[#0F4C9C]" title="Não lida" />
+                            <span className="w-2 h-2 rounded-full bg-[#D4AF37]" title="Não lida" />
                           )}
                         </div>
                         <h4 className="text-xs sm:text-sm font-extrabold text-slate-900">{notif.title}</h4>
@@ -154,7 +154,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           e.stopPropagation();
                           handleMarkAsRead(notif.id);
                         }}
-                        className="text-[10px] font-bold text-[#0F4C9C] hover:underline shrink-0"
+                        className="text-[10px] font-bold text-[#D4AF37] hover:underline shrink-0"
                       >
                         Marcar lida
                       </button>

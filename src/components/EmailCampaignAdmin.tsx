@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Send, Loader2, AlertCircle, CheckCircle2, History, Eye, Users } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { toUserErrorMessage } from '../lib/errorMessages';
 
 export const EmailCampaignAdmin = () => {
   const [subject, setSubject] = useState('');
@@ -41,8 +42,9 @@ export const EmailCampaignAdmin = () => {
       if (!response.ok) throw new Error('Falha ao enviar campanha');
       
       setFeedback({ type: 'success', text: isTest ? 'Email de teste enviado com sucesso!' : 'Campanha enviada com sucesso!' });
-    } catch (err: any) {
-      setFeedback({ type: 'error', text: err.message });
+    } catch (err: unknown) {
+      console.warn('Erro ao enviar campanha:', err);
+      setFeedback({ type: 'error', text: toUserErrorMessage(err, 'Não foi possível enviar a campanha. Tenta novamente.') });
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ export const EmailCampaignAdmin = () => {
         <button onClick={() => handleSend(true)} disabled={loading} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 cursor-pointer">
           <Eye className="w-4 h-4"/> Enviar Teste
         </button>
-        <button onClick={() => handleSend(false)} disabled={loading} className="flex-1 bg-[#0F4C9C] hover:bg-blue-900 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 cursor-pointer">
+        <button onClick={() => handleSend(false)} disabled={loading} className="flex-1 bg-[#D4AF37] hover:bg-blue-900 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 cursor-pointer">
           {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4"/>} Enviar Campanha
         </button>
       </div>

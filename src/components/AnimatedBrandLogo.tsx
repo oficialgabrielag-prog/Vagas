@@ -11,7 +11,7 @@ interface AnimatedBrandLogoProps {
 export const AnimatedBrandLogo: React.FC<AnimatedBrandLogoProps> = ({
   mode = 'periodic',
   size = 'md',
-  textColor = '#0F4C9C',
+  textColor = '#D4AF37',
   goldColor = '#FFC20E',
   className = ''
 }) => {

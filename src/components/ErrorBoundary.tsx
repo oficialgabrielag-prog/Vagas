@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <h2 className="text-xl font-bold text-slate-800">Algo correu mal nesta secção.</h2>
           <p className="text-sm text-slate-500 mt-2">Os seus dados permanecem seguros.</p>
           <button 
-            className="mt-4 bg-[#0F4C9C] text-white px-4 py-2 rounded-lg text-sm"
+            className="mt-4 bg-[#D4AF37] text-white px-4 py-2 rounded-lg text-sm"
             onClick={() => window.location.reload()}
           >
             Recarregar Página

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, CommunityPost, FollowerItem } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { uploadToCloudinary } from '../lib/cloudinary';
 import { MediaViewer } from './MediaViewer';
 import { EditarPerfilCandidato } from './EditarPerfilCandidato';
@@ -96,7 +97,7 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
       const url = await uploadToCloudinary(file);
       setPostImage(url);
     } catch {
-      alert('Erro ao carregar imagem da publicação.');
+      alert('Não foi possível carregar a imagem da publicação.');
     } finally {
       setUploading(false);
     }
@@ -121,8 +122,9 @@ export const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({
       setPostContent('');
       setPostImage('');
       onPostCreated();
-    } catch (err: any) {
-      alert(err.message || 'Erro ao publicar no servidor.');
+    } catch (err: unknown) {
+      console.warn('Erro ao publicar no perfil:', err);
+      alert(toUserErrorMessage(err, 'Não foi possível concluir a publicação. Tenta novamente.'));
     } finally {
       setUploading(false);
     }

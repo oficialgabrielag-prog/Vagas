@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, MapPin, Phone, Mail, Globe, MessageCircle, Briefcase, ShoppingBag, Plus, Edit3, Trash2, Camera, Users, FileText, CheckCircle2, AlertCircle, X, Power, Award, CreditCard, Bell, Search, Filter, Star, ChevronRight, RefreshCw } from 'lucide-react';
 import { UserProfile, Job, MarketplaceProduct, CommunityPost, JobApplication, CUNENE_MUNICIPALITIES, JOB_CATEGORIES, FollowerItem, CompanyRating, ExamAttempt } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { supabase } from '../lib/supabase';
 import { uploadToCloudinary, cleanDocumentUrl } from '../lib/cloudinary';
 import { ImageUploader } from './ImageUploader';
@@ -162,7 +163,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
         }
       } catch (err) {
         if (isMounted) {
-          setApplicationsError('Não foi possível carregar candidaturas do servidor.');
+          setApplicationsError('Não foi possível carregar as candidaturas. Tenta novamente.');
           console.warn('Erro ao carregar candidaturas:', err);
         }
       } finally {
@@ -318,8 +319,9 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       onPostCreated();
       setSuccessMessage('Comunicado empresarial publicado no feed!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao publicar comunicado.');
+    } catch (err: unknown) {
+      console.warn('Erro ao publicar comunicado:', err);
+      setErrorMessage(toUserErrorMessage(err, 'Não foi possível publicar o comunicado. Tenta novamente.'));
     } finally {
       setPublishingPost(false);
     }
@@ -482,7 +484,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
     <div className="max-w-6xl mx-auto space-y-6 pb-20 text-[#172033]">
       {/* Header Banner */}
       <div className="bg-white rounded-3xl border border-[#E6EAF0] shadow-xs overflow-hidden">
-        <div className="h-40 sm:h-52 bg-gradient-to-r from-[#244F9A] to-[#193B70] relative">
+        <div className="h-40 sm:h-52 bg-gradient-to-r from-[#D4AF37] to-[#F5D77A] relative">
           {company?.cover_url ? (
             <img src={company.cover_url} alt="Capa da Empresa" className="w-full h-full object-cover opacity-85" />
           ) : (
@@ -499,19 +501,19 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 {company?.logo_url ? (
                   <img src={company.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                 ) : (
-                  <div className="w-full h-full bg-[#244F9A] text-white rounded-xl flex items-center justify-center font-bold text-3xl">
+                  <div className="w-full h-full bg-[#D4AF37] text-white rounded-xl flex items-center justify-center font-bold text-3xl">
                     {(company?.name || companyName).charAt(0)}
                   </div>
                 )}
               </div>
               <div>
                 <div className="inline-flex items-center gap-1.5 bg-[#F5B91B]/20 text-amber-900 border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-full text-xs font-bold mb-1">
-                  <Building2 className="w-3.5 h-3.5 text-[#244F9A]" /> Empresa Verificada
+                  <Building2 className="w-3.5 h-3.5 text-[#D4AF37]" /> Empresa Verificada
                 </div>
                 <h1 className="text-2xl font-extrabold text-[#172033]">{company?.name || companyName}</h1>
-                <p className="text-xs font-bold text-[#244F9A]">{company?.industry || industry}</p>
+                <p className="text-xs font-bold text-[#D4AF37]">{company?.industry || industry}</p>
                 <p className="text-xs text-slate-500 flex items-center justify-center sm:justify-start gap-1 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#244F9A]" /> {company?.municipality || municipality}, Cunene
+                  <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" /> {company?.municipality || municipality}, Cunene
                   {company?.nif && <span>• NIF: {company.nif}</span>}
                 </p>
 
@@ -526,7 +528,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   </div>
 
                   {StoreService.isUserPartner(currentUser.id).isPartner && (
-                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#244F9A] to-[#193B70] text-[#F5B91B] border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-full text-xs font-black shadow-2xs">
+                    <span className="inline-flex items-center gap-1 bg-gradient-to-r from-[#D4AF37] to-[#F5D77A] text-[#F5B91B] border border-[#F5B91B]/40 px-2.5 py-0.5 rounded-full text-xs font-black shadow-2xs">
                       <Award className="w-3.5 h-3.5 text-[#F5B91B]" />
                       <span>🤝 {StoreService.isUserPartner(currentUser.id).partner?.partner_title || 'Parceiro Oficial'}</span>
                     </span>
@@ -538,7 +540,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setIsFollowersModalOpen(true)}
-                className="bg-blue-50 hover:bg-blue-100 text-[#244F9A] font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 border border-blue-100 cursor-pointer shadow-2xs"
+                className="bg-blue-50 hover:bg-blue-100 text-[#D4AF37] font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5 border border-blue-100 cursor-pointer shadow-2xs"
                 title="Ver quem seguiu a minha empresa"
               >
                 <Users className="w-4 h-4 text-[#F5B91B]" />
@@ -553,7 +555,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               </button>
               <button
                 onClick={onOpenNewJob}
-                className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Publicar Vaga</span>
@@ -581,7 +583,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'dashboard' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'dashboard' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             Início
@@ -589,7 +591,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('jobs')}
             className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'jobs' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'jobs' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             <Briefcase className="w-4 h-4" /> Minhas Vagas ({myJobs.length})
@@ -597,7 +599,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('applications')}
             className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'applications' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'applications' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             <Users className="w-4 h-4" /> Candidaturas ({receivedAppsCount})
@@ -605,7 +607,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('store')}
             className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'store' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'store' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             <ShoppingBag className="w-4 h-4" /> Loja ({myProducts.length})
@@ -613,7 +615,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('profile')}
             className={`py-3.5 mr-6 border-b-2 transition whitespace-nowrap cursor-pointer ${
-              activeTab === 'profile' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'profile' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             Perfil
@@ -621,7 +623,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <button
             onClick={() => setActiveTab('payments')}
             className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-              activeTab === 'payments' ? 'border-[#244F9A] text-[#244F9A]' : 'border-transparent text-slate-500 hover:text-slate-900'
+              activeTab === 'payments' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
             <CreditCard className="w-4 h-4" /> Configurações
@@ -636,46 +638,46 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div 
               onClick={() => setActiveTab('jobs')}
-              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#D4AF37] transition cursor-pointer flex justify-between items-center group"
             >
               <div>
                 <span className="text-xs font-bold text-slate-400 block mb-1">Vagas publicadas</span>
-                <span className="text-2xl font-black text-[#244F9A]">{activeJobsCount}</span>
+                <span className="text-2xl font-black text-[#D4AF37]">{activeJobsCount}</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#D4AF37] transition" />
             </div>
 
             <div 
               onClick={() => setActiveTab('applications')}
-              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#D4AF37] transition cursor-pointer flex justify-between items-center group"
             >
               <div>
                 <span className="text-xs font-bold text-slate-400 block mb-1">Candidaturas recebidas</span>
-                <span className="text-2xl font-black text-[#244F9A]">{receivedAppsCount}</span>
+                <span className="text-2xl font-black text-[#D4AF37]">{receivedAppsCount}</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#D4AF37] transition" />
             </div>
 
             <div 
               onClick={() => setActiveTab('applications')}
-              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#D4AF37] transition cursor-pointer flex justify-between items-center group"
             >
               <div>
                 <span className="text-xs font-bold text-slate-400 block mb-1">Aprovadas</span>
                 <span className="text-2xl font-black text-emerald-600">{approvedAppsCount}</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#D4AF37] transition" />
             </div>
 
             <div 
               onClick={() => setActiveTab('applications')}
-              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#244F9A] transition cursor-pointer flex justify-between items-center group"
+              className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs hover:border-[#D4AF37] transition cursor-pointer flex justify-between items-center group"
             >
               <div>
                 <span className="text-xs font-bold text-slate-400 block mb-1">Em análise</span>
                 <span className="text-2xl font-black text-amber-600">{pendingAppsCount}</span>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#244F9A] transition" />
+              <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#D4AF37] transition" />
             </div>
           </div>
 
@@ -687,9 +689,9 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               <div className="bg-white p-6 rounded-3xl border border-[#E6EAF0] shadow-2xs space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-extrabold text-[#172033] flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-[#244F9A]" /> Vagas Recentes
+                    <Briefcase className="w-4 h-4 text-[#D4AF37]" /> Vagas Recentes
                   </h3>
-                  <button onClick={() => setActiveTab('jobs')} className="text-xs font-bold text-[#244F9A] hover:underline flex items-center gap-1 cursor-pointer">
+                  <button onClick={() => setActiveTab('jobs')} className="text-xs font-bold text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer">
                     Ver todas <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -697,7 +699,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 {myJobs.length === 0 ? (
                   <div className="text-center py-8 space-y-2">
                     <p className="text-xs text-slate-400">Nenhuma vaga publicada ainda.</p>
-                    <button onClick={onOpenNewJob} className="bg-[#244F9A] text-white font-bold px-4 py-2 rounded-xl text-xs">
+                    <button onClick={onOpenNewJob} className="bg-[#D4AF37] text-white font-bold px-4 py-2 rounded-xl text-xs">
                       + Publicar Primeira Vaga
                     </button>
                   </div>
@@ -707,20 +709,20 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                       <div 
                         key={job.id} 
                         onClick={() => onSelectJob(job)}
-                        className="p-3.5 rounded-2xl bg-slate-50/70 border border-[#E6EAF0] hover:border-[#244F9A] transition flex justify-between items-center cursor-pointer group"
+                        className="p-3.5 rounded-2xl bg-slate-50/70 border border-[#E6EAF0] hover:border-[#D4AF37] transition flex justify-between items-center cursor-pointer group"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-[#244F9A]/10 text-[#244F9A] flex items-center justify-center font-bold shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center font-bold shrink-0">
                             <Briefcase className="w-5 h-5" />
                           </div>
                           <div>
-                            <h4 className="text-xs font-bold text-[#172033] group-hover:text-[#244F9A] transition">{job.title}</h4>
+                            <h4 className="text-xs font-bold text-[#172033] group-hover:text-[#D4AF37] transition">{job.title}</h4>
                             <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                              <MapPin className="w-3 h-3 text-[#244F9A]" /> {job.municipality}, Cunene • <span className={`font-bold ${job.status === 'active' ? 'text-emerald-600' : 'text-slate-500'}`}>{job.status === 'active' ? 'Em aberto' : 'Encerrada'}</span>
+                              <MapPin className="w-3 h-3 text-[#D4AF37]" /> {job.municipality}, Cunene • <span className={`font-bold ${job.status === 'active' ? 'text-emerald-600' : 'text-slate-500'}`}>{job.status === 'active' ? 'Em aberto' : 'Encerrada'}</span>
                             </p>
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#244F9A] transition" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#D4AF37] transition" />
                       </div>
                     ))}
                   </div>
@@ -735,7 +737,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 </div>
                 <button
                   onClick={onOpenNewJob}
-                  className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   <Plus className="w-4 h-4 text-[#F5B91B]" /> Publicar Nova Vaga
                 </button>
@@ -747,7 +749,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                   <button
                     onClick={onOpenNewJob}
-                    className="p-4 bg-[#244F9A] hover:bg-[#193B70] text-white rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer shadow-xs"
+                    className="p-4 bg-[#D4AF37] hover:bg-[#F5D77A] text-white rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer shadow-xs"
                   >
                     <Plus className="w-5 h-5 text-[#F5B91B]" />
                     <span className="text-xs font-bold">Publicar Vaga</span>
@@ -757,7 +759,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     onClick={() => setActiveTab('jobs')}
                     className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
                   >
-                    <Briefcase className="w-5 h-5 text-[#244F9A]" />
+                    <Briefcase className="w-5 h-5 text-[#D4AF37]" />
                     <span className="text-xs font-bold">Gerir Vagas</span>
                   </button>
 
@@ -765,7 +767,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     onClick={() => setActiveTab('applications')}
                     className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
                   >
-                    <Users className="w-5 h-5 text-[#244F9A]" />
+                    <Users className="w-5 h-5 text-[#D4AF37]" />
                     <span className="text-xs font-bold">Ver Candidaturas</span>
                   </button>
 
@@ -773,7 +775,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     onClick={() => setActiveTab('store')}
                     className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer"
                   >
-                    <ShoppingBag className="w-5 h-5 text-[#244F9A]" />
+                    <ShoppingBag className="w-5 h-5 text-[#D4AF37]" />
                     <span className="text-xs font-bold">Gerir Loja</span>
                   </button>
 
@@ -781,7 +783,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     onClick={() => window.dispatchEvent(new CustomEvent('open-notifications'))}
                     className="p-4 bg-slate-50 hover:bg-slate-100 text-[#172033] border border-[#E6EAF0] rounded-2xl flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer col-span-2 sm:col-span-1"
                   >
-                    <Bell className="w-5 h-5 text-[#244F9A]" />
+                    <Bell className="w-5 h-5 text-[#D4AF37]" />
                     <span className="text-xs font-bold">Notificações</span>
                   </button>
                 </div>
@@ -795,7 +797,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   <h3 className="text-sm font-extrabold text-[#172033] flex items-center gap-1.5">
                     <Star className="w-4 h-4 fill-[#F5B91B] text-[#F5B91B]" /> Avaliações da Empresa
                   </h3>
-                  <span className="text-xs font-bold text-[#244F9A]">Ver todas</span>
+                  <span className="text-xs font-bold text-[#D4AF37]">Ver todas</span>
                 </div>
 
                 {totalReviews === 0 ? (
@@ -892,7 +894,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
             </div>
             <button
               onClick={onOpenNewJob}
-              className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Nova Vaga
             </button>
@@ -959,7 +961,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     </button>
                     <button
                       onClick={() => onSelectJob(job)}
-                      className="bg-[#244F9A] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#193B70] cursor-pointer"
+                      className="bg-[#D4AF37] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#F5D77A] cursor-pointer"
                     >
                       Ver Detalhes
                     </button>
@@ -994,7 +996,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-md ${
-                    myProducts.length >= 10 ? 'bg-rose-500 text-white' : 'bg-[#244F9A] text-white'
+                    myProducts.length >= 10 ? 'bg-rose-500 text-white' : 'bg-[#D4AF37] text-white'
                   }`}>
                     {myProducts.length >= 10 ? 'Limite Atingido' : 'Plano Gratuito'}
                   </span>
@@ -1042,7 +1044,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   onOpenNewProduct();
                 }
               }}
-              className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+              className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" /> 
               <span>Adicionar Produto</span>
@@ -1086,7 +1088,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     <div className="p-4 space-y-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">{prod.category}</span>
                       <h4 className="text-sm font-bold text-[#172033] line-clamp-1">{prod.title}</h4>
-                      <p className="text-xs font-black text-[#244F9A]">{prod.price.toLocaleString()} {prod.currency || 'AOA'}</p>
+                      <p className="text-xs font-black text-[#D4AF37]">{prod.price.toLocaleString()} {prod.currency || 'AOA'}</p>
                       <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{prod.description}</p>
                     </div>
                   </div>
@@ -1161,7 +1163,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   }
                 }}
                 disabled={loadingApplications}
-                className="flex items-center gap-1.5 bg-[#244F9A] text-white hover:bg-[#193B70] px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-95"
+                className="flex items-center gap-1.5 bg-[#D4AF37] text-white hover:bg-[#F5D77A] px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-xs active:scale-95"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingApplications ? 'animate-spin' : ''}`} />
                 <span>{loadingApplications ? 'A consultar...' : 'Consultar candidaturas'}</span>
@@ -1175,7 +1177,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     placeholder="Pesquisar candidato..."
                     value={candidateSearchQuery}
                     onChange={e => setCandidateSearchQuery(e.target.value)}
-                    className="pl-9 pr-3 py-2 bg-white rounded-xl border border-[#E6EAF0] text-xs focus:outline-none focus:ring-2 focus:ring-[#244F9A]"
+                    className="pl-9 pr-3 py-2 bg-white rounded-xl border border-[#E6EAF0] text-xs focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                   />
                 </div>
 
@@ -1194,8 +1196,8 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
             {loadingApplications ? (
               <div className="bg-white p-12 text-center rounded-3xl border border-[#E6EAF0] space-y-3">
-                <div className="w-8 h-8 border-4 border-[#244F9A] border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-xs text-slate-500">A carregar candidaturas do servidor...</p>
+                <div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-slate-500">A carregar candidaturas...</p>
               </div>
             ) : applicationsError ? (
               <div className="bg-rose-50 text-rose-700 p-6 rounded-3xl border border-rose-200 text-center space-y-2">
@@ -1205,7 +1207,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   onClick={() => {
                     setLoadingApplications(true);
                     setApplicationsError(null);
-                    StoreService.fetchApplications(currentUser).then(apps => setApplications(apps || [])).catch(() => setApplicationsError('Falha ao consultar.')).finally(() => setLoadingApplications(false));
+                    StoreService.fetchApplications(currentUser).then(apps => setApplications(apps || [])).catch(() => setApplicationsError('Não foi possível atualizar as candidaturas. Tenta novamente.')).finally(() => setLoadingApplications(false));
                   }}
                   className="bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs mt-2 cursor-pointer"
                 >
@@ -1237,7 +1239,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   return (
                     <div key={app.id} className="bg-white p-5 rounded-3xl border border-[#E6EAF0] shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex items-start gap-3.5">
-                        <div className="w-12 h-12 rounded-2xl bg-[#244F9A] text-white flex items-center justify-center font-bold text-lg shrink-0">
+                        <div className="w-12 h-12 rounded-2xl bg-[#D4AF37] text-white flex items-center justify-center font-bold text-lg shrink-0">
                           {candidateName.charAt(0)}
                         </div>
                         <div className="space-y-1">
@@ -1263,7 +1265,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                               </span>
                             ) : null}
                           </div>
-                          <p className="text-xs font-semibold text-[#244F9A]">{candidateProfession} • Vaga: {job?.title || 'Vaga'}</p>
+                          <p className="text-xs font-semibold text-[#D4AF37]">{candidateProfession} • Vaga: {job?.title || 'Vaga'}</p>
                           <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500">
                             <span>📍 {candidateMunicipality}</span>
                             <span>•</span>
@@ -1325,7 +1327,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
             </div>
             <button
               onClick={() => setIsEditingProfile(true)}
-              className="bg-[#244F9A] text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-[#193B70] cursor-pointer"
+              className="bg-[#D4AF37] text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-[#F5D77A] cursor-pointer"
             >
               Editar Dados
             </button>
@@ -1384,7 +1386,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
           {/* Exibição da Foto do Perfil da Empresa na Parte Inferior da Aba Perfil */}
           <div className="bg-slate-50 rounded-2xl border border-slate-200/80 p-6 text-center space-y-4 mt-6">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Logotipo / Foto Oficial da Empresa</h4>
-            <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-2xl ring-4 ring-[#244F9A]/20 overflow-hidden bg-white shadow-md">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-2xl ring-4 ring-[#D4AF37]/20 overflow-hidden bg-white shadow-md">
               {company?.logo_url || logoUrl || currentUser.company_logo || currentUser.avatar_url ? (
                 <img 
                   src={company?.logo_url || logoUrl || currentUser.company_logo || currentUser.avatar_url} 
@@ -1393,14 +1395,14 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                   referrerPolicy="no-referrer" 
                 />
               ) : (
-                <div className="w-full h-full bg-[#193B70] text-white flex items-center justify-center font-black text-3xl">
+                <div className="w-full h-full bg-[#F5D77A] text-white flex items-center justify-center font-black text-3xl">
                   {(company?.name || companyName)?.charAt(0).toUpperCase() || 'E'}
                 </div>
               )}
             </div>
             <div className="space-y-1">
               <p className="text-base font-black text-[#172033]">{company?.name || companyName}</p>
-              <p className="text-xs font-semibold text-[#244F9A]">{company?.industry || industry}</p>
+              <p className="text-xs font-semibold text-[#D4AF37]">{company?.industry || industry}</p>
               <p className="text-xs text-slate-500">{company?.municipality || municipality}, Cunene · NIF: {company?.nif || nif || '000000000'}</p>
             </div>
           </div>
@@ -1440,7 +1442,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                     <span className="text-[10px] text-slate-400">ID: {p.id} • {new Date(p.created_at).toLocaleString('pt-AO')}</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-black text-[#244F9A] block">{p.amount} {p.currency || 'USD'}</span>
+                    <span className="font-black text-[#D4AF37] block">{p.amount} {p.currency || 'USD'}</span>
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">Concluído</span>
                   </div>
                 </div>
@@ -1469,7 +1471,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {editingJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#244F9A] p-4 text-white flex justify-between items-center">
+            <div className="bg-[#D4AF37] p-4 text-white flex justify-between items-center">
               <h3 className="text-base font-bold">Editar Vaga de Emprego</h3>
               <button onClick={() => setEditingJob(null)} className="text-white/80 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
@@ -1563,7 +1565,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#244F9A] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#193B70] cursor-pointer"
+                  className="bg-[#D4AF37] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#F5D77A] cursor-pointer"
                 >
                   Guardar Vaga
                 </button>
@@ -1577,7 +1579,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#244F9A] p-4 text-white flex justify-between items-center">
+            <div className="bg-[#D4AF37] p-4 text-white flex justify-between items-center">
               <h3 className="text-base font-bold">Editar Produto</h3>
               <button onClick={() => setEditingProduct(null)} className="text-white/80 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
@@ -1678,7 +1680,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#244F9A] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#193B70] cursor-pointer"
+                  className="bg-[#D4AF37] text-white px-5 py-2 rounded-xl font-bold hover:bg-[#F5D77A] cursor-pointer"
                 >
                   Guardar Alterações
                 </button>
@@ -1692,7 +1694,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
       {selectedCandidateApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 my-6">
-            <div className="bg-[#244F9A] p-5 text-white flex justify-between items-center">
+            <div className="bg-[#D4AF37] p-5 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-base font-bold">Perfil do Candidato</h3>
                 <p className="text-xs text-slate-200">Detalhes da candidatura recebida</p>
@@ -1704,7 +1706,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
 
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
               <div className="flex items-center gap-3 border-b pb-4 border-slate-100">
-                <div className="w-12 h-12 rounded-full bg-[#244F9A] text-white flex items-center justify-center font-bold text-base">
+                <div className="w-12 h-12 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-base">
                   {selectedCandidateApp.candidate?.full_name.charAt(0) || 'C'}
                 </div>
                 <div>
@@ -1746,7 +1748,7 @@ export const EmployerProfileView: React.FC<EmployerProfileViewProps> = ({
               {selectedCandidateApp.cv_url && (
                 <button
                   onClick={() => setViewingMedia([{ url: selectedCandidateApp.cv_url!, type: 'image', alt: 'Currículo Vitae' }])}
-                  className="w-full bg-[#244F9A] text-white font-bold py-2.5 rounded-xl text-center flex items-center justify-center gap-1.5 hover:bg-[#193B70] cursor-pointer"
+                  className="w-full bg-[#D4AF37] text-white font-bold py-2.5 rounded-xl text-center flex items-center justify-center gap-1.5 hover:bg-[#F5D77A] cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
                   <span>Ver Currículo em Tela Cheia</span>

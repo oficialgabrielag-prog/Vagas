@@ -84,7 +84,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center gap-2 text-[#172033] hover:text-[#244F9A] font-bold text-sm bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition cursor-pointer"
+            className="flex items-center gap-2 text-[#172033] hover:text-[#D4AF37] font-bold text-sm bg-slate-100 hover:bg-slate-200 px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
@@ -96,7 +96,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
           </div>
 
           <div className="w-20 flex justify-end">
-            <span className="bg-blue-50 text-[#193B70] border border-[#244F9A]/20 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
+            <span className="bg-blue-50 text-[#F5D77A] border border-[#D4AF37]/20 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase">
               Candidato
             </span>
           </div>
@@ -109,7 +109,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
           <div className="relative shrink-0">
             <div 
               onClick={handleOpenCoverViewer}
-              className={`h-44 sm:h-64 bg-gradient-to-r from-[#193B70] via-[#244F9A] to-[#123D73] overflow-hidden relative ${
+              className={`h-44 sm:h-64 bg-gradient-to-r from-[#F5D77A] via-[#D4AF37] to-[#123D73] overflow-hidden relative ${
                 coverUrl ? 'cursor-pointer group' : ''
               }`}
             >
@@ -146,7 +146,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                       </div>
                     </>
                   ) : (
-                    <div className="w-full h-full bg-[#193B70] rounded-2xl flex items-center justify-center text-white font-black text-4xl">
+                    <div className="w-full h-full bg-[#F5D77A] rounded-2xl flex items-center justify-center text-white font-black text-4xl">
                       {candidateName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -156,11 +156,11 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                   <h2 className="text-xl sm:text-3xl font-black text-[#172033] leading-tight">
                     {candidateName}
                   </h2>
-                  <p className="text-xs sm:text-base text-[#244F9A] font-bold">
+                  <p className="text-xs sm:text-base text-[#D4AF37] font-bold">
                     {candidate.profession || 'Profissional em Busca de Oportunidades'}
                   </p>
                   <div className="flex items-center gap-1.5 text-xs text-[#64748B] font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-[#193B70]" />
+                    <MapPin className="w-3.5 h-3.5 text-[#F5D77A]" />
                     <span>{candidate.municipality || 'Cunene'}</span>
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                     className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
                       followed
                         ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        : 'bg-[#244F9A] text-white hover:bg-[#193B70]'
+                        : 'bg-[#D4AF37] text-white hover:bg-[#F5D77A]'
                     }`}
                   >
                     {followed ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -201,15 +201,15 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
           {/* Barra de Contadores Reais */}
           <div className="grid grid-cols-3 border-y border-slate-200/80 bg-[#F8FAFC] py-3.5 mt-6 text-center shrink-0">
             <div>
-              <span className="block text-xl font-black text-[#193B70] tabular-nums">{candidatePosts.length}</span>
+              <span className="block text-xl font-black text-[#F5D77A] tabular-nums">{candidatePosts.length}</span>
               <span className="text-xs text-[#64748B] font-semibold">Publicações</span>
             </div>
             <div>
-              <span className="block text-xl font-black text-[#193B70] tabular-nums">{candidateProducts.length}</span>
+              <span className="block text-xl font-black text-[#F5D77A] tabular-nums">{candidateProducts.length}</span>
               <span className="text-xs text-[#64748B] font-semibold">Produtos</span>
             </div>
             <div onClick={() => setIsFollowersModalOpen(true)} className="cursor-pointer hover:opacity-80 transition">
-              <span className="block text-xl font-black text-[#193B70] tabular-nums">{followers.length}</span>
+              <span className="block text-xl font-black text-[#F5D77A] tabular-nums">{followers.length}</span>
               <span className="text-xs text-[#64748B] font-semibold">Seguidores</span>
             </div>
           </div>
@@ -221,7 +221,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
               onClick={() => setActiveTab('profile')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'profile'
-                  ? 'border-[#244F9A] text-[#193B70]'
+                  ? 'border-[#D4AF37] text-[#F5D77A]'
                   : 'border-transparent text-[#64748B] hover:text-[#172033]'
               }`}
             >
@@ -232,7 +232,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
               onClick={() => setActiveTab('products')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'products'
-                  ? 'border-[#244F9A] text-[#193B70]'
+                  ? 'border-[#D4AF37] text-[#F5D77A]'
                   : 'border-transparent text-[#64748B] hover:text-[#172033]'
               }`}
             >
@@ -246,7 +246,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
               onClick={() => setActiveTab('posts')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'posts'
-                  ? 'border-[#244F9A] text-[#193B70]'
+                  ? 'border-[#D4AF37] text-[#F5D77A]'
                   : 'border-transparent text-[#64748B] hover:text-[#172033]'
               }`}
             >
@@ -266,7 +266,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                 {candidate.cv_url ? (
                   <div className="bg-[#F8FAFC] p-5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-blue-100/70 text-[#244F9A] flex items-center justify-center shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-blue-100/70 text-[#D4AF37] flex items-center justify-center shrink-0">
                         <FileText className="w-6 h-6" />
                       </div>
                       <div>
@@ -277,7 +277,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setViewingMedia([{ url: candidate.cv_url!, type: 'image', alt: 'Currículo Vitae' }])}
-                      className="w-full sm:w-auto bg-[#244F9A] hover:bg-[#193B70] text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       <span>Ver Currículo em Tela Cheia</span>
@@ -293,7 +293,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                 {/* Resumo Profissional */}
                 <div className="bg-[#F8FAFC] p-5 rounded-2xl border border-slate-200/80 space-y-2">
                   <h4 className="text-xs font-extrabold text-[#64748B] uppercase tracking-wider flex items-center gap-1.5">
-                    <Briefcase className="w-3.5 h-3.5 text-[#244F9A]" /> Resumo Profissional
+                    <Briefcase className="w-3.5 h-3.5 text-[#D4AF37]" /> Resumo Profissional
                   </h4>
                   <p className="text-xs sm:text-sm text-[#263449] leading-relaxed whitespace-pre-line font-normal">
                     {candidate.bio || 'Sem resumo cadastrado no momento.'}
@@ -339,7 +339,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     {candidate.email && (
                       <div className="flex items-center gap-2.5 text-[#263449]">
-                        <Mail className="w-4 h-4 text-[#244F9A] shrink-0" />
+                        <Mail className="w-4 h-4 text-[#D4AF37] shrink-0" />
                         <span className="truncate">{candidate.email}</span>
                       </div>
                     )}
@@ -383,10 +383,10 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                         </div>
                         <div className="p-3 space-y-1">
                           <span className="text-[10px] text-[#64748B] font-semibold block">{prod.category}</span>
-                          <h5 className="text-xs sm:text-sm font-bold text-[#172033] line-clamp-1 group-hover:text-[#244F9A] transition">
+                          <h5 className="text-xs sm:text-sm font-bold text-[#172033] line-clamp-1 group-hover:text-[#D4AF37] transition">
                             {prod.title}
                           </h5>
-                          <span className="text-xs sm:text-sm font-black text-[#244F9A] block">
+                          <span className="text-xs sm:text-sm font-black text-[#D4AF37] block">
                             {prod.price.toLocaleString()} {prod.currency || 'AOA'}
                           </span>
                         </div>
@@ -411,7 +411,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                       className="bg-[#F8FAFC] hover:bg-slate-100 p-5 rounded-2xl border border-slate-200/80 space-y-3 cursor-pointer transition shadow-2xs group"
                     >
                       <div className="flex items-center justify-between text-[11px] text-[#64748B]">
-                        <span className="bg-blue-50 text-[#193B70] border border-[#244F9A]/20 font-bold px-2.5 py-0.5 rounded-lg">
+                        <span className="bg-blue-50 text-[#F5D77A] border border-[#D4AF37]/20 font-bold px-2.5 py-0.5 rounded-lg">
                           {p.category || 'Geral'}
                         </span>
                         <span>{new Date(p.created_at).toLocaleDateString('pt-AO')}</span>
@@ -430,7 +430,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                       <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs text-[#64748B] font-semibold">
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5 font-bold">
-                            <ThumbsUp className="w-4 h-4 text-[#244F9A]" />
+                            <ThumbsUp className="w-4 h-4 text-[#D4AF37]" />
                             {p.likes_count || 0}
                           </span>
                           <span className="flex items-center gap-1.5 font-bold">
@@ -438,7 +438,7 @@ export const CandidatePublicModal: React.FC<CandidatePublicModalProps> = ({
                             {p.comments_count || 0}
                           </span>
                         </div>
-                        <span className="text-[#244F9A] font-bold group-hover:underline flex items-center gap-1">
+                        <span className="text-[#D4AF37] font-bold group-hover:underline flex items-center gap-1">
                           <Maximize2 className="w-3.5 h-3.5" /> Ver em tela cheia
                         </span>
                       </div>

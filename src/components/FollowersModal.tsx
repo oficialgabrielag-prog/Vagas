@@ -23,7 +23,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn select-none">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[85vh] animate-scaleUp">
         {/* Header */}
-        <div className="bg-[#0F4C9C] p-4 sm:p-5 text-white flex items-center justify-between shrink-0">
+        <div className="bg-[#D4AF37] p-4 sm:p-5 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white">
               <Users className="w-5 h-5 text-[#FFC20E]" />
@@ -60,7 +60,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
               return (
                 <div key={f.id + f.created_at} className="pt-3 first:pt-0 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center font-black text-xs text-[#0F4C9C]">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center font-black text-xs text-[#D4AF37]">
                       {f.avatar_url ? (
                         <img src={f.avatar_url} alt={f.name} className="w-full h-full object-cover" />
                       ) : (
@@ -71,7 +71,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                       <div className="flex items-center gap-1.5">
                         <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">{f.name}</h4>
                         <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                          isEmployer ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-[#0F4C9C]'
+                          isEmployer ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-[#D4AF37]'
                         }`}>
                           {isEmployer ? 'Empresa' : 'Candidato'}
                         </span>
@@ -109,7 +109,7 @@ export const FollowersModal: React.FC<FollowersModalProps> = ({
                           created_at: f.created_at
                         });
                       }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-[#0F4C9C] hover:text-white text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-[#D4AF37] hover:text-white text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer shrink-0"
                     >
                       Ver Perfil
                     </button>

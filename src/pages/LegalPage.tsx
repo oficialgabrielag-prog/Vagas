@@ -15,7 +15,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
       <div className="flex items-center justify-between">
         <button
           onClick={() => setCurrentTab('home')}
-          className="inline-flex items-center gap-2 text-xs font-bold text-[#0F4C9C] bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs font-bold text-[#D4AF37] bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Voltar ao Início</span>
@@ -25,7 +25,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
           <button
             onClick={() => setActiveTab('terms')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'terms' ? 'bg-[#0F4C9C] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'terms' ? 'bg-[#D4AF37] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -34,7 +34,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
           <button
             onClick={() => setActiveTab('privacy')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'privacy' ? 'bg-[#0F4C9C] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'privacy' ? 'bg-[#D4AF37] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
@@ -44,7 +44,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
       </div>
 
       {/* Header Banner */}
-      <div className="bg-[#0F4C9C] text-white p-8 rounded-3xl shadow-sm space-y-3 relative overflow-hidden">
+      <div className="bg-[#D4AF37] text-white p-8 rounded-3xl shadow-sm space-y-3 relative overflow-hidden">
         <div className="absolute right-0 bottom-0 opacity-10 translate-x-4 translate-y-4 pointer-events-none">
           {activeTab === 'terms' ? <FileText className="w-64 h-64" /> : <Shield className="w-64 h-64" />}
         </div>
@@ -72,7 +72,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
           <>
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">1</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">1</span>
                 <span>Aceitação dos Termos</span>
               </h2>
               <p>
@@ -82,7 +82,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">2</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">2</span>
                 <span>Natureza da Plataforma</span>
               </h2>
               <p>
@@ -92,7 +92,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">3</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">3</span>
                 <span>Registo e Contas de Utilizador</span>
               </h2>
               <ul className="space-y-2 pl-4 list-disc text-slate-600">
@@ -104,7 +104,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">4</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">4</span>
                 <span>Responsabilidades das Partes</span>
               </h2>
               <p>
@@ -117,7 +117,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">5</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">5</span>
                 <span>Conduta Proibida</span>
               </h2>
               <p>É expressamente proibido publicar conteúdos ilícitos, discriminatórios, ofensivos, spam, ofertas de emprego falsas ou produtos proibidos no marketplace.</p>
@@ -127,7 +127,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
           <>
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">1</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">1</span>
                 <span>Compromisso com a Privacidade</span>
               </h2>
               <p>
@@ -137,7 +137,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">2</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">2</span>
                 <span>Informações Recolhidas</span>
               </h2>
               <p>Recolhemos dados fornecidos diretamente pelo utilizador durante o registo e utilização da plataforma:</p>
@@ -151,7 +151,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">3</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">3</span>
                 <span>Utilização dos Dados</span>
               </h2>
               <p>Os dados recolhidos são utilizados exclusivamente para:</p>
@@ -165,7 +165,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
 
             <section className="space-y-3">
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center text-xs font-bold">4</span>
+                <span className="w-7 h-7 rounded-xl bg-blue-50 text-[#D4AF37] flex items-center justify-center text-xs font-bold">4</span>
                 <span>Partilha e Segurança de Dados</span>
               </h2>
               <p>
@@ -183,7 +183,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ initialTab = 'terms', setC
           <p className="text-xs text-slate-600">
             Entre em contacto com a nossa equipa de suporte através dos canais oficiais da plataforma no Cunene.
           </p>
-          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs font-bold text-[#0F4C9C]">
+          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs font-bold text-[#D4AF37]">
             <a href="mailto:oficialgabrielag@gmail.com" className="flex items-center gap-1.5 hover:underline">
               <Mail className="w-4 h-4 text-[#FFC20E]" /> oficialgabrielag@gmail.com
             </a>

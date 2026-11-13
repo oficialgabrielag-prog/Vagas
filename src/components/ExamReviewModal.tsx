@@ -76,7 +76,7 @@ export const ExamReviewModal: React.FC<ExamReviewModalProps> = ({
             </div>
             <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-100">
               <span className="text-slate-400 block text-[10px] uppercase font-black">Tempo Gasto</span>
-              <span className="text-2xl font-black text-[#0F4C9C] mt-1 flex items-center gap-1">
+              <span className="text-2xl font-black text-[#D4AF37] mt-1 flex items-center gap-1">
                 <Clock className="w-4 h-4" /> {formatTime(attempt.time_spent_seconds || 0)}
               </span>
             </div>
@@ -117,7 +117,7 @@ export const ExamReviewModal: React.FC<ExamReviewModalProps> = ({
                   {/* Question header */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-[#0F4C9C]">
+                      <span className="text-xs font-black text-[#D4AF37]">
                         {idx + 1}.
                       </span>
                       <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -206,9 +206,9 @@ export const ExamReviewModal: React.FC<ExamReviewModalProps> = ({
 
                   {q.explanation && (
                     <div className="bg-blue-50/60 p-3.5 rounded-2xl border border-blue-100 flex items-start gap-2 text-xs text-blue-900">
-                      <AlertCircle className="w-4 h-4 text-[#0F4C9C] shrink-0 mt-0.5" />
+                      <AlertCircle className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
                       <div>
-                        <strong className="block text-[#0F4C9C] font-bold">Explicação Pedagógica:</strong>
+                        <strong className="block text-[#D4AF37] font-bold">Explicação Pedagógica:</strong>
                         <span>{q.explanation}</span>
                       </div>
                     </div>

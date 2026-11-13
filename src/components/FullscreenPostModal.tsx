@@ -440,7 +440,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white truncate max-w-[170px]">{authorName}</h3>
                 <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md ${
-                  isCompanyPost ? 'bg-[#FFC20E] text-slate-900' : 'bg-[#0F4C9C] text-white'
+                  isCompanyPost ? 'bg-[#FFC20E] text-slate-900' : 'bg-[#D4AF37] text-white'
                 }`}>
                   {isCompanyPost ? 'Empresa' : 'Candidato'}
                 </span>
@@ -650,7 +650,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
             onClick={handleAuthorClick}
             className="flex items-center gap-3 cursor-pointer group"
           >
-            <div className="w-10 h-10 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
+            <div className="w-10 h-10 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-sm overflow-hidden shrink-0">
               {authorAvatar ? (
                 <img src={authorAvatar} alt={authorName} className="w-full h-full object-cover" />
               ) : (
@@ -659,9 +659,9 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#0F4C9C] transition">{authorName}</h3>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#D4AF37] transition">{authorName}</h3>
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md ${
-                  isCompanyPost ? 'bg-[#FFC20E] text-slate-900' : 'bg-[#0F4C9C] text-white'
+                  isCompanyPost ? 'bg-[#FFC20E] text-slate-900' : 'bg-[#D4AF37] text-white'
                 }`}>
                   {isCompanyPost ? 'Empresa' : 'Candidato'}
                 </span>
@@ -725,15 +725,15 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                         if (updated) onPostUpdated(updated);
                       }}
                       className={`w-full relative overflow-hidden rounded-xl border p-3 text-left transition-all ${
-                        hasVoted ? 'border-[#0F4C9C] bg-blue-50/50' : 'border-slate-200 bg-white hover:border-slate-300'
+                        hasVoted ? 'border-[#D4AF37] bg-blue-50/50' : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
                       <div 
-                        className={`absolute inset-y-0 left-0 transition-all duration-700 ${hasVoted ? 'bg-[#0F4C9C]/15' : 'bg-slate-100'}`}
+                        className={`absolute inset-y-0 left-0 transition-all duration-700 ${hasVoted ? 'bg-[#D4AF37]/15' : 'bg-slate-100'}`}
                         style={{ width: `${percentage}%` }}
                       />
                       <div className="relative flex justify-between items-center text-xs">
-                        <span className={`font-bold ${hasVoted ? 'text-[#0F4C9C]' : 'text-slate-700'}`}>{opt.text}</span>
+                        <span className={`font-bold ${hasVoted ? 'text-[#D4AF37]' : 'text-slate-700'}`}>{opt.text}</span>
                         <span className="font-extrabold text-slate-400">{percentage}%</span>
                       </div>
                     </button>
@@ -763,7 +763,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
               <button
                 onClick={() => handleReactionSelect(currentPost.user_reaction || 'like')}
                 className={`w-full py-2 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition hover:bg-slate-100 ${
-                  activeReactionConfig ? 'text-[#0F4C9C]' : 'text-slate-600'
+                  activeReactionConfig ? 'text-[#D4AF37]' : 'text-slate-600'
                 }`}
               >
                 {activeReactionConfig ? (
@@ -802,13 +802,13 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                 }
                 handleShare();
               }}
-              className="py-2 px-3 rounded-2xl flex items-center justify-center gap-1.5 text-xs font-extrabold text-[#0F4C9C] bg-blue-50/80 hover:bg-blue-100 border border-blue-100 transition active:scale-95 cursor-pointer shadow-2xs"
+              className="py-2 px-3 rounded-2xl flex items-center justify-center gap-1.5 text-xs font-extrabold text-[#D4AF37] bg-blue-50/80 hover:bg-blue-100 border border-blue-100 transition active:scale-95 cursor-pointer shadow-2xs"
               title="Partilhar publicação (2026)"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-emerald-600" />
               ) : (
-                <Send className="w-4 h-4 text-[#0F4C9C] transform -rotate-12 shrink-0" />
+                <Send className="w-4 h-4 text-[#D4AF37] transform -rotate-12 shrink-0" />
               )}
               <span>{copied ? 'Copiado' : 'Partilhar'}</span>
             </button>
@@ -847,7 +847,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                               setReplyingTo(comment);
                               commentsInputRef.current?.focus();
                             }}
-                            className="hover:text-[#0F4C9C] transition"
+                            className="hover:text-[#D4AF37] transition"
                           >
                             Responder
                           </button>
@@ -887,7 +887,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
         {/* Comment Input Footer */}
         <div className="p-3 border-t border-slate-200 bg-slate-50 shrink-0">
           {replyingTo && (
-            <div className="flex items-center justify-between text-xs text-[#0F4C9C] bg-blue-50 px-3 py-1.5 rounded-lg mb-2">
+            <div className="flex items-center justify-between text-xs text-[#D4AF37] bg-blue-50 px-3 py-1.5 rounded-lg mb-2">
               <span className="flex items-center gap-1 truncate">
                 <CornerDownRight className="w-3.5 h-3.5 shrink-0" />
                 A responder a <strong>{replyingTo.author_name}</strong>
@@ -906,12 +906,12 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 placeholder={replyingTo ? `Escrever resposta a ${replyingTo.author_name}...` : 'Escreva um comentário...'}
-                className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C]"
+                className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
               />
               <button
                 type="submit"
                 disabled={isSubmitting || !commentText.trim()}
-                className="w-9 h-9 rounded-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white flex items-center justify-center shrink-0 disabled:opacity-40 transition"
+                className="w-9 h-9 rounded-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white flex items-center justify-center shrink-0 disabled:opacity-40 transition"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -920,7 +920,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
             <div className="text-center py-1">
               <button
                 onClick={onOpenAuth}
-                className="text-xs font-bold text-[#0F4C9C] hover:underline"
+                className="text-xs font-bold text-[#D4AF37] hover:underline"
               >
                 Inicie sessão para deixar um comentário
               </button>
@@ -944,7 +944,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
             {/* Sheet Handle & Header */}
             <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-[#0F4C9C]" />
+                <MessageSquare className="w-5 h-5 text-[#D4AF37]" />
                 <h3 className="text-sm font-black text-slate-900">
                   Comentários ({totalCommentsCount})
                 </h3>
@@ -987,7 +987,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                               onClick={() => {
                                 setReplyingTo(comment);
                               }}
-                              className="hover:text-[#0F4C9C] transition"
+                              className="hover:text-[#D4AF37] transition"
                             >
                               Responder
                             </button>
@@ -1026,7 +1026,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
             {/* Comment Input in Sheet */}
             <div className="p-3 border-t border-slate-200 bg-slate-50 shrink-0">
               {replyingTo && (
-                <div className="flex items-center justify-between text-xs text-[#0F4C9C] bg-blue-50 px-3 py-1.5 rounded-lg mb-2">
+                <div className="flex items-center justify-between text-xs text-[#D4AF37] bg-blue-50 px-3 py-1.5 rounded-lg mb-2">
                   <span className="flex items-center gap-1 truncate">
                     <CornerDownRight className="w-3.5 h-3.5 shrink-0" />
                     A responder a <strong>{replyingTo.author_name}</strong>
@@ -1044,12 +1044,12 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
                     placeholder={replyingTo ? `Escrever resposta a ${replyingTo.author_name}...` : 'Escreva um comentário...'}
-                    className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0F4C9C] focus:ring-1 focus:ring-[#0F4C9C]"
+                    className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
                   />
                   <button
                     type="submit"
                     disabled={isSubmitting || !commentText.trim()}
-                    className="w-9 h-9 rounded-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white flex items-center justify-center shrink-0 disabled:opacity-40 transition"
+                    className="w-9 h-9 rounded-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white flex items-center justify-center shrink-0 disabled:opacity-40 transition"
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -1061,7 +1061,7 @@ export const FullscreenPostModal: React.FC<FullscreenPostModalProps> = ({
                       setShowCommentsSheet(false);
                       if (onOpenAuth) onOpenAuth();
                     }}
-                    className="text-xs font-bold text-[#0F4C9C] hover:underline"
+                    className="text-xs font-bold text-[#D4AF37] hover:underline"
                   >
                     Inicie sessão para comentar
                   </button>

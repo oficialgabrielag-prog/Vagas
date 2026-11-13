@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { 
   isPushNotificationSupported, 
   getPushNotificationPermission, 
@@ -321,7 +322,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
       }, 700);
     } catch (err) {
       console.error('Save error:', err);
-      setStatusMessage({ type: 'error', text: err.message || 'Erro ao guardar dados da empresa.' });
+      setStatusMessage({ type: 'error', text: toUserErrorMessage(err, 'Não foi possível guardar os dados da empresa. Tenta novamente.') });
     } finally {
       setSaving(false);
     }
@@ -381,7 +382,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
             type="button"
             onClick={handleSaveProfile}
             disabled={saving}
-            className="px-5 py-2 bg-[#244F9A] hover:bg-[#193B70] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
+            className="px-5 py-2 bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-sm flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin text-[#F5B91B]" /> : <Save className="w-4 h-4" />}
             <span>{saving ? 'A guardar...' : 'Guardar Alterações'}</span>
@@ -406,7 +407,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
         {/* Visual Identity Hero Card */}
         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs">
           {/* Cover Photo */}
-          <div className="h-40 sm:h-52 w-full bg-gradient-to-r from-[#244F9A] to-slate-900 relative group overflow-hidden">
+          <div className="h-40 sm:h-52 w-full bg-gradient-to-r from-[#D4AF37] to-slate-900 relative group overflow-hidden">
             {coverUrl ? (
               <img src={coverUrl} alt="Capa da Empresa" className="w-full h-full object-cover" />
             ) : (
@@ -448,7 +449,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={uploadingLogo}
-                  className="absolute bottom-1 right-1 p-2 bg-[#244F9A] hover:bg-[#193B70] text-white rounded-xl shadow-md transition cursor-pointer"
+                  className="absolute bottom-1 right-1 p-2 bg-[#D4AF37] hover:bg-[#F5D77A] text-white rounded-xl shadow-md transition cursor-pointer"
                   title="Alterar logótipo"
                 >
                   <Camera className="w-3.5 h-3.5" />
@@ -476,7 +477,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
           {/* 1. Dados Institucionais */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Building2 className="w-4 h-4 text-[#244F9A]" />
+              <Building2 className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Informações da Empresa
               </h3>
@@ -493,7 +494,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={companyName}
                   onChange={e => setCompanyName(e.target.value)}
                   placeholder="Ex: Agro-Pecuária Cunene Viva"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -506,7 +507,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={nif}
                   onChange={e => setNif(e.target.value)}
                   placeholder="Ex: 5000123456"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -517,7 +518,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                 <select
                   value={industry}
                   onChange={e => setIndustry(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 >
                   <option value="Agricultura & Pecuária">Agricultura & Pecuária</option>
                   <option value="Comércio & Serviços">Comércio & Serviços</option>
@@ -540,7 +541,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                 <select
                   value={municipality}
                   onChange={e => setMunicipality(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 >
                   <option value="Ondjiva">Ondjiva (Cuanhama)</option>
                   <option value="Namacunde">Namacunde (Santa Clara)</option>
@@ -556,7 +557,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
           {/* 2. Contactos e Localização */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Phone className="w-4 h-4 text-[#244F9A]" />
+              <Phone className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Canais de Contacto e Atendimento
               </h3>
@@ -572,7 +573,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="Ex: +244 923 000 000"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -585,7 +586,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={whatsapp}
                   onChange={e => setWhatsapp(e.target.value)}
                   placeholder="Ex: +244 931 000 000"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -598,7 +599,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Ex: contacto@empresa.ao"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
 
@@ -611,7 +612,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                   value={website}
                   onChange={e => setWebsite(e.target.value)}
                   placeholder="https://suaempresa.ao"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
                 />
               </div>
             </div>
@@ -620,7 +621,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
           {/* 3. Apresentação & Serviços */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <FileText className="w-4 h-4 text-[#244F9A]" />
+              <FileText className="w-4 h-4 text-[#D4AF37]" />
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                 Biografia e Serviços da Empresa
               </h3>
@@ -635,7 +636,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Descreva a história da empresa, missão, principais atividades no Cunene e oportunidades que oferece aos candidatos..."
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:border-[#244F9A] focus:bg-white transition resize-none leading-relaxed"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:border-[#D4AF37] focus:bg-white transition resize-none leading-relaxed"
               />
             </div>
 
@@ -648,7 +649,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                 value={servicesInput}
                 onChange={e => setServicesInput(e.target.value)}
                 placeholder="Ex: Fornecimento de Materiais, Fretes, Despacho Aduaneiro, Consultoria"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#244F9A] focus:bg-white transition"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#D4AF37] focus:bg-white transition"
               />
             </div>
           </div>
@@ -657,7 +658,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
           <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-2xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#244F9A]" />
+                <Bell className="w-4 h-4 text-[#D4AF37]" />
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
                   Notificações Push Nativas do Navegador
                 </h3>
@@ -682,7 +683,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
                 <button
                   type="button"
                   onClick={handleTogglePush}
-                  className="bg-[#244F9A] hover:bg-[#193B70] text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
                 >
                   <Bell className="w-4 h-4 text-[#F5B91B]" />
                   <span>Ativar Notificações Push Nativas</span>
@@ -712,7 +713,7 @@ export const EditarPerfilEmpresa = ({ currentUser: initialUser, isOpen, onClose,
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-[#244F9A] hover:bg-[#193B70] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-md flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
+              className="px-6 py-2.5 bg-[#D4AF37] hover:bg-[#F5D77A] text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-md flex items-center gap-2 disabled:opacity-60 cursor-pointer active:scale-95"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin text-[#F5B91B]" /> : <Save className="w-4 h-4" />}
               <span>{saving ? 'A guardar perfil...' : 'Guardar Todas as Alterações'}</span>

@@ -19,7 +19,7 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
         
         {/* Apoiando o Futuro do Cunene */}
         <div className="text-center space-y-1.5 max-w-lg mx-auto">
-          <span className="text-[10px] uppercase tracking-widest font-bold text-[#0F4C9C]">
+          <span className="text-[10px] uppercase tracking-widest font-bold text-[#D4AF37]">
             Cunene
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
@@ -34,7 +34,7 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
         {partners.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#0F4C9C]" /> Parceiros Oficiais
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> Parceiros Oficiais
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {partners.map(partner => {
@@ -53,7 +53,7 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
                     }}
                     className="flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-slate-50 transition cursor-pointer select-none group border border-slate-100"
                   >
-                    <div className="w-9 h-9 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                    <div className="w-9 h-9 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
                       {displayAvatar ? (
                         <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
                       ) : (
@@ -62,7 +62,7 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#0F4C9C] transition truncate">
+                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#D4AF37] transition truncate">
                           {displayName}
                         </h4>
                       </div>
@@ -78,7 +78,7 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
         {/* Tecido Empresarial Registado */}
         <div className="space-y-3 pt-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-[#0F4C9C]" /> Empresas ({allCompanies.length})
+            <Building2 className="w-4 h-4 text-[#D4AF37]" /> Empresas ({allCompanies.length})
           </h3>
           {allCompanies.length === 0 ? (
             <p className="text-xs text-slate-400">Nenhuma empresa registada.</p>
@@ -97,14 +97,14 @@ export const HomePartners: React.FC<HomePartnersProps> = ({ companies = [], onSe
                     }}
                     className="flex flex-col items-center text-center p-2.5 rounded-xl hover:bg-slate-50 transition cursor-pointer group border border-slate-100/80"
                   >
-                    <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs mb-1.5 overflow-hidden shrink-0 group-hover:bg-[#0F4C9C] group-hover:text-white transition">
+                    <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs mb-1.5 overflow-hidden shrink-0 group-hover:bg-[#D4AF37] group-hover:text-white transition">
                       {logo ? (
                         <img src={logo} alt={name} className="w-full h-full object-cover" />
                       ) : (
                         name.charAt(0)
                       )}
                     </div>
-                    <h5 className="text-xs font-bold text-slate-800 group-hover:text-[#0F4C9C] transition truncate w-full">
+                    <h5 className="text-xs font-bold text-slate-800 group-hover:text-[#D4AF37] transition truncate w-full">
                       {name}
                     </h5>
                     <span className="text-[10px] text-slate-400 truncate w-full">{mun}</span>

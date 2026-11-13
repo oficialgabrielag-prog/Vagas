@@ -3,6 +3,7 @@ import { User, MapPin, Phone, MessageCircle, Mail, Globe, MessageCircle as Messa
 import { UserProfile, Job, MarketplaceProduct, CommunityPost, CompanyRating } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { MediaViewer } from './MediaViewer';
+import { SeoHelmet } from './SeoHelmet';
 
 interface CompanyPublicModalProps {
   company: UserProfile | null;
@@ -120,13 +121,37 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
 
   return (
     <>
+      <SeoHelmet
+        title={`${companyName} — Perfil de Empresa no Cunene`}
+        description={
+          company.bio
+            ? `${companyName} (${company.industry || 'Empresa'} em ${company.municipality || 'Ondjiva'}): ${company.bio.slice(0, 120)}`
+            : `${companyName} — ${company.industry || 'Empresa verificada'} em ${company.municipality || 'Cunene'}. ${companyJobs.length} vagas activas e ${companyProducts.length} produtos disponíveis.`
+        }
+        image={displayLogo || coverUrl}
+        type="profile"
+        canonicalPath={`/?empresa=${encodeURIComponent(companyId)}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: companyName,
+          description: company.bio || `${companyName} — Empresa registada no CuneneVagas.`,
+          ...(displayLogo ? { logo: displayLogo } : {}),
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: company.municipality || 'Ondjiva',
+            addressRegion: 'Cunene',
+            addressCountry: 'AO'
+          }
+        }}
+      />
       {/* TELA ÚNICA: Perfil completo da empresa com navegação limpa */}
       <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col overflow-y-auto animate-fadeIn select-text">
         {/* Top Navbar da Tela Única */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shrink-0 shadow-2xs">
           <button
             onClick={onClose}
-            className="flex items-center gap-2 text-slate-700 hover:text-[#244F9A] font-bold text-sm bg-slate-100 hover:bg-blue-50 px-3.5 py-2 rounded-xl transition cursor-pointer"
+            className="flex items-center gap-2 text-slate-700 hover:text-[#D4AF37] font-bold text-sm bg-slate-100 hover:bg-blue-50 px-3.5 py-2 rounded-xl transition cursor-pointer"
           >
             <span className="material-symbols-outlined text-lg">add_box</span>
             <span>Voltar</span>
@@ -138,7 +163,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
           </div>
 
           <div className="w-16 flex justify-end">
-            <span className="bg-blue-100 text-[#244F9A] text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+            <span className="bg-blue-100 text-[#D4AF37] text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
               Empresa
             </span>
           </div>
@@ -151,7 +176,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
           <div className="relative shrink-0">
             <div 
               onClick={handleOpenCoverViewer}
-              className={`h-44 sm:h-64 bg-gradient-to-r from-[#244F9A] via-slate-900 to-slate-950 overflow-hidden relative ${
+              className={`h-44 sm:h-64 bg-gradient-to-r from-[#D4AF37] via-slate-900 to-slate-950 overflow-hidden relative ${
                 coverUrl ? 'cursor-pointer group' : ''
               }`}
             >
@@ -165,7 +190,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                   </div>
                 </>
               ) : (
-                <div className="w-full h-full bg-[#244F9A]/90 flex items-center justify-center text-white/20">
+                <div className="w-full h-full bg-[#D4AF37]/90 flex items-center justify-center text-white/20">
                   <Building2 className="w-28 h-28" />
                 </div>
               )}
@@ -188,7 +213,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       </div>
                     </>
                   ) : (
-                    <div className="w-full h-full bg-[#244F9A] rounded-2xl flex items-center justify-center text-white font-black text-4xl">
+                    <div className="w-full h-full bg-[#D4AF37] rounded-2xl flex items-center justify-center text-white font-black text-4xl">
                       {companyName.charAt(0)}
                     </div>
                   )}
@@ -204,11 +229,11 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-600 font-semibold">
-                    <span className="bg-blue-50 text-[#244F9A] px-2.5 py-0.5 rounded-full font-bold">
+                    <span className="bg-blue-50 text-[#D4AF37] px-2.5 py-0.5 rounded-full font-bold">
                       {company.industry || 'Comércio & Serviços'}
                     </span>
                     <span className="flex items-center gap-1 text-slate-500">
-                      <MapPin className="w-3.5 h-3.5 text-[#244F9A]" />
+                      <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
                       {company.municipality || 'Cunene'}
                     </span>
                   </div>
@@ -250,7 +275,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                   className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
                     followed
                       ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      : 'bg-[#244F9A] text-white hover:bg-[#193B70]'
+                      : 'bg-[#D4AF37] text-white hover:bg-[#F5D77A]'
                   }`}
                 >
                   {followed ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -273,15 +298,15 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
           {/* Barra de Contadores Reais */}
           <div className="grid grid-cols-3 border-y border-slate-100 bg-slate-50/70 py-3.5 mt-6 text-center shrink-0">
             <div onClick={() => setActiveTab('jobs')} className="cursor-pointer hover:opacity-80 transition">
-              <span className="block text-xl font-black text-[#244F9A]">{companyJobs.length}</span>
+              <span className="block text-xl font-black text-[#D4AF37]">{companyJobs.length}</span>
               <span className="text-xs text-slate-500 font-bold">Vagas Abertas</span>
             </div>
             <div onClick={() => setActiveTab('store')} className="cursor-pointer hover:opacity-80 transition">
-              <span className="block text-xl font-black text-[#244F9A]">{companyProducts.length}</span>
+              <span className="block text-xl font-black text-[#D4AF37]">{companyProducts.length}</span>
               <span className="text-xs text-slate-500 font-bold">Produtos na Loja</span>
             </div>
             <div onClick={() => setActiveTab('posts')} className="cursor-pointer hover:opacity-80 transition">
-              <span className="block text-xl font-black text-[#244F9A]">{companyPosts.length}</span>
+              <span className="block text-xl font-black text-[#D4AF37]">{companyPosts.length}</span>
               <span className="text-xs text-slate-500 font-bold">Publicações</span>
             </div>
           </div>
@@ -292,7 +317,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
               onClick={() => setActiveTab('overview')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap ${
                 activeTab === 'overview'
-                  ? 'border-[#244F9A] text-[#244F9A]'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -302,12 +327,12 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
               onClick={() => setActiveTab('jobs')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'jobs'
-                  ? 'border-[#244F9A] text-[#244F9A]'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <span>Vagas</span>
-              <span className="bg-[#244F9A]/10 text-[#244F9A] text-[10px] px-2 py-0.5 rounded-full font-black">
+              <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] px-2 py-0.5 rounded-full font-black">
                 {companyJobs.length}
               </span>
             </button>
@@ -315,12 +340,12 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
               onClick={() => setActiveTab('store')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'store'
-                  ? 'border-[#244F9A] text-[#244F9A]'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <span>Loja & Produtos</span>
-              <span className="bg-[#244F9A]/10 text-[#244F9A] text-[10px] px-2 py-0.5 rounded-full font-black">
+              <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] px-2 py-0.5 rounded-full font-black">
                 {companyProducts.length}
               </span>
             </button>
@@ -328,12 +353,12 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
               onClick={() => setActiveTab('posts')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'posts'
-                  ? 'border-[#244F9A] text-[#244F9A]'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <span>Publicações</span>
-              <span className="bg-[#244F9A]/10 text-[#244F9A] text-[10px] px-2 py-0.5 rounded-full font-black">
+              <span className="bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] px-2 py-0.5 rounded-full font-black">
                 {companyPosts.length}
               </span>
             </button>
@@ -341,7 +366,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
               onClick={() => setActiveTab('ratings')}
               className={`py-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'ratings'
-                  ? 'border-[#244F9A] text-[#244F9A]'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -369,7 +394,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
                   {company.industry && (
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
-                      <Briefcase className="w-5 h-5 text-[#244F9A] shrink-0" />
+                      <Briefcase className="w-5 h-5 text-[#D4AF37] shrink-0" />
                       <div>
                         <span className="text-[10px] text-slate-400 block font-semibold">Setor / Indústria</span>
                         <span className="text-slate-800 font-bold">{company.industry}</span>
@@ -379,7 +404,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
 
                   {company.company?.nif && (
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
-                      <Building2 className="w-5 h-5 text-[#244F9A] shrink-0" />
+                      <Building2 className="w-5 h-5 text-[#D4AF37] shrink-0" />
                       <div>
                         <span className="text-[10px] text-slate-400 block font-semibold">NIF</span>
                         <span className="text-slate-800 font-bold">{company.company.nif}</span>
@@ -389,7 +414,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
 
                   {company.email && (
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
-                      <Mail className="w-5 h-5 text-[#244F9A] shrink-0" />
+                      <Mail className="w-5 h-5 text-[#D4AF37] shrink-0" />
                       <div className="min-w-0">
                         <span className="text-[10px] text-slate-400 block font-semibold">E-mail Comercial</span>
                         <span className="text-slate-800 font-bold truncate block">{company.email}</span>
@@ -427,15 +452,15 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100/80 cursor-pointer transition space-y-2.5 shadow-2xs group"
                     >
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#244F9A] transition">{job.title}</h4>
-                        <span className="text-[10px] bg-blue-100 text-[#244F9A] font-black px-2.5 py-0.5 rounded-full">
+                        <h4 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#D4AF37] transition">{job.title}</h4>
+                        <span className="text-[10px] bg-blue-100 text-[#D4AF37] font-black px-2.5 py-0.5 rounded-full">
                           {job.contract_type || 'Tempo Inteiro'}
                         </span>
                       </div>
                       <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">{job.description}</p>
                       <div className="flex items-center justify-between text-xs text-slate-500 pt-1 font-semibold">
                         <span>📍 {job.location || 'Cunene'}</span>
-                        <span className="text-[#244F9A] font-bold group-hover:underline">Ver detalhes e candidatar →</span>
+                        <span className="text-[#D4AF37] font-bold group-hover:underline">Ver detalhes e candidatar →</span>
                       </div>
                     </div>
                   ))
@@ -472,10 +497,10 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                         </div>
                         <div className="p-3 space-y-1">
                           <span className="text-[10px] text-slate-400 font-semibold block">{prod.category}</span>
-                          <h5 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-[#244F9A] transition">
+                          <h5 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-[#D4AF37] transition">
                             {prod.title}
                           </h5>
-                          <span className="text-xs sm:text-sm font-black text-[#244F9A] block">
+                          <span className="text-xs sm:text-sm font-black text-[#D4AF37] block">
                             {prod.price.toLocaleString()} {prod.currency || 'AOA'}
                           </span>
                         </div>
@@ -584,7 +609,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                         value={ratingComment}
                         onChange={e => setRatingComment(e.target.value)}
                         placeholder="Ex: Excelente atendimento, entrega pontual e produtos de alta qualidade em Ondjiva..."
-                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#244F9A] transition"
+                        className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-[#D4AF37] transition"
                       />
                     </div>
 
@@ -592,7 +617,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       {currentUser ? (
                         <button
                           type="submit"
-                          className="bg-[#244F9A] hover:bg-[#193B70] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
+                          className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
                         >
                           <Send className="w-3.5 h-3.5" />
                           <span>Publicar Avaliação</span>
@@ -601,7 +626,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                         <button
                           type="button"
                           onClick={onOpenAuth}
-                          className="bg-[#244F9A] text-white font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer active:scale-95"
+                          className="bg-[#D4AF37] text-white font-bold px-5 py-2.5 rounded-xl text-xs cursor-pointer active:scale-95"
                         >
                           Iniciar Sessão para Avaliar
                         </button>
@@ -625,7 +650,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       <div key={r.id} className="p-4 bg-white rounded-2xl border border-slate-200/80 space-y-2 shadow-2xs">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-[#244F9A] text-white flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-xs overflow-hidden shrink-0">
                               {r.user_avatar ? (
                                 <img src={r.user_avatar} alt={r.user_name} className="w-full h-full object-cover" />
                               ) : (
@@ -677,7 +702,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       className="p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100/90 cursor-pointer transition space-y-3 shadow-xs group"
                     >
                       <div className="flex items-center justify-between text-[11px] text-slate-500">
-                        <span className="bg-blue-100 text-[#244F9A] font-bold px-2.5 py-0.5 rounded-md">
+                        <span className="bg-blue-100 text-[#D4AF37] font-bold px-2.5 py-0.5 rounded-md">
                           {post.category || 'Geral'}
                         </span>
                         <span>{new Date(post.created_at).toLocaleDateString('pt-AO')}</span>
@@ -701,7 +726,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                       <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs text-slate-500 font-semibold">
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5 font-bold">
-                            <ThumbsUp className="w-4 h-4 text-[#244F9A]" />
+                            <ThumbsUp className="w-4 h-4 text-[#D4AF37]" />
                             {post.likes_count || 0}
                           </span>
                           <span className="flex items-center gap-1.5 font-bold">
@@ -709,7 +734,7 @@ export const CompanyPublicModal: React.FC<CompanyPublicModalProps> = ({
                             {post.comments_count || 0}
                           </span>
                         </div>
-                        <span className="text-[#244F9A] font-bold group-hover:underline flex items-center gap-1">
+                        <span className="text-[#D4AF37] font-bold group-hover:underline flex items-center gap-1">
                           <Maximize2 className="w-3.5 h-3.5" /> Ver em tela cheia
                         </span>
                       </div>

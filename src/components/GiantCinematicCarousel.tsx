@@ -50,7 +50,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
     }> = [];
 
     // 1. Jobs with real registered company_logo
-    jobs.filter(j => j.status === 'active' && j.company_logo && j.company_logo.startsWith('http')).slice(0, 4).forEach(j => {
+    jobs.filter(j => j.status === 'active' && j.company_logo && j.company_logo.startsWith('http')).forEach(j => {
       const salaryDisplay = j.salary_min && j.salary_max 
         ? `${j.salary_min.toLocaleString()} ${j.salary_currency || 'AOA'}` 
         : 'Remuneração Atrativa';
@@ -71,7 +71,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
     });
 
     // 2. Marketplace Products with real registered image_url
-    products.filter(p => p.status === 'available' && p.image_url && p.image_url.startsWith('http')).slice(0, 4).forEach(p => {
+    products.filter(p => p.status === 'available' && p.image_url && p.image_url.startsWith('http')).forEach(p => {
       items.push({
         id: `prod-${p.id}`,
         type: 'product',
@@ -88,7 +88,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
     });
 
     // 3. Registered Companies with real registered cover or avatar image
-    companies.filter(c => (c.cover_url && c.cover_url.startsWith('http')) || (c.avatar_url && c.avatar_url.startsWith('http'))).slice(0, 12).forEach(c => {
+    companies.filter(c => (c.cover_url && c.cover_url.startsWith('http')) || (c.avatar_url && c.avatar_url.startsWith('http'))).forEach(c => {
       const compName = typeof c.company === 'string' ? c.company : (c.company_name || c.full_name || 'Empresa Parceira');
       const compImg = (c.cover_url && c.cover_url.startsWith('http')) ? c.cover_url! : c.avatar_url!;
       items.push({
@@ -106,7 +106,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
     });
 
     // 4. Community Posts with real registered image
-    posts.filter(p => p.image_url && p.image_url.startsWith('http')).slice(0, 3).forEach(p => {
+    posts.filter(p => p.image_url && p.image_url.startsWith('http')).forEach(p => {
       items.push({
         id: `post-${p.id}`,
         type: 'news',
@@ -170,7 +170,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
     >
       {/* 
         O FUNDO SÃO OS CONTEÚDOS REAIS QUE PASSAM:
-        Viewport deslizante de ponta a ponta com imagens reais registadas na base de dados.
+        Viewport deslizante de ponta a ponta com imagens reais da plataforma.
       */}
       <div 
         className="flex h-full w-full transition-transform duration-700 ease-out"
@@ -190,7 +190,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
             />
 
             {/* Gradiente Fotográfico Natural para Contraste e Legibilidade */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0B2854] via-[#0B2854]/70 via-50% to-black/30 sm:bg-gradient-to-r sm:from-[#0B2854] sm:via-[#0B2854]/80 sm:via-60% sm:to-black/30" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/85 via-50% to-black/40 sm:bg-gradient-to-r sm:from-[#080808] sm:via-[#080808]/90 sm:via-60% sm:to-black/30" />
 
             {/* CONTEÚDO INTEGRADO DIRETAMENTE NO FUNDO - AMPLIADO E ESTICADO */}
             <div className="relative z-10 p-6 sm:p-9 md:p-12 max-w-3xl text-white space-y-3 sm:space-y-4">
@@ -203,25 +203,25 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
               </div>
 
               {/* Título Principal do Conteúdo */}
-              <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight line-clamp-2 drop-shadow-md group-hover:text-[#FFB900] transition">
+              <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight line-clamp-2 drop-shadow-md group-hover:text-[#F5D77A] transition">
                 {slide.title}
               </h2>
 
               {/* Subtítulo / Descrição Real */}
-              <p className="text-xs sm:text-base text-slate-100 font-medium line-clamp-2 drop-shadow-xs max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-base text-slate-200 font-medium line-clamp-2 drop-shadow-xs max-w-2xl leading-relaxed">
                 {slide.subtitle}
               </p>
 
               {/* Localização e Valor (Preço ou Salário) */}
               <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm pt-1">
                 {slide.location && (
-                  <div className="flex items-center gap-1.5 text-slate-200 font-bold bg-black/50 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-white/10">
-                    <MapPin className="w-4 h-4 text-[#FFB900] shrink-0" />
+                  <div className="flex items-center gap-1.5 text-slate-200 font-bold bg-black/60 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-[#D4AF37]/30">
+                    <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0" />
                     <span>{slide.location}</span>
                   </div>
                 )}
                 {slide.price && (
-                  <div className="flex items-center gap-1.5 text-[#FFB900] font-black bg-black/50 backdrop-blur-xs px-3.5 py-1.5 rounded-xl border border-[#FFB900]/30 shadow-xs">
+                  <div className="flex items-center gap-1.5 text-[#F5D77A] font-black bg-black/60 backdrop-blur-xs px-3.5 py-1.5 rounded-xl border border-[#D4AF37]/40 shadow-xs">
                     <span>{slide.price}</span>
                   </div>
                 )}
@@ -234,7 +234,7 @@ export const GiantCinematicCarousel: React.FC<GiantCinematicCarouselProps> = ({
                     e.stopPropagation();
                     slide.onClick();
                   }}
-                  className="bg-[#FFB900] hover:bg-[#e6a700] text-[#0B2854] font-black px-6 py-3 sm:px-8 sm:py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg flex items-center gap-2.5 cursor-pointer group-hover:translate-x-1"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-black px-6 py-3 sm:px-8 sm:py-3.5 rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-[#D4AF37]/25 flex items-center gap-2.5 cursor-pointer group-hover:translate-x-1"
                 >
                   <span>{slide.actionText}</span>
                   <ArrowRight className="w-4 h-4" />

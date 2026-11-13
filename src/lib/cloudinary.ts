@@ -83,12 +83,12 @@ export const uploadToCloudinary = async (file: File): Promise<string> => {
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
     console.error('Cloudinary upload error details:', errData);
-    throw new Error('Não foi possível enviar a imagem para o Cloudinary. Tente novamente.');
+    throw new Error('Não foi possível carregar a imagem. Tenta novamente.');
   }
 
   const data = await response.json();
   if (!data.secure_url) {
-    throw new Error('Resposta inválida do servidor de imagens.');
+    throw new Error('Não foi possível processar a imagem. Tenta novamente.');
   }
 
   return data.secure_url;
@@ -129,7 +129,7 @@ export const uploadDocumentToCloudinary = async (file: File): Promise<string> =>
 
   const data = await response.json();
   if (!data.secure_url) {
-    throw new Error('Resposta inválida do servidor de ficheiros.');
+    throw new Error('Não foi possível carregar o ficheiro. Tenta novamente.');
   }
 
   return data.secure_url;

@@ -190,7 +190,7 @@ export const ProdutoDetalhe = ({
                 onClose();
                 if (onOpenAuth) onOpenAuth();
               }}
-              className="px-5 py-2.5 bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold text-xs rounded-xl transition shadow-sm"
+              className="px-5 py-2.5 bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold text-xs rounded-xl transition shadow-sm"
             >
               Fazer Login
             </button>

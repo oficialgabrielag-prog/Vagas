@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { Users, ThumbsUp, MessageSquare, Send, Image as ImageIcon, Trash2, Tag, Building2, User, Maximize2, BarChart3, Share2, AlertCircle, Plus, X, Heart, Bookmark, CheckCircle2, MoreHorizontal, MoreVertical } from 'lucide-react';
 import { CommunityPost, UserProfile, COMMUNITY_CATEGORIES, PostReactionType } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 import { uploadToCloudinary } from '../lib/cloudinary';
 import { supabase } from '../lib/supabase';
 import { ImageUploader } from '../components/ImageUploader';
 import { VerticalReactionsPicker, REACTIONS_CONFIG } from '../components/VerticalReactionsPicker';
 import { soundEffects } from '../lib/soundEffects';
+import { useLazyRenderList } from '../lib/useLazyRenderList';
+import { useCommunityFeed } from '../lib/useCommunityFeed';
 
 function formatTimeAgo(dateString: string): string {
   try {
@@ -124,10 +127,24 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
     }
   };
 
-  // Use o prop 'posts' do App.tsx como fonte de verdade
-  const filteredPosts = posts.filter(p => {
+  const { posts: feedPosts, refresh: refreshFeed } = useCommunityFeed(supabase);
+  const activePosts = feedPosts.length > 0 ? feedPosts : posts;
+
+  const filteredPosts = activePosts.filter(p => {
     if (selectedCategory === 'Todos') return true;
-    return p.category === selectedCategory;
+    return (p.category || '').toLowerCase() === selectedCategory.toLowerCase();
+  });
+
+  const {
+    visibleItems: visiblePosts,
+    hasMore: hasMorePosts,
+    remainingCount: remainingPostsCount,
+    loadMore: loadMorePosts,
+    sentinelRef: postsSentinelRef
+  } = useLazyRenderList(filteredPosts, {
+    initialCount: 10,
+    batchSize: 10,
+    resetKey: selectedCategory
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +155,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
       const url = await uploadToCloudinary(file);
       setImageUrl(url);
     } catch {
-      alert('Erro ao carregar imagem.');
+      alert('Não foi possível carregar a imagem. Tenta novamente.');
     } finally {
       setUploading(false);
     }
@@ -146,6 +163,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploading) return; // Prevent duplicate submissions
+
     if (!currentUser) {
       if (onOpenAuth) onOpenAuth();
       return;
@@ -154,6 +173,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
 
     setUploading(true);
     try {
+      // 1. Obter e validar a sessão activa do Supabase Auth
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        if (onOpenAuth) onOpenAuth();
+        throw new Error('A tua sessão expirou. Inicia sessão novamente.');
+      }
+
       const isEmployer = currentUser.role === 'employer';
       const authorName = isEmployer
         ? (currentUser.company?.name || currentUser.company_name || currentUser.full_name)
@@ -163,10 +189,10 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
         : currentUser.avatar_url;
 
       const cleanCompanyId = isEmployer 
-        ? (currentUser.company?.id && !currentUser.company.id.startsWith('comp-') ? currentUser.company.id : currentUser.id)
-        : undefined;
+        ? (currentUser.company?.id && !currentUser.company.id.startsWith('comp-') ? currentUser.company.id : null)
+        : null;
 
-      let pollData;
+      let pollData = null;
       if (showPollEditor && pollOptions.filter(o => o.trim()).length >= 2) {
         pollData = {
           options: pollOptions.filter(o => o.trim()).map(text => ({
@@ -178,30 +204,39 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
         };
       }
 
+      // 2. Inserção rigorosa na tabela community_posts com author_id UUID obrigatório
       const { data, error: postError } = await supabase
         .from('community_posts')
         .insert({
-          author_id: currentUser.id,
+          author_id: user.id, // UUID real garantido pelo Supabase Auth
           author_type: isEmployer ? 'employer' : 'candidate',
-          author_name: authorName,
+          author_name: authorName || 'Utilizador',
+          author_avatar: authorAvatar || '',
           company_id: cleanCompanyId,
           content: content.trim(),
-          image_url: imageUrl || undefined,
+          image_url: imageUrl || null,
+          poll: pollData,
           category: postCategory
         })
         .select()
         .single();
       
       if (postError) throw postError;
-      
+
+      if (data) {
+        StoreService.cacheLocalPost(data as CommunityPost);
+        void refreshFeed();
+      }
+
       setContent('');
       setImageUrl('');
       setShowPollEditor(false);
       setPollOptions(['', '']);
       soundEffects.playPostPublishedSound();
       onPostCreated();
-    } catch (err: any) {
-      alert(err.message || 'Erro ao publicar. Tente novamente.');
+    } catch (err: unknown) {
+      console.warn('Erro ao publicar no feed:', err);
+      alert(toUserErrorMessage(err, 'Não foi possível publicar. Verifica a tua sessão e tenta novamente.'));
     } finally {
       setUploading(false);
     }
@@ -267,7 +302,6 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
       isConfirm: true,
       onConfirm: () => {
         StoreService.deletePost(postId);
-        onPostCreated();
       }
     });
   };
@@ -357,27 +391,27 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-[var(--bg)] min-h-screen p-3 sm:p-4 space-y-4 pb-24">
-      {/* Header - Native Facebook/TikTok Style Header */}
-      <div className="px-5 py-4 bg-card border border-[#bce3f5] rounded-3xl shadow-2xs space-y-1">
-        <div className="flex items-center gap-2 text-[11px] font-bold text-[#1d5fc4]">
+    <div className="max-w-2xl mx-auto bg-[#080808] min-h-screen px-4 sm:px-6 pt-5 pb-24 text-[var(--text-main)]">
+      {/* Header Editorial */}
+      <div className="pb-4 border-b border-[#D4AF37]/15 space-y-1">
+        <div className="flex items-center gap-2 text-xs text-[#D4AF37] font-semibold">
           <span>Comunidade</span>
-          <span>·</span>
-          <span>Rede Social & Profissional do Cunene</span>
+          <span aria-hidden="true">·</span>
+          <span className="text-[#8e887b] font-normal">Rede Profissional do Cunene</span>
         </div>
-        <h1 className="text-xl sm:text-2xl font-display font-extrabold text-[#16213a] tracking-tight">Feed da Comunidade</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Feed da Comunidade</h1>
       </div>
 
       {/* Category Horizontal Filter Bar */}
-      <div className="px-3 py-2.5 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-card border border-[#bce3f5] rounded-3xl shadow-2xs">
+      <div className="py-3 flex items-center gap-2 overflow-x-auto border-b border-[#D4AF37]/15 scrollbar-none bg-[#080808]">
         {COMMUNITY_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors duration-150 cursor-pointer ${
               selectedCategory === cat
-                ? 'bg-[#14305f] text-white shadow-2xs'
-                : 'bg-white border border-[#bce3f5] text-slate-600 hover:text-slate-900'
+                ? 'bg-[#D4AF37] text-[#080808] gold-cta'
+                : 'bg-[#121212] border border-[#D4AF37]/20 text-[#c4beb0] hover:text-[#F5D77A]'
             }`}
           >
             {cat}
@@ -385,11 +419,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
         ))}
       </div>
 
-      {/* Native Facebook-style Composer */}
+      {/* Composer Editorial */}
       {currentUser ? (
-        <div className="p-4 sm:p-5 border border-[#bce3f5] rounded-3xl space-y-3 bg-card shadow-2xs">
+        <div className="py-4 border-b border-[#D4AF37]/15 space-y-3 bg-transparent">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#0F4C9C] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+            <div className="w-10 h-10 bg-[#D4AF37] text-slate-950 rounded-full flex items-center justify-center font-black text-sm shrink-0 overflow-hidden border border-[#D4AF37]/40">
               {currentUser.role === 'employer' ? (
                 currentUser.company?.logo_url ? (
                   <img src={currentUser.company.logo_url} alt="Logo" className="w-full h-full object-cover" />
@@ -405,11 +439,11 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <span className="font-bold text-slate-900 block text-xs truncate">
+              <span className="font-extrabold text-[#F5D77A] block text-xs truncate">
                 {currentUser.role === 'employer' ? (currentUser.company?.name || currentUser.company_name || currentUser.full_name) : currentUser.full_name}
               </span>
-              <span className={`text-[10px] font-semibold ${
-                currentUser.role === 'employer' ? 'text-amber-700' : 'text-[#0F4C9C]'
+              <span className={`text-[10px] font-bold ${
+                currentUser.role === 'employer' ? 'text-[#D4AF37]' : 'text-amber-400'
               }`}>
                 {currentUser.role === 'employer' ? 'Conta Empresa' : 'Conta Candidato'}
               </span>
@@ -426,7 +460,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                   ? 'No que está a pensar a sua empresa? Publique uma novidade, vaga ou produto...'
                   : 'No que está a pensar? Partilhe uma novidade, dica ou conquista...'
               }
-              className="w-full p-3.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-[#111827] focus:outline-none focus:border-[#0F4C9C] transition resize-none placeholder:text-slate-400"
+              className="w-full p-3.5 rounded-2xl bg-[#1C1811] border border-[#D4AF37]/30 text-white focus:outline-none focus:border-[#D4AF37] transition resize-none placeholder:text-[#BDB29F]"
             />
 
             <ImageUploader
@@ -438,10 +472,10 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
             />
 
             {showPollEditor && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+              <div className="p-3.5 rounded-2xl bg-[#16140F] border border-[#D4AF37]/30 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <BarChart3 className="w-4 h-4 text-[#0F4C9C]" />
+                  <h4 className="text-xs font-bold text-[#F5D77A] flex items-center gap-1.5">
+                    <BarChart3 className="w-4 h-4 text-[#D4AF37]" />
                     Criar Sondagem
                   </h4>
                   <button 
@@ -450,7 +484,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                       setShowPollEditor(false);
                       setPollOptions(['', '']);
                     }}
-                    className="text-slate-400 hover:text-rose-500 p-1"
+                    className="text-[#BDB29F] hover:text-rose-400 p-1"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -467,7 +501,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                           setPollOptions(newOpts);
                         }}
                         placeholder={`Opção ${idx + 1}`}
-                        className="flex-1 bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-[#0F4C9C]"
+                        className="flex-1 bg-[#1C1811] px-3 py-2 rounded-xl border border-[#D4AF37]/30 text-xs text-white focus:ring-1 focus:ring-[#D4AF37]"
                         maxLength={50}
                       />
                       {pollOptions.length > 2 && (
@@ -485,7 +519,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                     <button
                       type="button"
                       onClick={() => setPollOptions([...pollOptions, ''])}
-                      className="text-[11px] font-bold text-[#0F4C9C] flex items-center gap-1 hover:underline cursor-pointer"
+                      className="text-[11px] font-bold text-[#F5D77A] flex items-center gap-1 hover:underline cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Adicionar Opção
                     </button>
@@ -494,12 +528,12 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
               </div>
             )}
 
-            <div className="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-slate-100">
+            <div className="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-[#26241E]">
               <div className="flex items-center gap-2">
                 <select
                   value={postCategory}
                   onChange={e => setPostCategory(e.target.value as any)}
-                  className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold border-none focus:ring-0"
+                  className="bg-[#1C1811] text-[#F5D77A] px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#D4AF37]/30"
                 >
                   <option value="Emprego">Emprego</option>
                   <option value="Negócios">Negócios</option>
@@ -512,7 +546,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPollEditor(!showPollEditor)}
-                  className={`p-2 rounded-xl transition cursor-pointer ${showPollEditor ? 'bg-blue-100 text-[#0F4C9C]' : 'bg-slate-100 text-slate-500 hover:text-[#0F4C9C]'}`}
+                  className={`p-2 rounded-xl transition cursor-pointer ${showPollEditor ? 'bg-[#D4AF37] text-slate-950' : 'bg-[#16140F] text-[#F5D77A] hover:text-white border border-[#D4AF37]/30'}`}
                   title="Criar Sondagem"
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -522,7 +556,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
               <button
                 type="submit"
                 disabled={!content.trim()}
-                className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold px-5 py-2 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95"
+                className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-extrabold px-5 py-2 rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer active:scale-95 gold-cta"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Publicar</span>
@@ -531,74 +565,69 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
           </form>
         </div>
       ) : (
-        <div className="p-4 border-b border-slate-100 text-center space-y-2 bg-white">
-          <p className="text-xs text-slate-600">Inicie sessão para partilhar publicações e interagir com a comunidade.</p>
+        <div className="py-5 border-b border-[#D4AF37]/15 text-center space-y-2.5 bg-transparent">
+          <p className="text-xs text-[#c4beb0]">Inicie sessão para partilhar publicações e interagir com a comunidade.</p>
           <button
             onClick={onOpenAuth}
-            className="bg-[#0F4C9C] text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer active:scale-95"
+            className="bg-[#D4AF37] hover:bg-[#F5D77A] text-slate-950 font-bold px-4 py-2 rounded-lg text-xs cursor-pointer gold-cta"
           >
             Entrar no CuneneVagas
           </button>
         </div>
       )}
 
-      {/* Feed list - Distinct Cards floating over Light Blue Platform Background */}
-      <div className="space-y-4 bg-transparent">
+      {/* Feed list editorial */}
+      <div className="bg-transparent">
         {filteredPosts.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-xs bg-card border border-[#bce3f5] rounded-3xl">
+          <div className="py-16 text-center text-[#8e887b] text-xs">
             Nenhuma publicação nesta categoria ainda.
           </div>
         ) : (
-          filteredPosts.map(post => {
+          visiblePosts.map(post => {
             const authorDisplayName = post.author_name || (post as any).author?.company_name || (post as any).author?.full_name || 'Profissional';
             const authorDisplayAvatar = post.author_avatar || (post as any).author?.avatar_url;
             const isEmpPost = post.author_type === 'employer' || (post as any).post_type === 'employer';
+            const isOverlayOpen =
+              activeReactionPickerPostId === post.id || activeOptionsMenuPostId === post.id;
 
             return (
               <article 
                 key={post.id} 
-                className="bg-card rounded-3xl border border-[#bce3f5] shadow-2xs hover:shadow-xs transition-all py-4 sm:py-5 px-3 sm:px-6 relative overflow-hidden"
+                className={`cv-post cv-lazy-post-item py-5 relative ${isOverlayOpen ? 'is-overlay-open' : ''}`}
               >
                 {/* Post author header */}
-                <div className="px-4 pt-4 pb-2.5 flex justify-between items-center">
+                <div className="pb-2 flex justify-between items-center gap-3">
                   <div 
                     onClick={() => handleAuthorClick(post.author_id, authorDisplayName, authorDisplayAvatar, isEmpPost)}
                     className="flex items-center gap-3 cursor-pointer group hover:opacity-90 transition select-none min-w-0"
                     title={`Ver perfil de ${authorDisplayName}`}
                   >
-                    <div className="relative">
-                      <div className="w-11 h-11 rounded-2xl bg-[#0F4C9C] text-white flex items-center justify-center font-extrabold text-sm shrink-0 overflow-hidden ring-2 ring-blue-500/10 shadow-2xs">
-                        {authorDisplayAvatar ? (
-                          <img src={authorDisplayAvatar} alt={authorDisplayName} className="w-full h-full object-cover" />
-                        ) : (
-                          authorDisplayName.charAt(0)
-                        )}
-                      </div>
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" title="Ativo" />
+                    <div className="w-10 h-10 rounded-full bg-[#16140F] border border-[#D4AF37]/30 text-[#F5D77A] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+                      {authorDisplayAvatar ? (
+                        <img src={authorDisplayAvatar} alt={authorDisplayName} loading="lazy" className="w-full h-full object-cover" />
+                      ) : (
+                        authorDisplayName.charAt(0)
+                      )}
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="text-sm font-extrabold text-slate-950 leading-snug group-hover:text-[#0F4C9C] transition truncate max-w-[200px]">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-sm font-semibold text-[#F5D77A] leading-snug group-hover:text-[#D4AF37] transition truncate max-w-[220px]">
                           {authorDisplayName}
                         </h4>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0F4C9C] shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium mt-0.5">
-                        <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                          isEmpPost ? 'bg-amber-50 text-amber-800 border border-amber-200/60' : 'bg-blue-50 text-[#0F4C9C] border border-blue-200/60'
-                        }`}>
-                          {isEmpPost ? 'Empresa' : 'Candidato'}
-                        </span>
-                        <span aria-hidden="true" className="text-slate-300">·</span>
-                        <span className="text-slate-400 font-semibold">{formatTimeAgo(post.created_at)}</span>
-                        <span aria-hidden="true" className="text-slate-300">·</span>
-                        <span className="text-[#0F4C9C] font-extrabold">{post.category || 'Geral'}</span>
+                      <div className="cv-post-meta flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span className="text-[#d6cba9]">{isEmpPost ? 'Empresa' : 'Candidato'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{formatTimeAgo(post.created_at)}</span>
+                        <span aria-hidden="true">·</span>
+                        <span className="text-[#D4AF37]">{post.category || 'Geral'}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 relative">
+                  <div className="flex items-center gap-1 relative shrink-0">
                     {/* Botão Apagar Rápido */}
                     {checkCanDeletePost(post) && (
                       <button
@@ -606,22 +635,22 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                           e.stopPropagation();
                           handleDeletePost(post.id);
                         }}
-                        className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 flex items-center gap-1 transition rounded-xl text-xs font-bold active:scale-90 cursor-pointer border border-red-200"
+                        className="cv-editorial-btn text-rose-400 hover:text-rose-300 px-2 py-1.5 flex items-center gap-1 text-xs font-medium cursor-pointer"
                         title={StoreService.isAdmin(currentUser) && post.author_id !== currentUser?.id ? "Apagar publicação (Admin)" : "Excluir publicação"}
                       >
-                        <Trash2 className="w-4 h-4 text-red-600" />
+                        <Trash2 className="w-4 h-4 text-rose-400" />
                         <span className="hidden xs:inline text-[11px]">Apagar</span>
                       </button>
                     )}
 
-                    {/* Menu Três Pontos / Opções Moderno 2026 */}
+                    {/* Menu Três Pontos / Opções */}
                     <div className="relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setActiveOptionsMenuPostId(activeOptionsMenuPostId === post.id ? null : post.id);
                         }}
-                        className="text-slate-400 hover:text-slate-800 p-2 transition rounded-xl hover:bg-slate-100 active:scale-90 cursor-pointer"
+                        className="cv-editorial-btn text-[#8e887b] hover:text-[#F5D77A] p-2 transition cursor-pointer"
                         title="Mais opções da publicação"
                       >
                         <MoreHorizontal className="w-4 h-4" />
@@ -631,7 +660,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                       {activeOptionsMenuPostId === post.id && (
                         <div 
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-30 animate-fadeIn"
+                          className="absolute right-0 top-full mt-1.5 w-48 bg-[#121212] rounded-xl border border-[#D4AF37]/25 py-1.5 z-30 animate-fadeIn"
                         >
                           {checkCanDeletePost(post) && (
                             <button
@@ -639,9 +668,9 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                                 setActiveOptionsMenuPostId(null);
                                 handleDeletePost(post.id);
                               }}
-                              className="w-full px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition cursor-pointer"
+                              className="cv-editorial-btn w-full px-3 py-2 text-left text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-2 transition cursor-pointer"
                             >
-                              <Trash2 className="w-4 h-4 text-red-600" />
+                              <Trash2 className="w-4 h-4 text-rose-400" />
                               <span>Apagar Publicação</span>
                             </button>
                           )}
@@ -650,9 +679,9 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                               setActiveOptionsMenuPostId(null);
                               handleReportPost(post.id);
                             }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition cursor-pointer"
+                            className="cv-editorial-btn w-full px-3 py-2 text-left text-xs font-medium text-[#c4beb0] hover:text-[#F5D77A] flex items-center gap-2 transition cursor-pointer"
                           >
-                            <AlertCircle className="w-4 h-4 text-slate-500" />
+                            <AlertCircle className="w-4 h-4 text-[#D4AF37]" />
                             <span>Denunciar Conteúdo</span>
                           </button>
                           <button
@@ -660,9 +689,9 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                               setActiveOptionsMenuPostId(null);
                               handleSharePost(post);
                             }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition cursor-pointer"
+                            className="cv-editorial-btn w-full px-3 py-2 text-left text-xs font-medium text-[#c4beb0] hover:text-[#F5D77A] flex items-center gap-2 transition cursor-pointer"
                           >
-                            <Send className="w-4 h-4 text-[#0F4C9C] transform -rotate-12" />
+                            <Send className="w-4 h-4 text-[#D4AF37] transform -rotate-12" />
                             <span>Partilhar / Copiar</span>
                           </button>
                         </div>
@@ -673,28 +702,30 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
 
                 {/* Post content text */}
                 {post.content && (
-                  <p 
-                    onClick={() => onSelectPost && onSelectPost(post)}
-                    className="px-4 pb-3 text-sm sm:text-base text-slate-900 leading-relaxed whitespace-pre-line cursor-pointer font-normal tracking-tight"
-                  >
-                    {post.content}
-                  </p>
+                  <div className="cv-post-content">
+                    <p 
+                      onClick={() => onSelectPost && onSelectPost(post)}
+                      className="post-content-text cv-post-description text-sm sm:text-base text-[#EAE4D7] whitespace-pre-line cursor-pointer"
+                    >
+                      {post.content}
+                    </p>
+                  </div>
                 )}
 
                 {/* Post Poll */}
                 {post.poll && (
                   <div className="px-4 pb-3">
-                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div className="p-3.5 rounded-2xl bg-[#16140F] border border-[#D4AF37]/25 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                          <BarChart3 className="w-3.5 h-3.5 text-[#0F4C9C]" /> Sondagem
+                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-1.5">
+                          <BarChart3 className="w-3.5 h-3.5 text-[#D4AF37]" /> Sondagem
                         </span>
-                        <span className="text-[11px] font-semibold text-slate-500">
+                        <span className="text-[11px] font-semibold text-[#BDB29F]">
                           {post.poll.total_votes || 0} votos
                         </span>
                       </div>
                       <div className="space-y-2">
-                        {post.poll.options.map(opt => {
+                        {post.poll.options.map((opt: any) => {
                           const hasVoted = currentUser && opt.votes?.includes(currentUser.id);
                           const percentage = post.poll?.total_votes && post.poll.total_votes > 0 
                             ? Math.round(((opt.votes?.length || 0) / post.poll.total_votes) * 100) 
@@ -706,21 +737,21 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                               disabled={!currentUser}
                               onClick={(e) => { e.stopPropagation(); handleVoteOnPoll(post.id, opt.id); }}
                               className={`w-full relative group overflow-hidden rounded-xl border transition-all active:scale-[0.98] cursor-pointer ${
-                                hasVoted ? 'border-[#0F4C9C] bg-blue-50/40 font-bold' : 'border-slate-200 bg-white hover:border-[#0F4C9C]/40'
+                                hasVoted ? 'border-[#D4AF37] bg-[#241E13] font-bold' : 'border-[#D4AF37]/20 bg-[#1C1811] hover:border-[#D4AF37]/50'
                               }`}
                             >
                               <div 
-                                className={`absolute inset-y-0 left-0 transition-all duration-700 ${hasVoted ? 'bg-[#0F4C9C]/15' : 'bg-slate-100/80'}`}
+                                className={`absolute inset-y-0 left-0 transition-all duration-700 ${hasVoted ? 'bg-[#D4AF37]/20' : 'bg-[#D4AF37]/10'}`}
                                 style={{ width: `${percentage}%` }}
                               />
                               
                               <div className="relative px-3.5 py-2.5 flex items-center justify-between gap-3 text-xs">
-                                <span className={`font-semibold transition-colors ${hasVoted ? 'text-[#0F4C9C]' : 'text-slate-800'}`}>
+                                <span className={`font-semibold transition-colors ${hasVoted ? 'text-[#F5D77A]' : 'text-[#EAE4D7]'}`}>
                                   {opt.text}
                                 </span>
                                 <div className="flex items-center gap-2 font-bold">
-                                  {hasVoted && <span className="text-[#0F4C9C] text-[10px] uppercase">Votado</span>}
-                                  <span className={hasVoted ? 'text-[#0F4C9C]' : 'text-slate-500'}>
+                                  {hasVoted && <span className="text-[#D4AF37] text-[10px] uppercase">Votado</span>}
+                                  <span className={hasVoted ? 'text-[#F5D77A]' : 'text-[#BDB29F]'}>
                                     {percentage}%
                                   </span>
                                 </div>
@@ -733,20 +764,20 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                   </div>
                 )}
 
-                {/* Post Image: EDGE-TO-EDGE / FULL-BLEED (Native Facebook / TikTok style) */}
+                {/* Post Image: Editorial full-width clean radius */}
                 {(() => {
                   const postImageUrl = post.image_url || (post as any).imagem_url || (post as any).media_url || (post as any).image;
                   if (!postImageUrl) return null;
                   return (
                     <div 
                       onClick={() => onSelectPost && onSelectPost(post)}
-                      className="w-full bg-slate-900/5 overflow-hidden cursor-pointer select-none"
+                      className="w-full overflow-hidden cursor-pointer select-none pt-1"
                     >
                       <img 
                         src={postImageUrl} 
                         alt="Publicação" 
                         loading="lazy"
-                        className="w-full max-h-[550px] object-cover sm:object-contain mx-auto transition-opacity duration-200" 
+                        className="cv-post-image mx-auto transition-opacity duration-200" 
                         onError={(e) => {
                           (e.currentTarget as HTMLElement).style.display = 'none';
                         }}
@@ -755,51 +786,49 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                   );
                 })()}
 
-                {/* Counters row (Likes count and comments count) */}
-                <div className="px-4 py-2 flex items-center justify-between text-xs text-slate-500 select-none">
-                  <div className="flex items-center gap-1.5">
-                    {(post.likes_count || 0) > 0 && (
-                      <span className="flex items-center gap-1">
-                        <span className="w-4 h-4 rounded-full bg-[#0F4C9C] text-white flex items-center justify-center text-[10px]">👍</span>
-                        <span className="font-semibold text-slate-700">{post.likes_count}</span>
-                      </span>
-                    )}
+                {/* Counters row */}
+                {((post.likes_count || 0) > 0 || (post.comments_count || 0) > 0) && (
+                  <div className="cv-post-meta pt-2.5 flex items-center justify-between select-none">
+                    <div>
+                      {(post.likes_count || 0) > 0 && (
+                        <span>
+                          {post.likes_count} {post.likes_count === 1 ? 'gosto' : 'gostos'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      {(post.comments_count || 0) > 0 && (
+                        <button 
+                          onClick={() => onSelectPost ? onSelectPost(post) : setActiveCommentsPostId(activeCommentsPostId === post.id ? null : post.id)}
+                          className="cv-editorial-btn hover:underline cursor-pointer"
+                        >
+                          {post.comments_count} {post.comments_count === 1 ? 'comentário' : 'comentários'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {(post.comments_count || 0) > 0 && (
-                      <button 
-                        onClick={() => onSelectPost ? onSelectPost(post) : setActiveCommentsPostId(activeCommentsPostId === post.id ? null : post.id)}
-                        className="hover:underline cursor-pointer"
-                      >
-                        {post.comments_count} {post.comments_count === 1 ? 'comentário' : 'comentários'}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
 
-                {/* Modern 2026 Native Action Bar */}
-                <div className="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-1 text-xs select-none">
+                {/* Editorial Action Bar */}
+                <div className="cv-post-actions text-xs select-none border-t border-[#D4AF37]/10 mt-2">
                   {/* Reaction Button */}
-                  <div className="relative flex-1 flex justify-center">
+                  <div className="relative flex items-center">
                     <button
                       onClick={() => handleReactionSelect(post.id, post.user_reaction ? post.user_reaction : 'like')}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setActiveReactionPickerPostId(activeReactionPickerPostId === post.id ? null : post.id);
                       }}
-                      className={`w-full py-2 px-2.5 rounded-2xl flex items-center justify-center gap-1.5 font-extrabold transition-all active:scale-95 cursor-pointer ${
-                        post.user_reaction ? 'bg-blue-50 text-[#0F4C9C] shadow-2xs' : 'hover:bg-slate-200/60 text-slate-700'
+                      className={`cv-editorial-btn py-1.5 flex items-center gap-1.5 font-semibold transition-colors cursor-pointer ${
+                        post.user_reaction ? 'text-[#e6c34f]' : 'text-[#d6cba9]'
                       }`}
                     >
                       {post.user_reaction ? (
-                        <span className="text-base leading-none">{REACTIONS_CONFIG.find(r => r.type === post.user_reaction)?.emoji || '👍'}</span>
+                        <span className="text-sm leading-none">{REACTIONS_CONFIG.find(r => r.type === post.user_reaction)?.emoji || '👍'}</span>
                       ) : (
-                        <ThumbsUp className="w-4 h-4 text-slate-500" />
+                        <ThumbsUp className="w-4 h-4 text-[#D4AF37]" />
                       )}
                       <span>{post.user_reaction ? (REACTIONS_CONFIG.find(r => r.type === post.user_reaction)?.label || 'Gostei') : 'Gostar'}</span>
-                      {(post.likes_count || 0) > 0 && (
-                        <span className="ml-0.5 text-[11px] font-black text-[#0F4C9C]">({post.likes_count})</span>
-                      )}
                     </button>
 
                     {activeReactionPickerPostId === post.id && (
@@ -821,16 +850,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                         setActiveCommentsPostId(activeCommentsPostId === post.id ? null : post.id);
                       }
                     }}
-                    className="flex-1 py-2 px-2.5 rounded-2xl flex items-center justify-center gap-1.5 font-bold hover:bg-slate-200/60 active:scale-95 transition-all cursor-pointer text-slate-700"
+                    className="cv-editorial-btn py-1.5 flex items-center gap-1.5 font-semibold transition-colors cursor-pointer"
                   >
-                    <MessageSquare className="w-4 h-4 text-slate-500" />
+                    <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
                     <span>Comentar</span>
-                    {(post.comments_count || 0) > 0 && (
-                      <span className="ml-0.5 text-[11px] font-black text-slate-500">({post.comments_count})</span>
-                    )}
                   </button>
 
-                  {/* Modern 2026 Native Share Button (Paperplane / Forward) */}
+                  {/* Share Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -839,31 +865,31 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                       }
                       handleSharePost(post);
                     }}
-                    className="flex-1 py-2 px-2.5 rounded-2xl flex items-center justify-center gap-1.5 font-extrabold bg-blue-50/80 hover:bg-blue-100 text-[#0F4C9C] active:scale-95 transition-all cursor-pointer border border-blue-100 shadow-2xs"
-                    title="Partilhar publicação (Nativo 2026)"
+                    className="cv-editorial-btn py-1.5 flex items-center gap-1.5 font-semibold transition-colors cursor-pointer"
+                    title="Partilhar publicação"
                   >
-                    <Send className="w-4 h-4 text-[#0F4C9C] transform -rotate-12 shrink-0" />
+                    <Send className="w-4 h-4 text-[#D4AF37] transform -rotate-12 shrink-0" />
                     <span>Partilhar</span>
                   </button>
                 </div>
 
                 {/* Inline Comments Section (if expanded without opening fullscreen modal) */}
                 {activeCommentsPostId === post.id && (
-                  <div className="p-3 border-t border-slate-100 bg-slate-50/70 space-y-2.5">
+                  <div className="p-3 border-t border-[#D4AF37]/20 bg-[#100F0C] space-y-2.5">
                     <div className="space-y-2">
-                      {(!post.comments || post.comments.filter(c => c.author_id !== 'system_reactions_metadata').length === 0) ? (
-                        <p className="text-xs text-slate-400 italic text-center py-2">Sem comentários ainda. Seja o primeiro a comentar!</p>
+                      {(!post.comments || post.comments.filter((c: any) => c.author_id !== 'system_reactions_metadata').length === 0) ? (
+                        <p className="text-xs text-[#BDB29F] italic text-center py-2">Sem comentários ainda. Seja o primeiro a comentar!</p>
                       ) : (
-                        post.comments.filter(c => c.author_id !== 'system_reactions_metadata').map(c => (
-                          <div key={c.id} className="bg-white p-2.5 rounded-xl border border-slate-200/80 text-xs space-y-0.5">
+                        post.comments.filter((c: any) => c.author_id !== 'system_reactions_metadata').map((c: any) => (
+                          <div key={c.id} className="bg-[#16140F] p-2.5 rounded-xl border border-[#D4AF37]/25 text-xs space-y-0.5">
                             <span 
                               onClick={() => handleAuthorClick(c.author_id, c.author_name, c.author_avatar, false)}
-                              className="font-bold text-slate-900 block text-xs cursor-pointer hover:underline hover:text-[#0F4C9C] transition"
+                              className="font-bold text-[#F5D77A] block text-xs cursor-pointer hover:underline hover:text-[#D4AF37] transition"
                               title={`Ver perfil de ${c.author_name}`}
                             >
                               {c.author_name}
                             </span>
-                            <p className="text-slate-800">{c.content}</p>
+                            <p className="text-[#EAE4D7]">{c.content}</p>
                           </div>
                         ))
                       )}
@@ -876,7 +902,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                           value={commentText}
                           onChange={e => setCommentText(e.target.value)}
                           placeholder="Escreva um comentário..."
-                          className="flex-1 bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0F4C9C]"
+                          className="flex-1 bg-[#1C1811] text-[#EAE4D7] placeholder:text-[#8E8575] px-3.5 py-2 rounded-xl border border-[#D4AF37]/30 text-xs focus:outline-none focus:border-[#D4AF37]"
                           onKeyDown={e => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -886,7 +912,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                         />
                         <button
                           onClick={() => handleAddComment(post.id)}
-                          className="bg-[#0F4C9C] text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                          className="bg-[#D4AF37] hover:bg-[#F5D77A] text-[#080808] px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition"
                         >
                           Enviar
                         </button>
@@ -898,29 +924,41 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
             );
           })
         )}
+
+        {hasMorePosts && (
+          <div ref={postsSentinelRef} className="py-6 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={loadMorePosts}
+              className="cv-card-pressable px-5 py-2.5 rounded-xl bg-[#16140F] hover:bg-[#1E1A12] text-[#F5D77A] border border-[#D4AF37]/35 hover:border-[#D4AF37] text-xs font-bold transition cursor-pointer active:scale-[0.96]"
+            >
+              Carregar mais publicações ({remainingPostsCount} restantes)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Diálogo / Aviso de Apagar Publicação (Z-[9999] Infalível, NUNCA fica escondido) */}
       {dialogAlert && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn select-none">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-slate-200 text-center animate-scaleUp">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn select-none">
+          <div className="bg-[#121212] rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4 border border-[#D4AF37]/30 text-center animate-scaleUp">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
               dialogAlert.isConfirm 
-                ? 'bg-rose-50 text-rose-600 border-rose-200' 
-                : 'bg-blue-50 text-[#0F4C9C] border-blue-200'
+                ? 'bg-rose-950/60 text-rose-400 border-rose-500/40' 
+                : 'bg-[#1C1811] text-[#D4AF37] border-[#D4AF37]/40'
             }`}>
               {dialogAlert.isConfirm ? (
-                <Trash2 className="w-7 h-7 text-rose-600" />
+                <Trash2 className="w-7 h-7 text-rose-400" />
               ) : (
-                <AlertCircle className="w-7 h-7 text-[#0F4C9C]" />
+                <AlertCircle className="w-7 h-7 text-[#D4AF37]" />
               )}
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-base sm:text-lg font-black text-slate-950">
+              <h3 className="text-base sm:text-lg font-black text-[#F5D77A]">
                 {dialogAlert.isConfirm ? 'Apagar Publicação?' : 'Aviso da Publicação'}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed px-1">
+              <p className="text-xs sm:text-sm text-[#BDB29F] leading-relaxed px-1">
                 {dialogAlert.message}
               </p>
             </div>
@@ -930,7 +968,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setDialogAlert(null)}
-                  className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer active:scale-95"
+                  className="w-full py-3 px-4 bg-[#1C1811] hover:bg-[#241E13] text-[#F5D77A] font-bold text-xs sm:text-sm rounded-xl border border-[#D4AF37]/30 transition cursor-pointer active:scale-95"
                 >
                   Cancelar
                 </button>
@@ -945,7 +983,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                 className={`w-full py-3 px-4 ${
                   dialogAlert.isConfirm 
                     ? 'bg-rose-600 hover:bg-rose-700 text-white' 
-                    : 'bg-[#0F4C9C] hover:bg-blue-700 text-white col-span-2'
+                    : 'bg-[#D4AF37] hover:bg-[#F5D77A] text-[#080808] col-span-2'
                 } font-extrabold text-xs sm:text-sm rounded-xl transition shadow-md cursor-pointer active:scale-95`}
               >
                 {dialogAlert.actionText || 'Apagar Post'}

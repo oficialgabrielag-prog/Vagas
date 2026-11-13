@@ -86,17 +86,17 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
       {/* Header com estilo moderno e discreto */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0F4C9C] flex items-center justify-center border border-blue-100 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-[#1C1811] text-[#D4AF37] flex items-center justify-center border border-[#D4AF37]/30 shrink-0">
             <Building2 className="w-4 h-4" />
           </div>
           <div className="truncate">
-            <h2 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight truncate flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-extrabold text-[#F5D77A] tracking-tight truncate flex items-center gap-2">
               <span>{title}</span>
-              <span className="text-[11px] font-bold text-[#0F4C9C] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 hidden sm:inline-block">
+              <span className="text-[11px] font-bold text-[#F5D77A] bg-[#1C1811] px-2 py-0.5 rounded-full border border-[#D4AF37]/30 hidden sm:inline-block">
                 {companies.length} ativas
               </span>
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 truncate hidden xs:block">
+            <p className="text-[11px] sm:text-xs text-[#BDB29F] truncate hidden xs:block">
               {subtitle}
             </p>
           </div>
@@ -108,7 +108,7 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
             <button
               type="button"
               onClick={onViewAll}
-              className="text-xs font-bold text-[#0F4C9C] hover:text-[#0c3c7d] hover:bg-blue-50/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer mr-1"
+              className="text-xs font-bold text-[#D4AF37] hover:text-[#F5D77A] hover:bg-[#1C1811] px-2.5 py-1 rounded-lg transition-colors cursor-pointer mr-1"
             >
               Ver todas
             </button>
@@ -119,17 +119,16 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
             onClick={() => scrollByAmount('left')}
             disabled={!canScrollLeft}
             aria-label="Rolar para esquerda"
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none text-slate-700 flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[#D4AF37]/25 bg-[#121212] hover:bg-[#1C1811] disabled:opacity-30 disabled:pointer-events-none text-[#F5D77A] flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-
           <button
             type="button"
             onClick={() => scrollByAmount('right')}
             disabled={!canScrollRight}
             aria-label="Rolar para direita"
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none text-slate-700 flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-[#D4AF37]/25 bg-[#121212] hover:bg-[#1C1811] disabled:opacity-30 disabled:pointer-events-none text-[#F5D77A] flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -157,10 +156,10 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
             <div
               key={company.id}
               onClick={() => onSelectCompany(company)}
-              className="w-[240px] sm:w-[260px] shrink-0 snap-start bg-white rounded-2xl border border-slate-200/90 hover:border-[#0F4C9C]/40 shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer group flex flex-col justify-between overflow-hidden active:scale-[0.98]"
+              className="cv-card-pressable w-[240px] sm:w-[260px] shrink-0 snap-start bg-[#121212] rounded-2xl border border-[#D4AF37]/25 hover:border-[#D4AF37] shadow-lg hover:shadow-[#D4AF37]/15 transition-all duration-150 cursor-pointer group flex flex-col justify-between overflow-hidden active:scale-[0.96]"
             >
               {/* Top mini-cover */}
-              <div className="h-16 w-full bg-gradient-to-r from-[#0F4C9C] to-slate-800 relative overflow-hidden">
+              <div className="h-16 w-full bg-gradient-to-r from-[#2A200A] via-[#1A160F] to-[#080808] relative overflow-hidden">
                 {cover ? (
                   <img
                     src={cover}
@@ -171,10 +170,10 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
                     }}
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-r from-blue-900 to-slate-900 opacity-90" />
+                  <div className="w-full h-full bg-gradient-to-r from-[#2A200A] via-[#1A160F] to-[#080808] opacity-90" />
                 )}
-                <div className="absolute top-2 right-2 bg-slate-950/70 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10">
-                  <MapPin className="w-2.5 h-2.5 text-[#FFC20E]" />
+                <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md text-[#F5D77A] text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border border-[#D4AF37]/30">
+                  <MapPin className="w-2.5 h-2.5 text-[#D4AF37]" />
                   <span>{municipality}</span>
                 </div>
               </div>
@@ -183,7 +182,7 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
               <div className="p-3.5 pt-0 relative flex-1 flex flex-col justify-between">
                 <div>
                   {/* Floating Logo */}
-                  <div className="w-11 h-11 rounded-xl bg-white p-0.5 border-2 border-white shadow-xs -mt-5 mb-2 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-xl bg-[#181818] p-0.5 border border-[#D4AF37]/40 shadow-xs -mt-5 mb-2 overflow-hidden shrink-0 flex items-center justify-center">
                     {logo ? (
                       <img
                         src={logo}
@@ -194,7 +193,7 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full bg-[#0F4C9C] text-white flex items-center justify-center font-black text-xs rounded-lg">
+                      <div className="w-full h-full bg-[#D4AF37] text-slate-950 flex items-center justify-center font-black text-xs rounded-lg">
                         {compName.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -203,50 +202,50 @@ export const CompaniesHorizontalCarousel: React.FC<CompaniesHorizontalCarouselPr
                   {/* Name and Sector */}
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate group-hover:text-[#0F4C9C] transition-colors">
+                      <h3 className="text-xs sm:text-sm font-extrabold text-white truncate group-hover:text-[#F5D77A] transition-colors">
                         {compName}
                       </h3>
                       <span title="Empresa Verificada" className="inline-flex shrink-0">
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1">
-                      <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+                    <p className="text-[11px] text-[#BDB29F] font-medium truncate flex items-center gap-1">
+                      <Briefcase className="w-3 h-3 text-[#D4AF37]/70 shrink-0" />
                       <span>{industry}</span>
                     </p>
 
                     {/* Classificação em Estrelas & Selo de Parceiro */}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <div className="flex items-center text-amber-500">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="text-[10px] font-black text-amber-900 ml-1">
+                      <div className="flex items-center text-[#F5D77A]">
+                        <Star className="w-3 h-3 fill-[#F5D77A] text-[#F5D77A]" />
+                        <span className="text-[10px] font-black text-[#F5D77A] ml-1">
                           {StoreService.getCompanyRatingStats(company.id).average.toFixed(1)}
                         </span>
-                        <span className="text-[9px] text-slate-400 ml-0.5 font-bold">
+                        <span className="text-[9px] text-[#BDB29F] ml-0.5 font-bold">
                           ({StoreService.getCompanyRatingStats(company.id).count})
                         </span>
                       </div>
                       {StoreService.isUserPartner(company.id).isPartner && (
-                        <span className="text-[9px] font-black text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded-md border border-amber-200/70">
+                        <span className="text-[9px] font-black text-[#F5D77A] bg-[#1C1811] px-1.5 py-0.5 rounded-md border border-[#D4AF37]/30">
                           🤝 Parceiro
                         </span>
                       )}
                     </div>
                   </div>
-
-                  {/* Slogan / Services snippet */}
-                  {company.bio && (
-                    <p className="text-[10px] text-slate-600 line-clamp-2 mt-1.5 leading-relaxed">
-                      {company.bio}
-                    </p>
-                  )}
                 </div>
 
-                {/* Card Action Link */}
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-[#0F4C9C] group-hover:text-blue-800">
-                  <span>Ver vitrine & vagas</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
+                {/* Slogan / Services snippet */}
+                {company.bio && (
+                  <p className="text-[10px] text-[#BDB29F] line-clamp-2 mt-1.5 leading-relaxed">
+                    {company.bio}
+                  </p>
+                )}
+              </div>
+
+              {/* Card Action Link */}
+              <div className="mt-3 pt-2.5 border-t border-[#26241E] flex items-center justify-between text-[11px] font-bold text-[#D4AF37] group-hover:text-[#F5D77A]">
+                <span>Ver vitrine & vagas</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           );

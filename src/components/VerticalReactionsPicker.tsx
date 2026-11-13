@@ -121,7 +121,7 @@ export const VerticalReactionsPicker: React.FC<VerticalReactionsPickerProps> = (
                   {label}
                 </span>
                 {isSelected && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0F4C9C]" />
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
                 )}
               </button>
             );

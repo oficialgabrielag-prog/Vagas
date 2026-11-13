@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, MapPin, Globe, Phone, Briefcase, ChevronRight, MessageCircle, Search } from 'lucide-react';
 import { UserProfile, Job, CUNENE_MUNICIPALITIES } from '../lib/types';
 import { GiantCinematicCarousel } from '../components/GiantCinematicCarousel';
+import { SeoHelmet } from '../components/SeoHelmet';
 
 interface CompaniesPageProps {
   jobs: Job[];
@@ -17,7 +18,11 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
   });
 
   return (
-    <div className="max-w-5xl mx-auto py-6 space-y-6 pb-20">
+    <div className="max-w-5xl mx-auto py-6 space-y-6 pb-20 px-4 bg-[#080808] text-[#F5F1E7] min-h-screen">
+      <SeoHelmet
+        title={`Empresas e Empregadores no Cunene (${filteredCompanies.length}) | CuneneVagas`}
+        description={`Descubra ${filteredCompanies.length} empresas registadas, parceiros comerciais e empregadores ativos em Ondjiva e em toda a província do Cunene, Angola.`}
+      />
       
       {/* Carrossel Cinemático */}
       <GiantCinematicCarousel 
@@ -31,12 +36,12 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
       />
 
       {/* Page Header */}
-      <div className="bg-[#0F4C9C] text-white p-6 rounded-3xl shadow-sm space-y-2">
-        <span className="text-xs uppercase tracking-widest font-bold text-[#FFC20E]">
+      <div className="bg-[#121212] border border-[#D4AF37]/30 text-white p-6 rounded-3xl shadow-xl space-y-2">
+        <span className="text-xs uppercase tracking-widest font-bold text-[#D4AF37]">
           Tecido Empresarial & Empregadores
         </span>
-        <h1 className="text-2xl sm:text-3xl font-extrabold">Empresas no Cunene</h1>
-        <p className="text-slate-200 text-xs sm:text-sm font-light">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#F5D77A]">Empresas no Cunene</h1>
+        <p className="text-[#BDB29F] text-xs sm:text-sm font-light">
           Conheça as empresas, lojas e organizações cadastradas na província do Cunene.
         </p>
       </div>
@@ -46,10 +51,10 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setSelectedMunicipality('Todos')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${
               selectedMunicipality === 'Todos'
-                ? 'bg-[#0F4C9C] text-white shadow-xs'
-                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                ? 'bg-[#D4AF37] text-slate-950 shadow-md'
+                : 'bg-[#121212] border border-[#D4AF37]/30 text-[#BDB29F] hover:text-white'
             }`}
           >
             Todo o Cunene ({companies.length})
@@ -60,10 +65,10 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
               <button
                 key={m}
                 onClick={() => setSelectedMunicipality(m)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                   selectedMunicipality === m
-                    ? 'bg-[#0F4C9C] text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                    ? 'bg-[#D4AF37] text-slate-950 shadow-md'
+                    : 'bg-[#121212] border border-[#D4AF37]/30 text-[#BDB29F] hover:text-white'
                 }`}
               >
                 📍 {m} {count > 0 && `(${count})`}
@@ -74,10 +79,10 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
       </div>
 
       {filteredCompanies.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-2">
-          <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-800">Nenhuma empresa encontrada</h3>
-          <p className="text-xs text-slate-500">
+        <div className="bg-[#121212] rounded-3xl p-12 text-center border border-[#D4AF37]/20 space-y-2">
+          <Building2 className="w-10 h-10 text-[#D4AF37] mx-auto" />
+          <h3 className="text-sm font-bold text-[#F5D77A]">Nenhuma empresa encontrada</h3>
+          <p className="text-xs text-[#BDB29F]">
             As empresas que criarem perfil na plataforma aparecerão nesta listagem.
           </p>
         </div>
@@ -90,42 +95,42 @@ export const CompaniesPage: React.FC<CompaniesPageProps> = ({ jobs, companies, o
               <div
                 key={emp.id}
                 onClick={() => onSelectCompany(emp)}
-                className="p-5 hover:bg-slate-50/80 transition cursor-pointer flex flex-col justify-between space-y-4 group border-b border-slate-100 last:border-b-0"
+                className="cv-card-pressable bg-[#121212] border border-[#D4AF37]/25 hover:border-[#D4AF37] p-5 rounded-2xl hover:shadow-xl hover:shadow-[#D4AF37]/10 transition cursor-pointer flex flex-col justify-between space-y-4 group active:scale-[0.96]"
               >
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-[#1C1811] overflow-hidden border border-[#D4AF37]/30 shrink-0">
                       {displayLogo ? (
                         <img src={displayLogo} alt={emp.company_name || emp.full_name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-[#0F4C9C] text-white flex items-center justify-center font-bold text-base">
+                        <div className="w-full h-full bg-[#D4AF37] text-slate-950 flex items-center justify-center font-bold text-base">
                           {(emp.company_name || emp.full_name)?.charAt(0)}
                         </div>
                       )}
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#0F4C9C] transition">
+                      <h3 className="text-sm font-bold text-white group-hover:text-[#F5D77A] transition">
                         {emp.company_name || emp.full_name}
                       </h3>
-                      <span className="text-[10px] text-slate-500 font-semibold block">{emp.industry || 'Empresa'}</span>
+                      <span className="text-[10px] text-[#BDB29F] font-semibold block">{emp.industry || 'Empresa'}</span>
                     </div>
                   </div>
 
                   {emp.bio && (
-                    <p className="text-slate-600 text-xs leading-relaxed line-clamp-2">{emp.bio}</p>
+                    <p className="text-[#BDB29F] text-xs leading-relaxed line-clamp-2">{emp.bio}</p>
                   )}
 
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <MapPin className="w-3.5 h-3.5 text-[#0F4C9C]" />
+                  <div className="flex items-center gap-1.5 text-xs text-[#BDB29F]">
+                    <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span>{emp.municipality || 'Ondjiva'}, Cunene</span>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-700 flex items-center gap-1">
-                    <Briefcase className="w-3.5 h-3.5 text-[#0F4C9C]" /> {companyJobs.length} Vagas
+                <div className="pt-3 border-t border-[#26241E] flex items-center justify-between text-xs">
+                  <span className="font-bold text-[#F5F1E7] flex items-center gap-1">
+                    <Briefcase className="w-3.5 h-3.5 text-[#D4AF37]" /> {companyJobs.length} Vagas
                   </span>
-                  <span className="font-bold text-[#0F4C9C] flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                  <span className="font-bold text-[#D4AF37] flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
                     Ver vitrine <ChevronRight className="w-3.5 h-3.5" />
                   </span>
                 </div>

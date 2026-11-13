@@ -155,10 +155,10 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-gradient-to-tr from-[#0F4C9C] to-blue-600 text-white shadow-xs">
+            <span className="p-2 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-blue-600 text-white shadow-xs">
               <Signal className="w-5 h-5" />
             </span>
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#0F4C9C] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+            <span className="text-[11px] font-black uppercase tracking-wider text-[#D4AF37] bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
               Canal Oficial • Conectividade
             </span>
           </div>
@@ -189,7 +189,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
               onClick={() => setSelectedOperator(op)}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[#0F4C9C] text-white shadow-xs'
+                  ? 'bg-[#D4AF37] text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -214,7 +214,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
               <article
                 key={item.id}
                 onClick={() => setSelectedNews(item)}
-                className="bg-white rounded-2xl border border-slate-200 hover:border-[#0F4C9C]/40 p-4 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between"
+                className="bg-white rounded-2xl border border-slate-200 hover:border-[#D4AF37]/40 p-4 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-xs group flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   {/* Operator badge & location */}
@@ -224,7 +224,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
                     </span>
 
                     <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
-                      <MapPin className="w-3 h-3 text-[#0F4C9C]" />
+                      <MapPin className="w-3 h-3 text-[#D4AF37]" />
                       <span>{item.municipality || 'Cunene'}</span>
                     </div>
                   </div>
@@ -248,7 +248,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
 
                   {/* Title & Summary */}
                   <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#0F4C9C] transition-colors line-clamp-2 leading-snug">
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#D4AF37] transition-colors line-clamp-2 leading-snug">
                       {item.title}
                     </h3>
                     <p className="text-xs text-slate-600 line-clamp-2 mt-1 leading-relaxed">
@@ -279,13 +279,13 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleShare(e, item)}
-                      className="text-slate-500 hover:text-[#0F4C9C] transition cursor-pointer p-1"
+                      className="text-slate-500 hover:text-[#D4AF37] transition cursor-pointer p-1"
                       title="Partilhar"
                     >
                       <Share2 className="w-3.5 h-3.5" />
                     </button>
 
-                    <span className="text-[#0F4C9C] font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                    <span className="text-[#D4AF37] font-bold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                       Ler <ChevronRight className="w-3 h-3" />
                     </span>
                   </div>
@@ -339,7 +339,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
               <button
                 type="button"
                 onClick={(e) => handleShare(e, selectedNews)}
-                className="inline-flex items-center gap-1.5 bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-[#D4AF37] hover:bg-[#F5D77A] text-white px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
               >
                 <Share2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Partilhar</span>
@@ -355,7 +355,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
 
             <div className="flex items-center gap-3 text-xs text-slate-500 font-medium border-b border-slate-100 pb-4">
               <span className="flex items-center gap-1">
-                <MapPin className="w-4 h-4 text-[#0F4C9C]" />
+                <MapPin className="w-4 h-4 text-[#D4AF37]" />
                 {selectedNews.municipality || 'Cunene'}
               </span>
               <span>•</span>
@@ -381,7 +381,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
               </div>
             )}
 
-            <div className="bg-blue-50/80 p-4 sm:p-5 rounded-2xl border border-blue-100 text-sm sm:text-base font-semibold text-[#0F4C9C] leading-relaxed">
+            <div className="bg-blue-50/80 p-4 sm:p-5 rounded-2xl border border-blue-100 text-sm sm:text-base font-semibold text-[#D4AF37] leading-relaxed">
               {selectedNews.summary}
             </div>
 
@@ -399,7 +399,7 @@ export const TelecomNewsSection: React.FC<TelecomNewsSectionProps> = ({
                     href={trimmed}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#0F4C9C] hover:bg-[#0c3c7d] px-5 py-3 rounded-2xl shadow-sm transition"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#D4AF37] hover:bg-[#F5D77A] px-5 py-3 rounded-2xl shadow-sm transition"
                   >
                     <span>Abrir fonte oficial</span>
                     <ExternalLink className="w-4 h-4" />

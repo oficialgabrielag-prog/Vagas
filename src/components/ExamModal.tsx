@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, Award, FileText, MessageCircle } from 'lucide-react';
 import { Exam, UserProfile, ExamAttempt, Job } from '../lib/types';
 import { StoreService } from '../lib/store';
+import { toUserErrorMessage } from '../lib/errorMessages';
 
 interface ExamModalProps {
   exam: Exam | null;
@@ -65,8 +66,8 @@ export const ExamModal: React.FC<ExamModalProps> = ({
     a.candidate_id === currentUser.id && 
     (a.exam_id === exam.id || (exam.title && a.exam?.title === exam.title))
   );
-  const maxAttempts = exam.max_attempts || 3;
-  const hasReachedLimit = maxAttempts > 0 && maxAttempts < 90 && previousAttempts.length >= maxAttempts;
+  // Regra oficial CuneneVagas: Uma vez feito o exame, não é permitido repetir
+  const hasReachedLimit = previousAttempts.length >= 1;
   const bestAttempt = previousAttempts.length > 0 
     ? [...previousAttempts].sort((a, b) => b.percentage - a.percentage)[0] 
     : null;
@@ -145,8 +146,9 @@ export const ExamModal: React.FC<ExamModalProps> = ({
       setAttemptResult(attempt);
       setCurrentStep('result');
       onExamSubmitted();
-    } catch (err: any) {
-      alert(err.message || 'Erro ao submeter exame.');
+    } catch (err: unknown) {
+      console.warn('Erro ao submeter exame:', err);
+      alert(toUserErrorMessage(err, 'Não foi possível submeter o exame. Tenta novamente.'));
     }
   };
 
@@ -197,7 +199,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-400 block font-bold uppercase tracking-wider">Tempo Limite</span>
-                  <span className="text-base font-black text-[#0F4C9C]">{exam.time_limit_minutes} Minutos</span>
+                  <span className="text-base font-black text-[#D4AF37]">{exam.time_limit_minutes} Minutos</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block font-bold uppercase tracking-wider">Nota Mínima</span>
@@ -211,13 +213,14 @@ export const ExamModal: React.FC<ExamModalProps> = ({
             </div>
 
             {hasReachedLimit ? (
-              <div className="p-6 rounded-3xl bg-rose-50 border border-rose-200 text-rose-900 space-y-4">
+              <div className="p-6 rounded-3xl bg-amber-50 border border-amber-200 text-amber-950 space-y-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-6 h-6 text-rose-600 shrink-0 mt-0.5" />
+                  <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-sm">Limite de tentativas atingido</h4>
-                    <p className="text-xs text-rose-700 mt-1">
-                      Já utilizou todas as oportunidades permitidas. Melhor pontuação: <strong>{bestAttempt?.percentage}%</strong> ({bestAttempt?.passed ? 'Aprovado' : 'Não Aprovado'}).
+                    <h4 className="font-bold text-sm">Exame Oficial Realizado — Tentativa Única</h4>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Conforme as normas oficiais da plataforma CuneneVagas, uma vez realizado o exame, não é permitido repetir a avaliação após submissão.
+                      Resultado obtido: <strong>{bestAttempt?.percentage}%</strong> ({bestAttempt?.passed ? 'Aprovado' : 'Não Aprovado'}).
                     </p>
                   </div>
                 </div>
@@ -225,7 +228,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                   {bestAttempt && onOpenReview && (
                     <button
                       onClick={() => { onClose(); onOpenReview(bestAttempt); }}
-                      className="flex-1 bg-[#0F4C9C] text-white font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2"
+                      className="flex-1 bg-[#D4AF37] text-white font-bold py-3 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2"
                     >
                       <FileText className="w-4 h-4" /> Ver Gabarito
                     </button>
@@ -289,7 +292,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
 
                         <button
                           onClick={() => setCurrentStep('taking')}
-                          className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 px-6 rounded-2xl text-sm transition shadow-sm flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                          className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3.5 px-6 rounded-2xl text-sm transition shadow-sm flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
                         >
                           <FileText className="w-4 h-4 text-[#FFC20E]" />
                           <span>Fazer Exame Online no Portal</span>
@@ -311,7 +314,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
               <div className="flex justify-between items-center text-xs font-bold text-slate-500">
                 <span>Questão {currentQuestionIndex + 1} de {exam.questions.length}</span>
                 <div className={`flex items-center gap-1.5 font-black px-3 py-1.5 rounded-xl border ${
-                  timeLeft < 60 ? 'text-red-600 border-red-200 bg-red-50' : 'text-[#0F4C9C] border-blue-200 bg-blue-50'
+                  timeLeft < 60 ? 'text-red-600 border-red-200 bg-red-50' : 'text-[#D4AF37] border-blue-200 bg-blue-50'
                 }`}>
                   <Clock className="w-4 h-4" />
                   <span className="tabular-nums">{formatTime(timeLeft)}</span>
@@ -319,7 +322,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-[#0F4C9C] transition-all duration-300"
+                  className="h-full bg-[#D4AF37] transition-all duration-300"
                   style={{ width: `${((currentQuestionIndex + 1) / exam.questions.length) * 100}%` }}
                 />
               </div>
@@ -342,13 +345,13 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                         onClick={() => handleSelectAnswer(currentQ.id, opt)}
                         className={`w-full text-left p-5 rounded-2xl border-2 transition-all flex items-center justify-between ${
                           isSelected
-                            ? 'border-[#0F4C9C] bg-blue-50/50 text-[#0F4C9C] font-black'
+                            ? 'border-[#D4AF37] bg-blue-50/50 text-[#D4AF37] font-black'
                             : 'border-slate-200 hover:border-slate-300 text-slate-700 font-bold bg-slate-50/50'
                         }`}
                       >
                         <span className="text-sm">{opt}</span>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          isSelected ? 'border-[#0F4C9C] bg-[#0F4C9C]' : 'border-slate-300'
+                          isSelected ? 'border-[#D4AF37] bg-[#D4AF37]' : 'border-slate-300'
                         }`}>
                           {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                         </div>
@@ -369,7 +372,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                         onClick={() => handleSelectAnswer(currentQ.id, opt)}
                         className={`py-6 px-4 rounded-2xl border-2 text-sm font-black transition-all ${
                           isSelected
-                            ? 'border-[#0F4C9C] bg-blue-50/50 text-[#0F4C9C]'
+                            ? 'border-[#D4AF37] bg-blue-50/50 text-[#D4AF37]'
                             : 'border-slate-200 text-slate-600 bg-slate-50/50 hover:border-slate-300'
                         }`}
                       >
@@ -387,7 +390,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
                     value={answers[currentQ.id] || ''}
                     onChange={e => handleSelectAnswer(currentQ.id, e.target.value)}
                     placeholder="Escreva a sua resposta..."
-                    className="w-full p-5 rounded-2xl border-2 border-slate-200 focus:border-[#0F4C9C] text-sm text-slate-800 outline-none transition bg-slate-50/50 resize-none"
+                    className="w-full p-5 rounded-2xl border-2 border-slate-200 focus:border-[#D4AF37] text-sm text-slate-800 outline-none transition bg-slate-50/50 resize-none"
                   />
                 </div>
               )}
@@ -408,7 +411,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
               {currentQuestionIndex < exam.questions.length - 1 ? (
                 <button
                   onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
-                  className="bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-black px-6 py-3 rounded-xl text-xs transition shadow-sm flex items-center gap-2"
+                  className="bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-black px-6 py-3 rounded-xl text-xs transition shadow-sm flex items-center gap-2"
                 >
                   <span>Seguinte</span>
                   <ArrowRight className="w-4 h-4" />
@@ -453,7 +456,7 @@ export const ExamModal: React.FC<ExamModalProps> = ({
               {attemptResult && onOpenReview && (
                 <button
                   onClick={() => { onClose(); onOpenReview(attemptResult); }}
-                  className="w-full bg-[#0F4C9C] hover:bg-[#0c3c7d] text-white font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full bg-[#D4AF37] hover:bg-[#F5D77A] text-white font-bold py-3.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm"
                 >
                   <FileText className="w-4 h-4" /> Ver Gabarito Completo & Correção
                 </button>

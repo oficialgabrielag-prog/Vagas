@@ -109,15 +109,23 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setIsPaused(false)}
     >
-      <div className="relative w-full h-full max-w-md max-h-[92vh] sm:rounded-3xl overflow-hidden bg-slate-950 flex flex-col justify-between shadow-2xl border border-white/10">
+      <div className="relative w-full h-full max-w-md max-h-[92vh] sm:rounded-3xl overflow-hidden bg-[#080808] flex flex-col justify-between shadow-2xl border border-[#D4AF37]/25">
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src={currentStory.imageUrl} 
-            alt={currentStory.title} 
-            className="w-full h-full object-cover opacity-85"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/90" />
+          {currentStory.imageUrl ? (
+            <img 
+              src={currentStory.imageUrl} 
+              alt={currentStory.title} 
+              className="w-full h-full object-cover opacity-85"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#231B0B] via-[#12100B] to-[#080808] flex items-center justify-center">
+              <span className="text-7xl font-black text-[#D4AF37]/20 select-none">
+                {(currentStory.authorName || 'C').charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-transparent to-black/95" />
         </div>
 
         {/* Top Header & Progress Bars */}
@@ -127,7 +135,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             {stories.map((story, idx) => (
               <div key={story.id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-white transition-all duration-75"
+                  className="h-full bg-[#D4AF37] transition-all duration-75"
                   style={{
                     width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%'
                   }}
@@ -139,15 +147,21 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           {/* Author info & Close */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <img 
-                src={currentStory.authorAvatar} 
-                alt={currentStory.authorName} 
-                className="w-9 h-9 rounded-full object-cover ring-2 ring-[#FFC20E]"
-              />
+              {currentStory.authorAvatar ? (
+                <img 
+                  src={currentStory.authorAvatar} 
+                  alt={currentStory.authorName} 
+                  className="w-9 h-9 rounded-full object-cover ring-2 ring-[#D4AF37]"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#1C1811] ring-2 ring-[#D4AF37] flex items-center justify-center text-xs font-black text-[#F5D77A]">
+                  {(currentStory.authorName || 'C').charAt(0).toUpperCase()}
+                </div>
+              )}
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-white text-xs font-bold leading-none">{currentStory.authorName}</span>
-                  <span className="text-[10px] bg-[#0F4C9C] text-white px-1.5 py-0.5 rounded-full font-bold">{currentStory.tag}</span>
+                  <span className="text-[10px] bg-[#D4AF37] text-[#080808] px-1.5 py-0.5 rounded-full font-bold">{currentStory.tag}</span>
                 </div>
                 <span className="text-white/70 text-[10px] font-medium">{currentStory.authorRole}</span>
               </div>

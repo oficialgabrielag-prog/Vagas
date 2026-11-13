@@ -26,8 +26,8 @@ export const HomeTrustStats: React.FC<HomeTrustStatsProps> = ({ stats }) => {
       label: 'Vagas Abertas',
       value: stats?.totalJobs ? `+${stats.totalJobs}` : '...',
       icon: Briefcase,
-      color: 'text-[#0F4C9C]',
-      bg: 'bg-[#0F4C9C]/5'
+      color: 'text-[#D4AF37]',
+      bg: 'bg-[#D4AF37]/5'
     },
     {
       label: 'Testes de Mérito',

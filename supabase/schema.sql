@@ -39,11 +39,19 @@ alter table public.profiles enable row level security;
 create policy "Profiles are viewable by everyone" 
 on public.profiles for select using (true);
 
-create policy "Users can insert their own profile" 
-on public.profiles for insert with check (auth.uid() = id);
+create policy "Users and admins can insert profile" 
+on public.profiles for insert with check (
+  auth.uid() = id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can update their own profile" 
-on public.profiles for update using (auth.uid() = id);
+create policy "Users and admins can update profile" 
+on public.profiles for update using (
+  auth.uid() = id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
 
 -- 1B. COMPANIES TABLE (DADOS EXCLUSIVOS DA EMPRESA - NUNCA SOBRESCREVEM O CANDIDATO)
@@ -73,14 +81,26 @@ alter table public.companies enable row level security;
 create policy "Companies are viewable by everyone" 
 on public.companies for select using (true);
 
-create policy "Users can insert their own company" 
-on public.companies for insert with check (auth.uid() = user_id);
+create policy "Users and admins can insert company" 
+on public.companies for insert with check (
+  auth.uid() = user_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can update their own company" 
-on public.companies for update using (auth.uid() = user_id);
+create policy "Users and admins can update company" 
+on public.companies for update using (
+  auth.uid() = user_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can delete their own company" 
-on public.companies for delete using (auth.uid() = user_id);
+create policy "Users and admins can delete company" 
+on public.companies for delete using (
+  auth.uid() = user_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
 
 -- 2. JOBS TABLE (PERTENCEM EXCLUSIVAMENTE À EMPRESA)
@@ -118,14 +138,26 @@ alter table public.jobs enable row level security;
 create policy "Jobs are viewable by everyone" 
 on public.jobs for select using (true);
 
-create policy "Employers can create jobs" 
-on public.jobs for insert with check (auth.uid() = employer_id);
+create policy "Employers and admins can create jobs" 
+on public.jobs for insert with check (
+  auth.uid() = employer_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Employers can update their own jobs" 
-on public.jobs for update using (auth.uid() = employer_id);
+create policy "Employers and admins can update jobs" 
+on public.jobs for update using (
+  auth.uid() = employer_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Employers can delete their own jobs" 
-on public.jobs for delete using (auth.uid() = employer_id);
+create policy "Employers and admins can delete jobs" 
+on public.jobs for delete using (
+  auth.uid() = employer_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
 
 -- 3. MARKETPLACE PRODUCTS TABLE (PERTENCEM EXCLUSIVAMENTE À EMPRESA/LOJA)
@@ -154,14 +186,26 @@ alter table public.marketplace_products enable row level security;
 create policy "Products are viewable by everyone" 
 on public.marketplace_products for select using (true);
 
-create policy "Users can insert their own products" 
-on public.marketplace_products for insert with check (auth.uid() = seller_id);
+create policy "Users and admins can insert products" 
+on public.marketplace_products for insert with check (
+  auth.uid() = seller_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can update their own products" 
-on public.marketplace_products for update using (auth.uid() = seller_id);
+create policy "Users and admins can update products" 
+on public.marketplace_products for update using (
+  auth.uid() = seller_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can delete their own products" 
-on public.marketplace_products for delete using (auth.uid() = seller_id);
+create policy "Users and admins can delete products" 
+on public.marketplace_products for delete using (
+  auth.uid() = seller_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
 
 -- 4. COMMUNITY POSTS TABLE (SEPARAÇÃO RIGOROSA: 'candidate' vs 'employer')
@@ -188,13 +232,23 @@ create policy "Posts are viewable by everyone"
 on public.community_posts for select using (true);
 
 create policy "Users can create posts" 
-on public.community_posts for insert with check (auth.uid() = author_id);
+on public.community_posts for insert with check (
+  auth.role() = 'authenticated' and auth.uid() = author_id
+);
 
-create policy "Users can update their own posts" 
-on public.community_posts for update using (auth.uid() = author_id);
+create policy "Users and admins can update posts" 
+on public.community_posts for update using (
+  auth.uid() = author_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
-create policy "Users can delete their own posts" 
-on public.community_posts for delete using (auth.uid() = author_id);
+create policy "Users and admins can delete posts" 
+on public.community_posts for delete using (
+  auth.uid() = author_id 
+  or 
+  exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+);
 
 
 -- 5. JOB APPLICATIONS TABLE

@@ -31,6 +31,123 @@ const safeSetItem = (key: string, value: string) => {
   }
 };
 
+let memoryPostsCache: CommunityPost[] | null = null;
+const recentlyCreatedPosts = new Map<string, { post: CommunityPost; savedAt: number }>();
+const RECENT_POST_TTL_MS = 180_000;
+let inFlightPostsFetch: Promise<CommunityPost[]> | null = null;
+let postsFetchEpoch = 0;
+
+const pruneExpiredRecentPosts = (deletedIds?: Set<string>) => {
+  const now = Date.now();
+  for (const [id, entry] of recentlyCreatedPosts.entries()) {
+    if (now - entry.savedAt > RECENT_POST_TTL_MS || deletedIds?.has(id)) {
+      recentlyCreatedPosts.delete(id);
+    }
+  }
+};
+
+const writePostsStorageSafely = (posts: CommunityPost[]) => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(posts));
+  } catch (e: any) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014 || (e.message && e.message.includes('exceeded')))) {
+      try {
+        const compact = posts.slice(0, 40).map((p) => {
+          const copy = { ...p };
+          if (typeof copy.image_url === 'string' && copy.image_url.startsWith('data:') && copy.image_url.length > 40_000) {
+            delete copy.image_url;
+          }
+          if (typeof copy.author_avatar === 'string' && copy.author_avatar.startsWith('data:') && copy.author_avatar.length > 20_000) {
+            delete copy.author_avatar;
+          }
+          return copy;
+        });
+        localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify(compact));
+      } catch {}
+    }
+  }
+};
+
+const DEFAULT_COMMUNITY_POSTS: CommunityPost[] = [
+  {
+    id: 'post-official-vdn-001',
+    author_id: 'vdn-official-id',
+    author_type: 'employer',
+    author_name: 'VDN — Vai Dar Namoro (Oficial)',
+    author_avatar: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=150',
+    company_id: 'comp-vdn-001',
+    category: 'Emprego',
+    content: '🎉 Seja bem-vindo à CuneneVagas — A maior rede de oportunidades profissionais, vagas de emprego e comércio local na Província do Cunene, Angola. Conecte-se com empresas, candidate-se a vagas e promova os seus serviços.',
+    likes_count: 42,
+    comments_count: 1,
+    comments: [
+      {
+        id: 'c-vdn-1',
+        post_id: 'post-official-vdn-001',
+        author_id: 'user-cand-1',
+        author_name: 'Osvaldo Ebo',
+        content: 'Excelente iniciativa para a nossa província do Cunene! Parabéns à equipa VDN.',
+        created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+      }
+    ],
+    reactions: {
+      'user-cand-1': 'like',
+      'user-cand-2': 'celebrate',
+      'user-cand-3': 'love'
+    },
+    created_at: new Date(Date.now() - 3600000 * 12).toISOString()
+  },
+  {
+    id: 'post-official-ondjiva-002',
+    author_id: 'padaria-ondjiva-id',
+    author_type: 'employer',
+    author_name: 'Padaria & Confeitaria Ondjiva',
+    author_avatar: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=150',
+    company_id: 'comp-padaria-001',
+    category: 'Empresas',
+    content: '🥖 A Padaria Ondjiva está a reforçar a sua equipa! Vagas abertas para atendentes de balcão e ajudantes de padaria com residência em Ondjiva. Submeta a sua candidatura no perfil da empresa.',
+    likes_count: 28,
+    comments_count: 0,
+    comments: [],
+    reactions: {
+      'user-cand-1': 'like'
+    },
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString()
+  },
+  {
+    id: 'post-official-merito-003',
+    author_id: 'merito-academico-id',
+    author_type: 'candidate',
+    author_name: 'Mérito Académico',
+    author_avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150',
+    category: 'Formação',
+    content: '🎓 Dica profissional para jovens e graduados em Ondjiva, Namacunde e Castanheira da Pêra: Realize os testes de aptidão no CuneneVagas. O certificado de Mérito Académico abre portas nas principais empresas contratantes!',
+    likes_count: 51,
+    comments_count: 0,
+    comments: [],
+    reactions: {
+      'user-cand-2': 'love'
+    },
+    created_at: new Date(Date.now() - 3600000 * 36).toISOString()
+  },
+  {
+    id: 'post-official-moveis-004',
+    author_id: 'moveis-cunene-id',
+    author_type: 'employer',
+    author_name: 'Móveis Cunene',
+    author_avatar: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=150',
+    company_id: 'comp-moveis-001',
+    category: 'Marketplace',
+    content: '🪑 Mobiliário de alta qualidade e decoração empresarial para o seu espaço no Cunene. Visite o Marketplace do CuneneVagas para conferir o nosso catálogo exclusivo.',
+    likes_count: 19,
+    comments_count: 0,
+    comments: [],
+    reactions: {},
+    created_at: new Date(Date.now() - 3600000 * 48).toISOString()
+  }
+];
+
 export const StoreService = {
   // Current User Session
   getCurrentUser(): UserProfile | null {
@@ -515,12 +632,20 @@ export const StoreService = {
     const { data, error } = await signInWithPassword(normalizedEmail, password);
     
     if (error) {
-      throw new Error(error.message || 'Palavra-passe incorreta ou dados de acesso inválidos. Verifique as suas credenciais.');
+      console.warn('Login auth warning:', error.message);
+      const lower = (error.message || '').toLowerCase();
+      if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+        throw new Error('Email ou palavra-passe incorretos. Verifica os teus dados e tenta novamente.');
+      }
+      if (lower.includes('email not confirmed')) {
+        throw new Error('Confirma o teu email antes de iniciar sessão.');
+      }
+      throw new Error('Não foi possível iniciar sessão. Verifica os teus dados e tenta novamente.');
     }
 
     const authUser = data.user;
     if (!authUser) {
-      throw new Error('Utilizador não encontrado no sistema de autenticação.');
+      throw new Error('Não foi possível localizar a tua conta. Tenta novamente.');
     }
 
     return (await this.restoreUserFromSession(authUser)) || this.getCurrentUser()!;
@@ -607,7 +732,8 @@ export const StoreService = {
           'Atenção: Já existe uma conta registada com este endereço de e-mail. Não é permitido criar mais de uma conta com o mesmo e-mail. Por favor, inicie sessão.'
         );
       }
-      throw new Error(error.message || 'Erro ao criar conta no Supabase.');
+      console.warn('Register auth warning:', error.message);
+      throw new Error('Não foi possível concluir o registo. Verifica os dados e tenta novamente.');
     }
 
     // No Supabase, se a conta já existe previamente em auth.users, identities vem vazio []
@@ -707,7 +833,8 @@ export const StoreService = {
   async resetPassword(email: string): Promise<void> {
     const { error } = await resetPasswordForEmail(email);
     if (error) {
-      throw new Error(error.message || 'Erro ao enviar email de recuperação.');
+      console.warn('Password reset warning:', error.message);
+      throw new Error('Não foi possível enviar o email de recuperação. Tenta novamente.');
     }
   },
 
@@ -1067,23 +1194,21 @@ export const StoreService = {
   async fetchCompanies(): Promise<UserProfile[]> {
     try {
       const allCompaniesMap = new Map<string, UserProfile>();
+      const isFakeCompanyId = (id?: string) =>
+        Boolean(id) && (
+          id!.startsWith('comp-cunene-') ||
+          id!.startsWith('comp-trans-') ||
+          id!.startsWith('comp-farmacia-') ||
+          id!.startsWith('comp-ombandja-') ||
+          id!.startsWith('comp-rainha-')
+        );
 
-      // 0. Always seed with default companies first so all browsers (Chrome, Firefox, Safari, Mobile) have a consistent baseline!
-      try {
-        const defaults = this.getDefaultCompanies();
-        defaults.forEach(c => {
-          if (c && c.id) {
-            allCompaniesMap.set(c.id, c);
-          }
-        });
-      } catch {}
-
-      // 1. Load existing locally cached companies
+      // 1. Load existing locally cached real companies (excluding legacy seeded fake IDs)
       try {
         const cached = this.getCompanies();
         if (Array.isArray(cached)) {
           cached.forEach(c => {
-            if (c && c.id) {
+            if (c && c.id && !isFakeCompanyId(c.id)) {
               allCompaniesMap.set(c.id, c);
             }
           });
@@ -1282,31 +1407,108 @@ export const StoreService = {
         // Skip companies table errors
       }
 
-      const results = Array.from(allCompaniesMap.values()).sort((a, b) => {
-        const isDefaultA = a.id.startsWith('comp-cunene-') || a.id.startsWith('comp-trans-') || a.id.startsWith('comp-farmacia-') || a.id.startsWith('comp-ombandja-') || a.id.startsWith('comp-rainha-');
-        const isDefaultB = b.id.startsWith('comp-cunene-') || b.id.startsWith('comp-trans-') || b.id.startsWith('comp-farmacia-') || b.id.startsWith('comp-ombandja-') || b.id.startsWith('comp-rainha-');
-        if (!isDefaultA && isDefaultB) return -1;
-        if (isDefaultA && !isDefaultB) return 1;
-        const timeA = new Date(a.created_at || 0).getTime();
-        const timeB = new Date(b.created_at || 0).getTime();
-        return timeB - timeA;
-      });
+      const results = Array.from(allCompaniesMap.values())
+        .filter((c) => c && c.id && !isFakeCompanyId(c.id))
+        .sort((a, b) => {
+          const timeA = new Date(a.created_at || 0).getTime();
+          const timeB = new Date(b.created_at || 0).getTime();
+          return timeB - timeA;
+        });
 
-      if (results.length === 0) {
-        return this.getDefaultCompanies();
-      }
-      
-      // Save valid found companies to local cache for offline/isolated browser resilience
+      // Save valid real companies to local cache (and purge any legacy fake seed entries)
       try {
-        if (results.length >= 3) {
-          safeSetItem(STORAGE_KEYS.COMPANIES, JSON.stringify(results));
-        }
+        safeSetItem(STORAGE_KEYS.COMPANIES, JSON.stringify(results));
       } catch {}
-      
+
       return results;
     } catch (e) {
       console.error('Fetch companies general error:', e);
       return this.getCompanies();
+    }
+  },
+
+  // Fetch real registered candidates from Supabase profiles & users (never fake profiles)
+  async fetchFeaturedCandidates(): Promise<UserProfile[]> {
+    try {
+      const candidatesMap = new Map<string, UserProfile>();
+
+      const addCandidateRecord = (p: any) => {
+        if (!p || !p.id) return;
+        const r = String(p.role || '').toLowerCase().trim();
+        const isEmployer = r === 'empresa' || r === 'employer' || r === 'admin';
+        const name = String(p.full_name || p.nome || '').trim();
+        if (isEmployer || name.length <= 1) return;
+
+        const existing = candidatesMap.get(p.id);
+        const rawSkills = Array.isArray(p.skills)
+          ? p.skills.filter(Boolean)
+          : existing?.skills || [];
+        const rawAvatar = String(p.avatar_url || p.photo_url || existing?.avatar_url || '').trim();
+        const cleanAvatar =
+          rawAvatar && rawAvatar !== 'null' && rawAvatar !== 'undefined' ? rawAvatar : '';
+        const competency =
+          String(p.profession || p.competency_area || p.area_atuacao || existing?.profession || '').trim() ||
+          (rawSkills[0] ? String(rawSkills[0]).trim() : '') ||
+          'Talento Multidisciplinar';
+
+        candidatesMap.set(p.id, {
+          id: p.id,
+          email: p.email || existing?.email || '',
+          full_name: name,
+          role: 'candidate',
+          avatar_url: cleanAvatar,
+          cover_url: p.cover_url || existing?.cover_url || '',
+          profession: competency,
+          municipality: p.municipality || p.municipio || existing?.municipality || 'Ondjiva',
+          phone: p.phone || existing?.phone || '',
+          whatsapp: p.whatsapp || existing?.whatsapp || '',
+          bio: p.bio || existing?.bio || '',
+          skills: rawSkills,
+          certificates: Array.isArray(p.certificates) ? p.certificates : (existing?.certificates || []),
+          experiences: Array.isArray(p.experiences) ? p.experiences : (existing?.experiences || []),
+          educations: Array.isArray(p.educations) ? p.educations : (existing?.educations || []),
+          cv_url: p.cv_url || existing?.cv_url || undefined,
+          created_at: p.created_at || existing?.created_at || new Date().toISOString()
+        });
+      };
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (profilesError) {
+        console.warn('Erro ao carregar candidatos em destaque (profiles):', profilesError.message);
+      } else if (Array.isArray(profilesData)) {
+        profilesData.forEach(addCandidateRecord);
+      }
+
+      try {
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (Array.isArray(usersData)) {
+          usersData.forEach(addCandidateRecord);
+        }
+      } catch {
+        // Ignore optional users table query errors
+      }
+
+      return Array.from(candidatesMap.values()).sort((a, b) => {
+        const scoreA =
+          (a.avatar_url ? 2 : 0) +
+          (a.profession && a.profession !== 'Talento Multidisciplinar' ? 1 : 0);
+        const scoreB =
+          (b.avatar_url ? 2 : 0) +
+          (b.profession && b.profession !== 'Talento Multidisciplinar' ? 1 : 0);
+        return scoreB - scoreA;
+      });
+    } catch (e) {
+      console.warn('Erro ao carregar candidatos em destaque:', e);
+      return [];
     }
   },
 
@@ -1315,10 +1517,21 @@ export const StoreService = {
       const raw = localStorage.getItem(STORAGE_KEYS.COMPANIES);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (c: any) =>
+              c &&
+              c.id &&
+              !String(c.id).startsWith('comp-cunene-') &&
+              !String(c.id).startsWith('comp-trans-') &&
+              !String(c.id).startsWith('comp-farmacia-') &&
+              !String(c.id).startsWith('comp-ombandja-') &&
+              !String(c.id).startsWith('comp-rainha-')
+          );
+        }
       }
     } catch {}
-    return this.getDefaultCompanies();
+    return [];
   },
 
   getDefaultCompanies(): UserProfile[] {
@@ -1624,48 +1837,53 @@ export const StoreService = {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         return localProducts.filter(p => !deletedProductIds.has(p.id));
       }
 
-      const remoteProds = data.map(rp => {
-        const rawDesc = rp.descricao || rp.description || '';
-        let cat = rp.categoria || rp.category || 'Outros';
-        let mun = rp.municipio || rp.municipality || 'Ondjiva';
-        let tel = rp.telefone || rp.contact_phone || '+244 923 000 000';
-        let cleanDesc = rawDesc;
+      const remoteProds = data
+        .filter(rp => rp && rp.id && !deletedProductIds.has(rp.id))
+        .map(rp => {
+          const rawDesc = rp.descricao || rp.description || '';
+          let cat = rp.categoria || rp.category || 'Outros';
+          let mun = rp.municipio || rp.municipality || 'Ondjiva';
+          let tel = rp.telefone || rp.contact_phone || '+244 923 000 000';
+          let cleanDesc = rawDesc;
 
-        // Extract metadata JSON if encoded in description
-        const metaMatch = rawDesc.match(/<!--META:([\s\S]*?)-->/);
-        if (metaMatch) {
-          try {
-            const parsed = JSON.parse(metaMatch[1]);
-            if (parsed.cat) cat = parsed.cat;
-            if (parsed.mun) mun = parsed.mun;
-            if (parsed.tel) tel = parsed.tel;
-            cleanDesc = rawDesc.replace(metaMatch[0], '').trim();
-          } catch {}
-        }
+          // Extract metadata JSON if encoded in description
+          const metaMatch = rawDesc.match(/<!--META:([\s\S]*?)-->/);
+          if (metaMatch) {
+            try {
+              const parsed = JSON.parse(metaMatch[1]);
+              if (parsed.cat) cat = parsed.cat;
+              if (parsed.mun) mun = parsed.mun;
+              if (parsed.tel) tel = parsed.tel;
+              cleanDesc = rawDesc.replace(metaMatch[0], '').trim();
+            } catch {}
+          }
 
-        const finalStatus = rp.status || 'available';
+          const rawStatus = String(rp.status || '').toLowerCase().trim();
+          const isExplicitSold = rawStatus === 'sold' || rawStatus === 'vendido';
+          const isExplicitInactive = rawStatus === 'inactive' || rawStatus === 'inativo' || rp.is_active === false || rp.ativo === false;
+          const finalStatus = isExplicitSold ? 'sold' : 'available';
 
-        return {
-          id: rp.id,
-          seller_id: rp.company_id || rp.seller_id || rp.user_id || '',
-          company_id: rp.company_id || undefined,
-          title: rp.titulo || rp.title || 'Produto',
-          description: cleanDesc,
-          price: Number(rp.preco || rp.price || 0),
-          currency: 'AOA',
-          category: cat as any,
-          municipality: mun,
-          contact_phone: tel,
-          image_url: rp.imagem_url || rp.image_url || undefined,
-          status: finalStatus,
-          is_active: finalStatus === 'available',
-          created_at: rp.created_at || new Date().toISOString()
-        } as MarketplaceProduct;
-      });
+          return {
+            id: rp.id,
+            seller_id: rp.company_id || rp.seller_id || rp.user_id || '',
+            company_id: rp.company_id || undefined,
+            title: rp.titulo || rp.title || 'Produto',
+            description: cleanDesc,
+            price: Number(rp.preco || rp.price || 0),
+            currency: 'AOA',
+            category: cat as any,
+            municipality: mun,
+            contact_phone: tel,
+            image_url: rp.imagem_url || rp.image_url || undefined,
+            status: finalStatus,
+            is_active: !isExplicitSold && !isExplicitInactive,
+            created_at: rp.created_at || new Date().toISOString()
+          } as MarketplaceProduct;
+        });
 
       const remoteIds = new Set(remoteProds.map(p => p.id));
       const localOnly = localProducts.filter(p => !remoteIds.has(p.id) && !deletedProductIds.has(p.id) && !p.id?.startsWith('prod-fake'));
@@ -2086,10 +2304,10 @@ export const StoreService = {
   async applyToJob(jobId: string, candidate: CandidateProfile, coverLetter?: string, cvUrl?: string): Promise<JobApplication> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(jobId)) {
-      throw new Error('A vaga selecionada não possui um identificador UUID válido no Supabase.');
+      throw new Error('Esta vaga não está disponível para candidatura neste momento.');
     }
     if (!uuidRegex.test(candidate.id)) {
-      throw new Error('O perfil do candidato não possui um identificador UUID válido no Supabase.');
+      throw new Error('Inicia sessão com a tua conta de candidato para te candidatares.');
     }
 
     // 1. Garantir que o candidato existe na tabela public.candidates (evitando erro de foreign key candidates_id_fkey)
@@ -2142,7 +2360,8 @@ export const StoreService = {
       }).eq('id', existing.id);
 
       if (error) {
-        throw new Error('Erro ao atualizar candidatura no Supabase: ' + error.message);
+        console.warn('Erro ao atualizar candidatura:', error.message);
+        throw new Error('Não foi possível atualizar a tua candidatura. Tenta novamente.');
       }
 
       const updated = apps.map(a => a.id === existing.id ? updatedExisting : a);
@@ -2178,7 +2397,7 @@ export const StoreService = {
     const { error } = await supabase.from('applications').insert([dbPayload]);
     if (error) {
       console.error('DEBUG: Erro ao persistir candidatura no Supabase:', error);
-      throw new Error('Erro ao persistir candidatura no Supabase: ' + error.message);
+      throw new Error('Não foi possível enviar a candidatura neste momento. Tenta novamente.');
     }
     console.log('DEBUG: Candidatura persistida com sucesso:', dbPayload.id);
 
@@ -2495,109 +2714,225 @@ export const StoreService = {
     return currentAvatar || '';
   },
 
-  // Community Posts (Fonte de Verdade: SUPABASE + Cache Local para Performance)
-  async fetchPosts(): Promise<CommunityPost[]> {
-    const localPosts = this.getPosts();
+  commitPostsCache(rawPosts: CommunityPost[]): CommunityPost[] {
     const activeUserId = this.getCurrentUser()?.id || this.getVisitorId();
     const deletedPostIds = this.getDeletedIds('posts');
+    pruneExpiredRecentPosts(deletedPostIds);
 
-    try {
-      // Consultar exclusivamente 'community_posts' (Fonte Oficial)
-      const { data, error } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false });
-
-      if (error || !data || data.length === 0) {
-        return localPosts.filter(p => !deletedPostIds.has(p.id));
-      }
-
-      const rawPosts = data;
-
-      // Unificar por id e excluir posts apagados
-      const uniqueRemoteMap = new Map<string, any>();
-      rawPosts.forEach(p => {
-        if (p && p.id && !uniqueRemoteMap.has(p.id) && !deletedPostIds.has(p.id)) {
-          uniqueRemoteMap.set(p.id, p);
-        }
+    const map = new Map<string, CommunityPost>();
+    for (const p of rawPosts) {
+      if (!p || !p.id || deletedPostIds.has(p.id)) continue;
+      const existing = map.get(p.id);
+      const reactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions))
+        ? p.reactions
+        : (existing?.reactions || {});
+      const postImg = p.image_url || (p as any).imagem_url || (p as any).media_url || (p as any).image || existing?.image_url;
+      const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar || existing?.author_avatar);
+      map.set(p.id, {
+        ...(existing || {}),
+        ...p,
+        image_url: postImg || undefined,
+        author_avatar: resolvedAvatar || undefined,
+        reactions,
+        likes_count: typeof p.likes_count === 'number'
+          ? Math.max(p.likes_count, Object.keys(reactions).length)
+          : Object.keys(reactions).length,
+        user_reaction: p.user_reaction || (activeUserId && reactions[activeUserId] ? reactions[activeUserId] : undefined)
       });
+    }
 
-      const postsData = Array.from(uniqueRemoteMap.values());
-      const localMap = new Map(localPosts.map(lp => [lp.id, lp]));
+    for (const [id, entry] of recentlyCreatedPosts.entries()) {
+      if (!deletedPostIds.has(id) && !map.has(id)) {
+        const p = entry.post;
+        const reactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
+        map.set(id, {
+          ...p,
+          reactions,
+          likes_count: typeof p.likes_count === 'number' ? Math.max(p.likes_count, Object.keys(reactions).length) : Object.keys(reactions).length,
+          user_reaction: p.user_reaction || (activeUserId && reactions[activeUserId] ? reactions[activeUserId] : undefined)
+        });
+      }
+    }
 
-      // Ensure all posts have the necessary structure and preserve user reaction
-      const remotePosts = postsData.map(p => {
-        const local = localMap.get(p.id);
-        const remoteReactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
-        const localReactions = (local?.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions)) ? local.reactions : {};
-        const combinedReactions = { ...remoteReactions, ...localReactions };
+    const sorted = Array.from(map.values()).sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+    memoryPostsCache = sorted;
+    writePostsStorageSafely(sorted);
+    return sorted;
+  },
 
-        if (local && local.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions) && activeUserId) {
-          if (local.reactions[activeUserId]) {
-            combinedReactions[activeUserId] = local.reactions[activeUserId];
-          } else {
-            delete combinedReactions[activeUserId];
+  cacheLocalPost(post: CommunityPost): void {
+    const deletedPostIds = this.getDeletedIds('posts');
+    if (!post || !post.id || deletedPostIds.has(post.id)) return;
+    postsFetchEpoch++;
+    recentlyCreatedPosts.set(post.id, { post, savedAt: Date.now() });
+    const current = this.getPosts().filter(p => p.id !== post.id);
+    const updated = this.commitPostsCache([post, ...current]);
+    const committed = updated.find(p => p.id === post.id) || post;
+    try {
+      const myPostIds = JSON.parse(localStorage.getItem('my_created_post_ids') || '[]');
+      if (!myPostIds.includes(post.id)) {
+        safeSetItem('my_created_post_ids', JSON.stringify([...myPostIds, post.id]));
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cunene_post_added', { detail: committed }));
+      }
+    } catch {}
+  },
+
+  // Community Posts (Fonte de Verdade: SUPABASE 'community_posts' + suplemento 'feed_publico' + Cache em Memória/Local)
+  async fetchPosts(): Promise<CommunityPost[]> {
+    if (inFlightPostsFetch) {
+      return inFlightPostsFetch;
+    }
+
+    const runFetch = async (): Promise<CommunityPost[]> => {
+      const startEpoch = postsFetchEpoch;
+      const activeUserId = this.getCurrentUser()?.id || this.getVisitorId();
+      const deletedPostIds = this.getDeletedIds('posts');
+
+      try {
+        // Consultar SEMPRE 'community_posts' como fonte primária para garantir posts novos, reações e comentários,
+        // e complementar com 'feed_publico' caso tenha itens adicionais.
+        const [communityRes, feedRes] = await Promise.allSettled([
+          supabase
+            .from('community_posts')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(60),
+          supabase
+            .from('feed_publico')
+            .select('id,tipo,author_id,author_type,author_name,author_avatar,company_id,titulo,content,image_url,category,likes_count,comments_count,created_at')
+            .order('created_at', { ascending: false })
+            .limit(30)
+        ]);
+
+        // Re-ler o estado local mais recente APÓS a resposta da rede para não perder posts publicados durante o carregamento
+        const latestLocalPosts = this.getPosts();
+        const latestDeletedIds = this.getDeletedIds('posts');
+        pruneExpiredRecentPosts(latestDeletedIds);
+
+        const uniqueRemoteMap = new Map<string, any>();
+
+        if (communityRes.status === 'fulfilled' && !communityRes.value.error && Array.isArray(communityRes.value.data)) {
+          communityRes.value.data.forEach(p => {
+            if (p && p.id && !latestDeletedIds.has(p.id)) {
+              uniqueRemoteMap.set(p.id, p);
+            }
+          });
+        }
+
+        if (feedRes.status === 'fulfilled' && !feedRes.value.error && Array.isArray(feedRes.value.data)) {
+          feedRes.value.data.forEach(item => {
+            if (item && item.id && !uniqueRemoteMap.has(item.id) && !latestDeletedIds.has(item.id)) {
+              uniqueRemoteMap.set(item.id, {
+                ...item,
+                content: item.content || item.titulo || '',
+                category: item.category || 'Comunidade'
+              });
+            }
+          });
+        }
+
+        if (uniqueRemoteMap.size === 0) {
+          const validLocal = latestLocalPosts.filter(p => !latestDeletedIds.has(p.id));
+          if (validLocal.length === 0) {
+            return this.commitPostsCache(DEFAULT_COMMUNITY_POSTS.filter(p => !latestDeletedIds.has(p.id)));
+          }
+          return this.commitPostsCache(validLocal);
+        }
+
+        const postsData = Array.from(uniqueRemoteMap.values());
+        const localMap = new Map(latestLocalPosts.map(lp => [lp.id, lp]));
+
+        // Ensure all posts have the necessary structure and preserve user reaction
+        const remotePosts = postsData.map(p => {
+          const local = localMap.get(p.id);
+          const remoteReactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
+          const localReactions = (local?.reactions && typeof local.reactions === 'object' && !Array.isArray(local.reactions)) ? local.reactions : {};
+          const combinedReactions = { ...remoteReactions, ...localReactions };
+
+          const userReaction = (activeUserId && combinedReactions[activeUserId])
+            ? combinedReactions[activeUserId]
+            : (local?.user_reaction || undefined);
+
+          const rawRemoteLikes = typeof p.likes_count === 'number' ? p.likes_count : 0;
+          const rawLocalLikes = typeof local?.likes_count === 'number' ? local.likes_count : 0;
+          const reactionsCount = Object.keys(combinedReactions).length;
+          const finalLikesCount = Math.max(rawRemoteLikes, rawLocalLikes, reactionsCount);
+
+          const finalImageUrl = p.image_url || (p as any).imagem_url || (p as any).media_url || (p as any).image || local?.image_url || (local as any)?.imagem_url || (local as any)?.media_url;
+          const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar || local?.author_avatar);
+
+          return {
+            ...p,
+            image_url: finalImageUrl || undefined,
+            author_avatar: resolvedAvatar || undefined,
+            comments: Array.isArray(p.comments) && p.comments.length >= (local?.comments?.length || 0) ? p.comments : (local?.comments || []),
+            reactions: combinedReactions,
+            likes_count: finalLikesCount,
+            comments_count: typeof p.comments_count === 'number' ? Math.max(p.comments_count, local?.comments_count || 0) : (Array.isArray(p.comments) ? p.comments.length : (local?.comments_count || 0)),
+            user_reaction: userReaction
+          };
+        }) as CommunityPost[];
+
+        // Merge: preserve remote posts + recent posts within grace window + any local-only posts not deleted
+        const remoteIds = new Set(remotePosts.map(p => p.id));
+        const recentNotRemote: CommunityPost[] = [];
+        for (const [id, entry] of recentlyCreatedPosts.entries()) {
+          if (!remoteIds.has(id) && !latestDeletedIds.has(id)) {
+            recentNotRemote.push(entry.post);
           }
         }
+        const recentIds = new Set(recentNotRemote.map(p => p.id));
+        const localOnly = latestLocalPosts.filter(
+          p => !remoteIds.has(p.id) && !recentIds.has(p.id) && !latestDeletedIds.has(p.id)
+        );
+        let merged = [...remotePosts, ...recentNotRemote, ...localOnly];
 
-        const userReaction = activeUserId ? combinedReactions[activeUserId] : undefined;
-
-        let finalLikesCount = typeof p.likes_count === 'number' ? p.likes_count : 0;
-        if (local && typeof local.likes_count === 'number') {
-          finalLikesCount = local.likes_count;
+        if (merged.length === 0) {
+          merged = DEFAULT_COMMUNITY_POSTS.filter(p => !latestDeletedIds.has(p.id));
         }
-        finalLikesCount = Math.max(finalLikesCount, Object.keys(combinedReactions).length);
 
-        const finalImageUrl = p.image_url || (p as any).imagem_url || (p as any).media_url || (p as any).image || local?.image_url || (local as any)?.imagem_url || (local as any)?.media_url;
-        const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar || local?.author_avatar);
+        void startEpoch;
+        return this.commitPostsCache(merged);
+      } catch {
+        const validLocal = this.getPosts().filter(p => !deletedPostIds.has(p.id));
+        if (validLocal.length === 0) {
+          return this.commitPostsCache(DEFAULT_COMMUNITY_POSTS.filter(p => !deletedPostIds.has(p.id)));
+        }
+        return this.commitPostsCache(validLocal);
+      } finally {
+        inFlightPostsFetch = null;
+      }
+    };
 
-        return {
-          ...p,
-          image_url: finalImageUrl || undefined,
-          author_avatar: resolvedAvatar || undefined,
-          comments: Array.isArray(p.comments) ? p.comments : (local?.comments || []),
-          reactions: combinedReactions,
-          likes_count: finalLikesCount,
-          comments_count: typeof p.comments_count === 'number' ? p.comments_count : (Array.isArray(p.comments) ? p.comments.length : (local?.comments_count || 0)),
-          user_reaction: userReaction
-        };
-      }) as CommunityPost[];
-
-      // Merge: preserve all remote posts + any local posts that might not be synced yet
-      const remoteIds = new Set(remotePosts.map(p => p.id));
-      const localOnly = localPosts.filter(p => !remoteIds.has(p.id) && !deletedPostIds.has(p.id));
-      const merged = [...remotePosts, ...localOnly];
-
-      safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(merged));
-      return merged;
-    } catch {
-      return localPosts.filter(p => !deletedPostIds.has(p.id));
-    }
+    inFlightPostsFetch = runFetch();
+    return inFlightPostsFetch;
   },
 
   getPosts(): CommunityPost[] {
-    const raw = localStorage.getItem(STORAGE_KEYS.POSTS);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      const activeUserId = this.getCurrentUser()?.id || this.getVisitorId();
-      return parsed.map(p => {
-        const reactions = (p.reactions && typeof p.reactions === 'object' && !Array.isArray(p.reactions)) ? p.reactions : {};
-        const postImg = p.image_url || p.imagem_url || p.media_url || p.image;
-        const resolvedAvatar = this.resolveAuthorAvatar(p.author_id, p.author_avatar);
-        const userReaction = activeUserId ? reactions[activeUserId] : undefined;
-        const likesCount = typeof p.likes_count === 'number' ? Math.max(p.likes_count, Object.keys(reactions).length) : Object.keys(reactions).length;
-
-        return {
-          ...p,
-          image_url: postImg || undefined,
-          author_avatar: resolvedAvatar || undefined,
-          reactions,
-          likes_count: likesCount,
-          user_reaction: userReaction
-        };
-      });
-    } catch {
-      return [];
+    if (memoryPostsCache !== null) {
+      return this.commitPostsCache(memoryPostsCache);
     }
+
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.POSTS) : null;
+    let rawList: any[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          rawList = parsed;
+        }
+      } catch {}
+    }
+
+    if (rawList.length === 0) {
+      rawList = DEFAULT_COMMUNITY_POSTS;
+    }
+
+    return this.commitPostsCache(rawList as CommunityPost[]);
   },
 
   async addPost(postData: Omit<CommunityPost, 'id' | 'created_at' | 'likes_count' | 'comments_count'>): Promise<CommunityPost> {
@@ -2616,10 +2951,18 @@ export const StoreService = {
       created_at: new Date().toISOString()
     };
 
-    // 1. Optimistic Update (Immediate display and persistence)
-    const posts = this.getPosts();
-    const updated = [newPost, ...posts];
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
+    // 1. Optimistic Update (Autoritativo em memória + persistência segura)
+    postsFetchEpoch++;
+    recentlyCreatedPosts.set(newPost.id, { post: newPost, savedAt: Date.now() });
+    const posts = this.getPosts().filter(p => p.id !== newPost.id);
+    const committed = this.commitPostsCache([newPost, ...posts]);
+    const finalPost = committed.find(p => p.id === newPost.id) || newPost;
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cunene_post_added', { detail: finalPost }));
+      }
+    } catch {}
 
     try {
       const myPostIds = JSON.parse(localStorage.getItem('my_created_post_ids') || '[]');
@@ -2715,7 +3058,10 @@ export const StoreService = {
 
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
+    this.commitPostsCache(updatedPosts);
+    if (recentlyCreatedPosts.has(postId)) {
+      recentlyCreatedPosts.set(postId, { post: updatedPost, savedAt: Date.now() });
+    }
     
     try {
       await supabase.from('community_posts').update({ poll: updatedPost.poll }).eq('id', postId);
@@ -2734,7 +3080,7 @@ export const StoreService = {
 
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = targetPost;
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
+    this.commitPostsCache(updatedPosts);
 
     try {
       await supabase.from('community_posts').update({ reports_count: targetPost.reports_count }).eq('id', postId);
@@ -2768,21 +3114,21 @@ export const StoreService = {
     }
 
     const reactions = { ...(targetPost.reactions || {}) };
-    const previousReaction = reactions[activeUserId];
+    const current = reactions[activeUserId];
 
     let currentLikes = typeof targetPost.likes_count === 'number' ? targetPost.likes_count : Object.keys(reactions).length;
 
-    if (previousReaction === reactionType) {
-      // User is UNLIKING / Removing reaction
+    // Regra: UM utilizador só pode ter UMA reação por post.
+    // Ao tocar novamente na reação ativa: remover a reação e diminuir like.
+    if (current === reactionType) {
       delete reactions[activeUserId];
-      if (previousReaction) {
-        currentLikes = Math.max(0, currentLikes - 1);
-      }
+      currentLikes = Math.max(0, currentLikes - 1);
     } else {
-      // User is ADDING or CHANGING reaction
-      if (!previousReaction) {
+      if (!current) {
+        // Nova reação adicionada
         currentLikes = currentLikes + 1;
       }
+      // Alterna o tipo de reação (ex: like -> love)
       reactions[activeUserId] = reactionType;
     }
 
@@ -2799,8 +3145,11 @@ export const StoreService = {
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
 
-    // 1. Optimistic Update instantâneo no localStorage
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updatedPosts));
+    // 1. Optimistic Update instantâneo em memória + localStorage
+    this.commitPostsCache(updatedPosts);
+    if (recentlyCreatedPosts.has(postId)) {
+      recentlyCreatedPosts.set(postId, { post: updatedPost, savedAt: Date.now() });
+    }
 
     // 2. Persist in Supabase
     try {
@@ -2827,11 +3176,6 @@ export const StoreService = {
     } catch (err) {
       console.warn('Sincronização de reação falhou no servidor:', err);
     }
-
-    // Disparar evento customizado para reatividade global instantânea
-    try {
-      window.dispatchEvent(new CustomEvent('cunene_post_updated', { detail: { post: updatedPost } }));
-    } catch {}
 
     return updatedPost;
   },
@@ -2868,7 +3212,10 @@ export const StoreService = {
     
     const newPosts = [...posts];
     newPosts[postIndex] = targetPost;
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(newPosts));
+    this.commitPostsCache(newPosts);
+    if (recentlyCreatedPosts.has(postId)) {
+      recentlyCreatedPosts.set(postId, { post: targetPost, savedAt: Date.now() });
+    }
 
     // 2. Persist in Supabase
     const { error } = await supabase.from('community_posts').update({ 
@@ -2960,14 +3307,16 @@ export const StoreService = {
       }
       return p;
     });
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
+    this.commitPostsCache(updated);
   },
 
   deletePost(postId: string): void {
+    postsFetchEpoch++;
+    recentlyCreatedPosts.delete(postId);
     this.addDeletedId('posts', postId);
     const posts = this.getPosts();
     const updated = posts.filter(p => p.id !== postId);
-    safeSetItem(STORAGE_KEYS.POSTS, JSON.stringify(updated));
+    this.commitPostsCache(updated);
 
     supabase.from('community_posts').delete().eq('id', postId).then(({ error }) => {
       if (error) console.log('Supabase community_posts delete note:', error.message);
@@ -3827,6 +4176,135 @@ export const StoreService = {
     const updated = list.map(p => p.id === paymentId ? { ...p, status: 'rejected' as const } : p);
     safeSetItem('vagas_cunene_manual_payments', JSON.stringify(updated));
     return updated;
+  },
+
+  // ==========================================
+  // IMPLEMENTAÇÃO DO FEED REAL — CUNENEVAGAS
+  // ==========================================
+  async carregarFeed() {
+    const { data, error } = await supabase
+      .from('feed_publico')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Erro ao carregar feed:', error);
+      throw error;
+    }
+
+    return data || [];
+  },
+
+  async publicarNaComunidade({
+    texto,
+    imagemUrl = null,
+    categoria = 'Comunidade'
+  }: {
+    texto: string;
+    imagemUrl?: string | null;
+    categoria?: string;
+  }) {
+    const { data: authData, error: authError } =
+      await supabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      throw new Error('Utilizador não autenticado.');
+    }
+
+    const user = authData.user;
+
+    const { data: perfil, error: perfilError } = await supabase
+      .from('profiles')
+      .select('full_name, role, avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    if (perfilError) throw perfilError;
+
+    const authorType =
+      perfil.role === 'empresa' ? 'empresa' : 'candidato';
+
+    const { data, error } = await supabase
+      .from('community_posts')
+      .insert({
+        author_id: user.id,
+        author_type: authorType,
+        author_name: perfil.full_name,
+        author_avatar: perfil.avatar_url,
+        content: texto,
+        image_url: imagemUrl,
+        category: categoria
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  },
+
+  async publicarProduto({
+    titulo,
+    descricao,
+    preco,
+    imagemUrl
+  }: {
+    titulo: string;
+    descricao: string;
+    preco: number | string;
+    imagemUrl?: string | null;
+  }) {
+    const { data: authData, error: authError } =
+      await supabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      throw new Error('Inicia sessão para publicar.');
+    }
+
+    const { data, error } = await supabase
+      .from('marketplace')
+      .insert({
+        company_id: authData.user.id,
+        titulo,
+        descricao,
+        preco: Number(preco),
+        imagem_url: imagemUrl
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data;
+  },
+
+  observarFeed(atualizarFeed: () => void) {
+    const channel = supabase
+      .channel('cunenevagas-feed')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'community_posts'
+        },
+        atualizarFeed
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'marketplace'
+        },
+        atualizarFeed
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }
 };
 

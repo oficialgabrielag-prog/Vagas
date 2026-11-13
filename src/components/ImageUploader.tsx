@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Trash2, Loader2, AlertCircle, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import { uploadToCloudinary } from '../lib/cloudinary';
+import { toUserErrorMessage } from '../lib/errorMessages';
 
 export type ImageUploaderContext = 
   | 'candidate-avatar'
@@ -82,7 +83,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     } catch (err: any) {
       setUploading(false);
-      setErrorMsg(err.message || 'Não foi possível carregar a imagem. Tente novamente.');
+      setErrorMsg(toUserErrorMessage(err, 'Não foi possível carregar a imagem. Tente novamente.'));
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -108,7 +109,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
         {label && <label className="text-xs font-bold text-slate-700">{label}</label>}
         
         <div className="relative group cursor-pointer" onClick={handleTriggerClick}>
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center shadow-xs transition group-hover:border-[#0F4C9C]">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center shadow-xs transition group-hover:border-[#D4AF37]">
             {displayImage ? (
               <img src={displayImage} alt="Avatar/Logo" className="w-full h-full object-cover" />
             ) : (
@@ -132,7 +133,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                 e.stopPropagation();
                 handleTriggerClick();
               }}
-              className="absolute bottom-0 right-0 p-2 bg-[#0F4C9C] text-white rounded-full shadow-md group-hover:bg-[#0c3c7d] hover:scale-110 active:scale-95 transition cursor-pointer z-10"
+              className="absolute bottom-0 right-0 p-2 bg-[#D4AF37] text-white rounded-full shadow-md group-hover:bg-[#F5D77A] hover:scale-110 active:scale-95 transition cursor-pointer z-10"
               title={displayImage ? 'Alterar imagem' : 'Adicionar imagem'}
             >
               <Camera className="w-3.5 h-3.5" />
@@ -156,7 +157,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           type="button"
           onClick={handleTriggerClick}
           disabled={disabled || uploading}
-          className="text-xs font-bold text-[#0F4C9C] hover:underline"
+          className="text-xs font-bold text-[#D4AF37] hover:underline"
         >
           {displayImage ? (context === 'company-logo' ? 'Alterar Logótipo' : 'Alterar Fotografia') : (context === 'company-logo' ? 'Adicionar Logótipo' : 'Adicionar Fotografia')}
         </button>
@@ -194,7 +195,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
         <div
           onClick={handleTriggerClick}
-          className="relative w-full h-36 sm:h-44 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#0F4C9C] bg-slate-100 overflow-hidden cursor-pointer transition flex items-center justify-center group"
+          className="relative w-full h-36 sm:h-44 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#D4AF37] bg-slate-100 overflow-hidden cursor-pointer transition flex items-center justify-center group"
         >
           {displayImage ? (
             <>
@@ -215,7 +216,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           {uploading && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-2xs flex flex-col items-center justify-center text-white gap-2">
               <Loader2 className="w-7 h-7 animate-spin text-[#FFC20E]" />
-              <span className="text-xs font-bold">Enviando imagem para a nuvem...</span>
+              <span className="text-xs font-bold">A carregar fotografia...</span>
             </div>
           )}
 
@@ -284,16 +285,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           type="button"
           onClick={handleTriggerClick}
           disabled={disabled || uploading}
-          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-[#0F4C9C] bg-slate-50/50 hover:bg-blue-50/30 text-slate-600 hover:text-[#0F4C9C] transition flex items-center justify-center gap-2 text-xs font-bold"
+          className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-[#D4AF37] bg-slate-50/50 hover:bg-blue-50/30 text-slate-600 hover:text-[#D4AF37] transition flex items-center justify-center gap-2 text-xs font-bold"
         >
           {uploading ? (
             <>
-              <Loader2 className="w-4 h-4 animate-spin text-[#0F4C9C]" />
+              <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
               <span>A carregar fotografia...</span>
             </>
           ) : (
             <>
-              <ImageIcon className="w-4 h-4 text-[#0F4C9C]" />
+              <ImageIcon className="w-4 h-4 text-[#D4AF37]" />
               <span>Adicionar Fotografia</span>
             </>
           )}
