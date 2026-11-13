@@ -10,6 +10,7 @@ import { VerticalReactionsPicker, REACTIONS_CONFIG } from '../components/Vertica
 import { soundEffects } from '../lib/soundEffects';
 import { useLazyRenderList } from '../lib/useLazyRenderList';
 import { useCommunityFeed } from '../lib/useCommunityFeed';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 
 function formatTimeAgo(dateString: string): string {
   try {
@@ -423,21 +424,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
       {currentUser ? (
         <div className="py-4 border-b border-[#D4AF37]/15 space-y-3 bg-transparent">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#D4AF37] text-slate-950 rounded-full flex items-center justify-center font-black text-sm shrink-0 overflow-hidden border border-[#D4AF37]/40">
-              {currentUser.role === 'employer' ? (
-                currentUser.company?.logo_url ? (
-                  <img src={currentUser.company.logo_url} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  (currentUser.company?.name || currentUser.full_name).charAt(0)
-                )
-              ) : (
-                currentUser.avatar_url ? (
-                  <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  currentUser.full_name.charAt(0)
-                )
-              )}
-            </div>
+            <ProfileAvatar user={currentUser} size="md" />
             <div className="flex-1 min-w-0">
               <span className="font-extrabold text-[#F5D77A] block text-xs truncate">
                 {currentUser.role === 'employer' ? (currentUser.company?.name || currentUser.company_name || currentUser.full_name) : currentUser.full_name}
@@ -602,13 +589,13 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({
                     className="flex items-center gap-3 cursor-pointer group hover:opacity-90 transition select-none min-w-0"
                     title={`Ver perfil de ${authorDisplayName}`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#16140F] border border-[#D4AF37]/30 text-[#F5D77A] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
-                      {authorDisplayAvatar ? (
-                        <img src={authorDisplayAvatar} alt={authorDisplayName} loading="lazy" className="w-full h-full object-cover" />
-                      ) : (
-                        authorDisplayName.charAt(0)
-                      )}
-                    </div>
+                    <ProfileAvatar 
+                      userId={post.author_id} 
+                      avatarUrl={authorDisplayAvatar} 
+                      name={authorDisplayName} 
+                      role={isEmpPost ? 'employer' : 'candidate'} 
+                      size="md" 
+                    />
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">

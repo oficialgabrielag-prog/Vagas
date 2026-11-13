@@ -6,6 +6,7 @@ import { toUserErrorMessage } from '../lib/errorMessages';
 import { supabase } from '../lib/supabase';
 import { AnimatedBrandLogo } from '../components/AnimatedBrandLogo';
 import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
+import { atualizarConsentimentoMarketing } from '../lib/emailPreferences';
 
 interface RegisterPageProps {
   onRegisterSuccess: (user: UserProfile) => void;
@@ -24,6 +25,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(true);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -104,6 +106,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
         role,
         companyName.trim()
       );
+
+      // Guardar preferência de marketing na tabela email_preferences
+      try {
+        await atualizarConsentimentoMarketing(marketingOptIn);
+      } catch (optErr) {
+        console.warn('Alerta: Não foi possível registar preferência de email inicial:', optErr);
+      }
 
       // Usuário entra imediatamente na plataforma sem necessidade de confirmação de e-mail
       onRegisterSuccess(user);
@@ -281,6 +290,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+          </div>
+
+          {/* Consentimento de Marketing */}
+          <div className="flex items-start gap-2.5 pt-1">
+            <input
+              type="checkbox"
+              id="marketing_opt_in"
+              checked={marketingOptIn}
+              onChange={e => setMarketingOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#D4AF37] focus:ring-[#D4AF37] cursor-pointer"
+            />
+            <label htmlFor="marketing_opt_in" className="text-xs text-slate-600 leading-snug cursor-pointer select-none">
+              Desejo receber avisos de novas vagas, ofertas e novidades da CuneneVagas por email.
+            </label>
           </div>
 
           <button

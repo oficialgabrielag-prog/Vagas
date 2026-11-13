@@ -13,6 +13,7 @@ import {
   requestPushNotificationPermission, 
   sendNativePushNotification 
 } from '../lib/pushNotifications';
+import { atualizarConsentimentoMarketing, obterConsentimentoMarketing } from '../lib/emailPreferences';
 
 export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClose, onProfileUpdated }) => {
   const [currentUser, setCurrentUser] = useState(initialUser || StoreService.getCurrentUser());
@@ -34,6 +35,36 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
 
   // Native Push Status
   const [pushStatus, setPushStatus] = useState(() => getPushNotificationPermission());
+
+  // Email Marketing Preferences (email_preferences)
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [loadingMarketing, setLoadingMarketing] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      obterConsentimentoMarketing(currentUser.id).then(setMarketingConsent).catch(() => {});
+    }
+  }, [currentUser?.id]);
+
+  const handleToggleMarketing = async () => {
+    setLoadingMarketing(true);
+    try {
+      const next = !marketingConsent;
+      await atualizarConsentimentoMarketing(next);
+      setMarketingConsent(next);
+      setStatusMessage({
+        type: 'success',
+        text: next ? 'Subscrição de marketing por email ativada com sucesso!' : 'Subscrição de marketing desativada.'
+      });
+    } catch (err) {
+      setStatusMessage({
+        type: 'error',
+        text: toUserErrorMessage(err, 'Não foi possível alterar a preferência de email.')
+      });
+    } finally {
+      setLoadingMarketing(false);
+    }
+  };
 
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -617,6 +648,49 @@ export const EditarPerfilCandidato = ({ currentUser: initialUser, isOpen, onClos
                   <span>Disparar Notificação de Teste</span>
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* 5. Comunicações e Marketing por Email */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#D4AF37]" />
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+                  Comunicações & Oportunidades por Email
+                </h3>
+              </div>
+              <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                marketingConsent ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {marketingConsent ? '✓ Subscrito' : 'Não Subscrito'}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Aceito receber avisos de novas vagas, oportunidades de emprego, dicas profissionais e novidades da plataforma CuneneVagas no meu endereço de email.
+            </p>
+
+            <div className="pt-1">
+              <button
+                type="button"
+                disabled={loadingMarketing}
+                onClick={handleToggleMarketing}
+                className={`text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-95 ${
+                  marketingConsent
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-[#D4AF37] hover:bg-[#F5D77A] text-white'
+                } ${loadingMarketing ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Mail className="w-4 h-4" />
+                <span>
+                  {loadingMarketing
+                    ? 'A atualizar preferência...'
+                    : marketingConsent
+                    ? 'Cancelar Subscrição de Marketing'
+                    : 'Aceitar e Receber Emails de Oportunidades'}
+                </span>
+              </button>
             </div>
           </div>
 

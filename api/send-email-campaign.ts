@@ -109,19 +109,46 @@ export default async function handler(req: any, res: any) {
     }
 
     // O RPC só devolve utilizadores com marketing_opt_in = true.
+    let validRecipients: any[] = [];
     const { data: recipients, error: recipientsError } =
       await supabase.rpc("admin_get_email_campaign_recipients", {
         p_target_audience: targetAudience
       });
 
-    if (recipientsError) throw recipientsError;
+    if (!recipientsError && Array.isArray(recipients)) {
+      validRecipients = recipients.filter(
+        (r: any) =>
+          r.user_id &&
+          typeof r.email === "string" &&
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)
+      );
+    } else {
+      // Fallback resiliente: consultar diretamente a tabela email_preferences caso o RPC ainda não esteja registado
+      console.warn("RPC admin_get_email_campaign_recipients indisponível, usando consulta à tabela email_preferences:", recipientsError?.message);
+      const { data: optIns, error: optErr } = await supabase
+        .from("email_preferences")
+        .select("user_id")
+        .eq("marketing_opt_in", true);
 
-    const validRecipients = (recipients || []).filter(
-      (r: any) =>
-        r.user_id &&
-        typeof r.email === "string" &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)
-    );
+      if (!optErr && optIns && optIns.length > 0) {
+        const uids = optIns.map((o: any) => o.user_id).filter(Boolean);
+        let query = supabase.from("profiles").select("id, email, role").in("id", uids);
+        if (targetAudience === "candidates") {
+          query = query.neq("role", "empresa").neq("role", "employer");
+        } else if (targetAudience === "employers") {
+          query = query.or("role.eq.empresa,role.eq.employer");
+        }
+        const { data: profilesData } = await query;
+        validRecipients = (profilesData || [])
+          .filter((p: any) => p && p.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email))
+          .map((p: any) => ({
+            user_id: p.id,
+            email: p.email
+          }));
+      } else if (recipientsError && recipientsError.code !== "42883") {
+        throw recipientsError;
+      }
+    }
 
     if (validRecipients.length === 0) {
       await supabase

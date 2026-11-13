@@ -4,6 +4,7 @@ import { UserProfile } from '../lib/types';
 import { StoreService } from '../lib/store';
 import { toUserErrorMessage } from '../lib/errorMessages';
 import { verifyRecaptchaAction, getRecaptchaSiteKey, loadRecaptchaScript } from '../lib/recaptcha';
+import { atualizarConsentimentoMarketing } from '../lib/emailPreferences';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -93,6 +95,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         }
 
         user = await StoreService.registerWithSupabase(cleanEmail, password, fullName || cleanEmail.split('@')[0], role, companyName);
+        try {
+          await atualizarConsentimentoMarketing(marketingOptIn);
+        } catch (mErr) {
+          console.warn('Alerta: Erro ao registar consentimento de marketing inicial:', mErr);
+        }
       } else {
         const captchaResult = await verifyRecaptchaAction('login');
         if (!captchaResult.success) {
@@ -267,6 +274,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]"
                   />
                 </div>
+              </div>
+            )}
+
+            {authMode === 'register' && (
+              <div className="flex items-start gap-2 pt-0.5">
+                <input
+                  type="checkbox"
+                  id="modal_marketing_opt_in"
+                  checked={marketingOptIn}
+                  onChange={e => setMarketingOptIn(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#D4AF37] focus:ring-[#D4AF37] cursor-pointer"
+                />
+                <label htmlFor="modal_marketing_opt_in" className="text-[11px] text-slate-600 leading-snug cursor-pointer select-none">
+                  Desejo receber avisos de vagas e oportunidades profissionais por email.
+                </label>
               </div>
             )}
 

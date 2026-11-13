@@ -124,6 +124,44 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
 
+  // Preferências de Marketing por Email (email_preferences)
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [loadingMarketingConsent, setLoadingMarketingConsent] = useState(false);
+  const [marketingConsentFeedback, setMarketingConsentFeedback] = useState('');
+  const [marketingConsentError, setMarketingConsentError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    StoreService.obterConsentimentoMarketing(currentUser.id)
+      .then(consent => {
+        if (mounted) setMarketingConsent(consent);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [currentUser.id]);
+
+  const handleToggleMarketingConsent = async (newValue: boolean) => {
+    setLoadingMarketingConsent(true);
+    setMarketingConsentFeedback('');
+    setMarketingConsentError('');
+    try {
+      await StoreService.atualizarConsentimentoMarketing(newValue);
+      setMarketingConsent(newValue);
+      setMarketingConsentFeedback(
+        newValue
+          ? 'Subscrição confirmada! Passará a receber novidades e oportunidades.'
+          : 'Preferência atualizada. Não receberá emails promocionais.'
+      );
+      setTimeout(() => setMarketingConsentFeedback(''), 4000);
+    } catch (err: any) {
+      console.warn('Erro ao atualizar consentimento de marketing:', err);
+      setMarketingConsentError(toUserErrorMessage(err, 'Não foi possível atualizar a preferência de email.'));
+      setTimeout(() => setMarketingConsentError(''), 4000);
+    } finally {
+      setLoadingMarketingConsent(false);
+    }
+  };
+
   // Gestão de Parceiros Oficiais pelo Admin
   const [partners, setPartners] = useState<PlatformPartner[]>(() => StoreService.getPartners());
   const [partnerMentionSearch, setPartnerMentionSearch] = useState('');
@@ -2137,6 +2175,60 @@ Data de Emissão: ${timestamp}
             <div><label className="block text-xs font-semibold text-slate-700 mb-1">Biografia</label><textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" /></div>
             <button type="submit" className="w-full bg-[#D4AF37] text-white font-semibold py-3 rounded-xl text-sm transition shadow">Guardar Alterações</button>
           </form>
+
+          {/* Comunicações & Marketing por Email (email_preferences) */}
+          <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Mail className="w-4 h-4 text-[#D4AF37]" /> Comunicações & Marketing por Email
+            </h4>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Escolha se deseja receber comunicações sobre novas ofertas de emprego, produtos do marketplace e novidades da comunidade no Cunene.
+            </p>
+
+            {marketingConsentFeedback && (
+              <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-medium flex items-center gap-2 animate-fadeIn">
+                <Check className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{marketingConsentFeedback}</span>
+              </div>
+            )}
+            {marketingConsentError && (
+              <div className="bg-rose-50 text-rose-700 p-3 rounded-xl text-xs font-medium animate-fadeIn">
+                {marketingConsentError}
+              </div>
+            )}
+
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-slate-900 block">
+                  Aceito receber campanhas e atualizações informativas por email
+                </span>
+                <span className="text-[11px] text-slate-500 block">
+                  {marketingConsent
+                    ? '✓ Subscrição ativa: recebe novidades e oportunidades relevantes.'
+                    : '✗ Subscrição inativa: apenas receberá emails estritamente operacionais.'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                disabled={loadingMarketingConsent}
+                onClick={() => handleToggleMarketingConsent(!marketingConsent)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  marketingConsent ? 'bg-[#D4AF37]' : 'bg-slate-300'
+                } ${loadingMarketingConsent ? 'opacity-50 cursor-not-allowed' : ''}`}
+                role="switch"
+                aria-checked={marketingConsent}
+                title="Alternar consentimento de marketing"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    marketingConsent ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
 
           {/* Alterar Palavra-passe */}
           <div className="mt-8 pt-6 border-t border-slate-200 space-y-4">

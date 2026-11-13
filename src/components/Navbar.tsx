@@ -28,6 +28,7 @@ import { UserProfile } from "../lib/types";
 import { StoreService } from "../lib/store";
 import { isInsideAPKApp, APK_DOWNLOAD_URL } from "../lib/apkUtils";
 import { PWAInstallButton } from "./PWAInstallButton";
+import { ProfileAvatar } from "./ProfileAvatar";
 
 export interface NavbarProps {
   user?: UserProfile | null;
@@ -267,23 +268,16 @@ export function Navbar({
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  className="cv-avatar-button"
+                <div
                   onClick={handleProfileClick}
+                  className="cv-avatar-button cursor-pointer"
+                  role="button"
+                  tabIndex={0}
                   aria-label="Meu perfil"
                   title={isEmployer ? "Perfil da Empresa" : "Perfil do Candidato"}
                 >
-                  {avatarUrl && !avatarError ? (
-                    <img
-                      src={avatarUrl}
-                      alt={displayName}
-                      onError={() => setAvatarError(true)}
-                    />
-                  ) : (
-                    <UserRound size={23} />
-                  )}
-                </button>
+                  <ProfileAvatar user={resolvedProfile} userId={resolvedProfile?.id} size="md" />
+                </div>
 
                 <button
                   type="button"
